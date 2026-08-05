@@ -1,0 +1,15 @@
+flowchart LR
+    public["ssrf-lite<br/>Authoritative public RF data"]
+    private["user-ssrf-private<br/>Private RF additions and overrides"]
+    profiles["user-codeplugger-profiles<br/>Radio profiles and preferences"]
+    merge["Resolve and validate inputs"]
+    codeplugger["codeplugger<br/>Generate CPS import"]
+    cps["neonplug / DM32 CPS"]
+    radio["DM32 radio"]
+
+    public --> merge
+    private --> merge
+    profiles --> codeplugger
+    merge --> codeplugger
+    codeplugger --> cps
+    cps --> radio
