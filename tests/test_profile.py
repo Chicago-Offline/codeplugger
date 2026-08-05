@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from codeplugger.profile import ProfileValidationError, load_and_validate_profile
+from codeplugger.resolved import ResolvedTones, resolve_codeplug
 
 
 def _write_profile(path: Path, assignments: list[str]) -> None:
@@ -206,3 +207,97 @@ def test_profile_rejects_assignment_without_rf_data() -> None:
                 [root / "ssrf"],
                 radio_root=root / "radios",
             )
+
+
+def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_two", "asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"].update(
+            {"ctcss_tx_hz": 100.0, "ctcss_rx_hz": 123.0}
+        )
+        data["rf_chains"][0]["rx"]["freq_mhz"] = 146.34
+        data["rf_chains"][0]["tx"]["freq_mhz"] = 146.94
+        data["rf_chains"][1]["tx"].pop("freq_mhz")
+        data["assignments"][0].update(
+            {"channel_name": "Channel one", "service": "amateur"}
+        )
+        data["assignments"][1]["channel_name"] = "Channel two"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        overlay = root / "overlay" / "overrides"
+        overlay.mkdir(parents=True)
+        (overlay / "notes.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "ssrf_lite_version": "0.5.3",
+                    "overrides": {
+                        "assignments": [
+                            {
+                                "id": "asg_two",
+                                "patch": {"notes": "Overlay note"},
+                            }
+                        ]
+                    },
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf", root / "overlay"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.radio_id == "test_radio"
+    assert [channel.assignment_id for channel in resolved.channels] == [
+        "asg_two",
+        "asg_one",
+    ]
+    assert [channel.display_name for channel in resolved.channels] == [
+        "Channel two",
+        "Channel one",
+    ]
+    assert resolved.channels[0].rx_frequency_mhz == 446.0
+    assert resolved.channels[0].tx_frequency_mhz is None
+    assert resolved.channels[0].tx_permitted is False
+    assert resolved.channels[0].notes == "Overlay note"
+    assert resolved.channels[1].rx_frequency_mhz == 146.94
+    assert resolved.channels[1].tx_frequency_mhz == 146.34
+    assert resolved.channels[1].service == "amateur"
+    assert resolved.channels[1].tones == ResolvedTones(
+        ctcss_tx_hz=100.0,
+        ctcss_rx_hz=123.0,
+    )
+    assert resolved.zones[0].channel_references == ("asg_two", "asg_one")
+
+
+def test_resolved_codeplug_output_is_repeatable() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one", "asg_two"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        first = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+        second = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert first.to_json() == second.to_json()
+    assert first.to_yaml() == second.to_yaml()
+    assert json.loads(first.to_json()) == yaml.safe_load(first.to_yaml())
