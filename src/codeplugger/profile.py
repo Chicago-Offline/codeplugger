@@ -66,14 +66,14 @@ def _assignment_channel_counts(
     return channel_counts, ambiguous
 
 
-def load_and_validate_profile(
+def _load_and_validate_profile(
     profile_path: Path,
     ssrf_roots: Sequence[Path],
     *,
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
-) -> dict[str, Any]:
-    """Load a profile and validate its schema, references, and radio limits."""
+) -> tuple[dict[str, Any], Sequence[Any]]:
+    """Load a profile and its validated, overlay-resolved SSRF documents."""
 
     profile = _load_mapping(profile_path)
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -146,6 +146,24 @@ def load_and_validate_profile(
             f"profile expands to {total_channels} channels; "
             f"radio limit is {limits['max_channels']}"
         )
+    return profile, documents
+
+
+def load_and_validate_profile(
+    profile_path: Path,
+    ssrf_roots: Sequence[Path],
+    *,
+    schema_path: Path = DEFAULT_SCHEMA_PATH,
+    radio_root: Path = DEFAULT_RADIO_ROOT,
+) -> dict[str, Any]:
+    """Load a profile and validate its schema, references, and radio limits."""
+
+    profile, _ = _load_and_validate_profile(
+        profile_path,
+        ssrf_roots,
+        schema_path=schema_path,
+        radio_root=radio_root,
+    )
     return profile
 
 
@@ -160,16 +178,37 @@ def main() -> int:
         help="SSRF root in precedence order; repeat for overlays",
     )
     parser.add_argument("--radio-root", type=Path, default=DEFAULT_RADIO_ROOT)
+    parser.add_argument(
+        "--output-format",
+        choices=("summary", "json", "yaml"),
+        default="summary",
+        help="inspection output format (default: summary)",
+    )
     args = parser.parse_args()
 
     try:
-        profile = load_and_validate_profile(
-            args.profile,
-            args.ssrf_root,
-            radio_root=args.radio_root,
-        )
+        if args.output_format == "summary":
+            profile = load_and_validate_profile(
+                args.profile,
+                args.ssrf_root,
+                radio_root=args.radio_root,
+            )
+        else:
+            from .resolved import resolve_codeplug
+
+            codeplug = resolve_codeplug(
+                args.profile,
+                args.ssrf_root,
+                radio_root=args.radio_root,
+            )
     except (OSError, ProfileValidationError, ValueError) as exc:
         parser.exit(1, f"error: {exc}\n")
+    if args.output_format == "json":
+        print(codeplug.to_json(), end="")
+        return 0
+    if args.output_format == "yaml":
+        print(codeplug.to_yaml(), end="")
+        return 0
     assignment_count = sum(len(zone["assignments"]) for zone in profile["zones"])
     print(
         f"Validated profile '{profile['id']}': "

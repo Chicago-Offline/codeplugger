@@ -133,3 +133,19 @@ uv run codeplugger-profile path/to/profile.yml \
   --ssrf-root ../ssrf-lite/ssrf \
   --ssrf-root ../chioff-ssrf-private/ssrf
 ```
+
+Inspect the normalized, exporter-neutral codeplug as deterministic YAML or
+JSON:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-private/ssrf \
+  --output-format yaml
+```
+
+The normalized model contains ordered channels and zones, radio-facing RX/TX
+frequencies, mode, service, analog tones, overlay-resolved notes, and explicit
+TX permission. It intentionally excludes scan lists, contacts, DMR identities,
+button settings, and NeonPlug fields; exporters translate this stable model
+without participating in input resolution.
