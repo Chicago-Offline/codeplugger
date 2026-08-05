@@ -52,6 +52,7 @@ class ResolvedCodeplug:
     """Exporter-neutral representation of a selected radio profile."""
 
     radio_id: str
+    radio_instance_id: str
     channels: tuple[ResolvedChannel, ...]
     zones: tuple[ResolvedZone, ...]
 
@@ -219,6 +220,7 @@ def resolve_codeplug(
 
     return ResolvedCodeplug(
         radio_id=profile["radio"],
+        radio_instance_id=profile.get("radio_instance", profile["id"]),
         channels=tuple(channels),
         zones=tuple(zones),
     )

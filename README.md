@@ -113,6 +113,7 @@ version: "0.1"
 id: "dm32_reference"
 name: "DM-32 reference"
 radio: "baofeng_dm32"
+radio_instance: "dm32_reference_01"
 zones:
   - id: "reference"
     name: "Reference"
@@ -121,7 +122,12 @@ zones:
       - "asg_wx1"
 ```
 
-Profiles contain selection and ordering policy, not RF facts or per-user radio
+`radio` identifies the radio model and `radio_instance` identifies the specific
+physical radio receiving the generated codeplug. The instance ID is arbitrary
+but stable, such as `dm32_green_01` or `d01`. Profiles that omit it retain
+backward compatibility by using their profile `id` as the instance ID.
+
+Profiles contain selection and ordering policy, not RF facts or per-user DMR
 identities. Display-name or RF changes belong in an SSRF overlay. Version `0.1`
 intentionally excludes selectors, scan lists, contacts, button mappings, and
 exporter settings until the explicit-ID workflow is proven end to end.

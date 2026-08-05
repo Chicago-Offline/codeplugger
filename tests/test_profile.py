@@ -19,6 +19,7 @@ def _write_profile(path: Path, assignments: list[str]) -> None:
                 "id": "test_profile",
                 "name": "Test profile",
                 "radio": "test_radio",
+                "radio_instance": "dm32_green_01",
                 "zones": [
                     {
                         "id": "reference",
@@ -116,6 +117,30 @@ def test_profile_resolves_ordered_assignment_ids() -> None:
         )
 
     assert loaded["zones"][0]["assignments"] == ["asg_one", "asg_two"]
+    assert loaded["radio_instance"] == "dm32_green_01"
+
+
+def test_resolved_codeplug_defaults_instance_to_profile_id() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        profile_data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        del profile_data["radio_instance"]
+        profile.write_text(
+            yaml.safe_dump(profile_data, sort_keys=False),
+            encoding="utf-8",
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.radio_instance_id == "test_profile"
 
 
 def test_profile_rejects_unknown_assignment() -> None:
@@ -257,6 +282,7 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
         )
 
     assert resolved.radio_id == "test_radio"
+    assert resolved.radio_instance_id == "dm32_green_01"
     assert [channel.assignment_id for channel in resolved.channels] == [
         "asg_two",
         "asg_one",

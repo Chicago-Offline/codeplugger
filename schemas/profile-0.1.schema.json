@@ -11,6 +11,7 @@
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
     "name": { "type": "string", "minLength": 1 },
     "radio": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+    "radio_instance": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
     "zones": {
       "type": "array",
       "minItems": 1,
