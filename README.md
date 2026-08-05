@@ -9,8 +9,8 @@ Baofeng DM-32, with room to support other radios and CPS tools later.
 ```mermaid
 flowchart LR
     public["ssrf-lite<br/>Authoritative public RF data"]
-    private["user-ssrf-private<br/>Private RF additions and overrides"]
-    profiles["user-codeplugger-profiles<br/>Radio profiles and preferences"]
+  private["SSRF overlay<br/>chioff fixture or private user data"]
+  profiles["Codeplugger profile<br/>chioff fixture or user preferences"]
     merge["Resolve and validate inputs"]
     codeplugger["codeplugger<br/>Generate CPS import"]
     cps["neonplug / DM32 CPS"]
@@ -30,9 +30,15 @@ The diagram source is also available in [docs/workflow.mmd](docs/workflow.mmd).
 
 - **`ssrf-lite`** is the authoritative source for shareable RF facts: channel
   plans, repeaters, stations, talkgroups, and their schema.
+- **[`chioff-ssrf-private`](https://github.com/Chicago-Offline/chioff-ssrf-private)**
+  is a public reference overlay. It models the structure and merge behavior of
+  a private SSRF repository using only public or synthetic fixture data.
 - **`username-ssrf-private`** contains private RF records and explicit
   overrides of `ssrf-lite`, such as local names, unpublished channels, or
   user-specific grouping metadata.
+- **[`chioff-codeplugger-profiles`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles)**
+  contains public reference profiles for Chicago Offline radios and provides
+  realistic inputs for end-to-end integration tests.
 - **`username-codeplugger-profiles`** contains radio and output preferences:
   channel selection, zones, scan lists, button assignments, display settings,
   and per-radio variants.
@@ -58,18 +64,29 @@ Inputs should be merged deterministically:
 Generated codeplugs should not become an authoritative data source. Changes
 should flow back into SSRF data or the selected profile and then be regenerated.
 
-## Do profiles need a separate repository?
+## Reference and user repositories
 
-Eventually, yes. RF data describes what exists; a profile describes what a
-particular person wants programmed into a particular radio. Keeping those
-concerns separate makes profiles reusable across SSRF dataset updates and
-avoids mixing device settings into an RF schema.
+RF data describes what exists; a profile describes what a person wants
+programmed into a particular radio. Keeping those concerns separate makes
+profiles reusable across SSRF dataset updates and avoids mixing device
+settings into an RF schema.
 
-A separate profiles repository does not need to be created immediately. Until
-the profile format stabilizes, sample profiles can live in this repository and
-real private profiles can live in the user's private SSRF repository. Split
-them into `username-codeplugger-profiles` once there is a useful schema and a
-working generator to exercise it.
+The two `chioff-*` repositories form a public reference configuration for
+integration testing:
+
+```text
+ssrf-lite + chioff-ssrf-private + chioff-codeplugger-profiles -> codeplugger
+```
+
+Despite its name, `chioff-ssrf-private` is public: "private" describes its role
+as an overlay in the merge model. Real user repositories may follow the same
+layout while remaining private. Public fixtures must not contain personal
+identities, unpublished frequencies, credentials, location-sensitive records,
+or exports from real radios.
+
+Small synthetic fixtures should remain in this repository for fast,
+deterministic unit tests. The `chioff-*` repositories are intended for broader
+cross-repository contract and end-to-end tests.
 
 ## Initial scope
 
