@@ -101,3 +101,35 @@ The directories in this repository are intended to evolve along these lines:
 
 - `radios/`: radio capabilities, constraints, and exporter-specific mappings.
 - `profiles/`: public examples and fixtures, not real user secrets.
+
+## Profile format
+
+Profile version `0.1` selects ordered SSRF assignments by stable ID and groups
+them into ordered zones for one target radio:
+
+```yaml
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "dm32_reference"
+name: "DM-32 reference"
+radio: "baofeng_dm32"
+zones:
+  - id: "reference"
+    name: "Reference"
+    assignments:
+      - "asg_fixture_reference_simplex"
+      - "asg_wx1"
+```
+
+Profiles contain selection and ordering policy, not RF facts or per-user radio
+identities. Display-name or RF changes belong in an SSRF overlay. Version `0.1`
+intentionally excludes selectors, scan lists, contacts, button mappings, and
+exporter settings until the explicit-ID workflow is proven end to end.
+
+Validate a profile against authoritative data, overlays, and radio limits:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-private/ssrf
+```

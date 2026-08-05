@@ -1,0 +1,9 @@
+{
+  "id": "baofeng_dm32",
+  "name": "Baofeng DM-32",
+  "limits": {
+    "max_channels": 4000,
+    "max_zones": 250,
+    "max_channels_per_zone": 250
+  }
+}
