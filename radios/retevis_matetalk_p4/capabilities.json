@@ -1,0 +1,9 @@
+{
+  "id": "retevis_matetalk_p4",
+  "name": "Retevis MateTalk P4",
+  "limits": {
+    "max_channels": 256,
+    "max_zones": 16,
+    "max_channels_per_zone": 16
+  }
+}
