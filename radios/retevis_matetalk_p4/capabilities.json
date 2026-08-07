@@ -1,9 +1,20 @@
 {
   "id": "retevis_matetalk_p4",
   "name": "Retevis MateTalk P4",
+  "capabilities_version": "0.2",
   "limits": {
     "max_channels": 256,
     "max_zones": 16,
     "max_channels_per_zone": 16
-  }
+  },
+  "bands": [
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 470.0
+    }
+  ],
+  "modes": ["FM", "DMR"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "UHF-only: the radio has no VHF band, so MURS (151/154 MHz) and 2m cannot be programmed. Bandwidth is selectable wide/narrow; the Features page of the user manual states 'Wideband/Narrowband Selectable'."
 }
