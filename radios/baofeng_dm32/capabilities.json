@@ -1,9 +1,26 @@
 {
   "id": "baofeng_dm32",
   "name": "Baofeng DM-32",
+  "capabilities_version": "0.2",
   "limits": {
     "max_channels": 4000,
     "max_zones": 250,
-    "max_channels_per_zone": 250
-  }
+    "max_channels_per_zone": 250,
+    "max_scan_lists": 32
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 480.0
+    }
+  ],
+  "modes": ["FM", "DMR"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "Dual-band VHF/UHF, so it can carry MURS (151/154 MHz) as well as GMRS. Band edges and scan-list count cross-checked against qdmr's DM32UVLimits (lib/dm32uv_limits.cc), which declares 136-174 and 400-480 MHz and a narrow/wide bandwidth enum."
 }

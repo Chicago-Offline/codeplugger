@@ -13,6 +13,9 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "profile-0.1.schema.json"
+DEFAULT_CAPABILITIES_SCHEMA_PATH = (
+    PROJECT_ROOT / "schemas" / "capabilities-0.2.schema.json"
+)
 DEFAULT_RADIO_ROOT = PROJECT_ROOT / "radios"
 
 
@@ -66,6 +69,98 @@ def _assignment_channel_counts(
     return channel_counts, ambiguous
 
 
+def _band_label(band: Mapping[str, Any]) -> str:
+    name = band.get("name")
+    span = f"{band['min_mhz']}-{band['max_mhz']} MHz"
+    return f"{name} ({span})" if name else span
+
+
+def _frequency_in_bands(
+    freq_mhz: float, bands: Sequence[Mapping[str, Any]], *, transmit: bool
+) -> bool:
+    """True when the frequency falls inside any usable band.
+
+    A band marked ``rx_only`` satisfies receive checks but never transmit
+    checks.
+    """
+
+    for band in bands:
+        if transmit and band.get("rx_only", False):
+            continue
+        if band["min_mhz"] <= freq_mhz <= band["max_mhz"]:
+            return True
+    return False
+
+
+def _check_radio_support(
+    capabilities: Mapping[str, Any],
+    documents: Sequence[Any],
+    selected: set[str],
+) -> None:
+    """Verify selected channels are physically usable on the target radio.
+
+    Each check is skipped when the corresponding capability is absent, so an
+    incomplete capabilities file degrades to today's behavior instead of
+    producing false failures.
+    """
+
+    bands = capabilities.get("bands")
+    modes = capabilities.get("modes")
+    bandwidths = capabilities.get("bandwidths_khz")
+    if not (bands or modes or bandwidths):
+        return
+
+    radio_name = capabilities["name"]
+    mode_set = {str(mode).upper() for mode in modes} if modes else None
+
+    for document in documents:
+        reference = document.reference
+        chains = {chain.id: chain for chain in reference.rf_chains}
+        for assignment in reference.assignments:
+            if assignment.id not in selected:
+                continue
+            chain = chains.get(assignment.rf_chain_id)
+            if chain is None:
+                continue
+            label = assignment.channel_name or assignment.id
+
+            if bands:
+                endpoints = []
+                if getattr(chain, "rx", None) is not None:
+                    endpoints.append(("RX", chain.rx.freq_mhz, False))
+                if getattr(chain, "tx", None) is not None:
+                    endpoints.append(("TX", chain.tx.freq_mhz, True))
+                for direction, freq_mhz, transmit in endpoints:
+                    if freq_mhz is None:
+                        continue
+                    if not _frequency_in_bands(freq_mhz, bands, transmit=transmit):
+                        supported = ", ".join(_band_label(band) for band in bands)
+                        raise ProfileValidationError(
+                            f"channel '{label}' {direction} {freq_mhz} MHz is "
+                            f"outside the bands supported by {radio_name} "
+                            f"({supported})"
+                        )
+
+            mode = getattr(getattr(chain, "mode", None), "type", None)
+            if mode_set and mode and str(mode).upper() not in mode_set:
+                raise ProfileValidationError(
+                    f"channel '{label}' uses mode {mode}, which "
+                    f"{radio_name} does not support "
+                    f"({', '.join(sorted(mode_set))})"
+                )
+
+            if bandwidths and getattr(chain, "tx", None) is not None:
+                bandwidth_khz = getattr(chain.tx, "bandwidth_khz", None)
+                if bandwidth_khz is not None and not any(
+                    abs(bandwidth_khz - supported) < 1e-6 for supported in bandwidths
+                ):
+                    allowed = ", ".join(str(value) for value in bandwidths)
+                    raise ProfileValidationError(
+                        f"channel '{label}' uses {bandwidth_khz} kHz bandwidth, "
+                        f"which {radio_name} does not support ({allowed} kHz)"
+                    )
+
+
 def _load_and_validate_profile(
     profile_path: Path,
     ssrf_roots: Sequence[Path],
@@ -91,6 +186,18 @@ def _load_and_validate_profile(
     if not radio_path.is_file():
         raise ProfileValidationError(f"unknown radio '{radio_id}'")
     capabilities = json.loads(radio_path.read_text(encoding="utf-8"))
+    if DEFAULT_CAPABILITIES_SCHEMA_PATH.is_file():
+        capabilities_schema = json.loads(
+            DEFAULT_CAPABILITIES_SCHEMA_PATH.read_text(encoding="utf-8")
+        )
+        capability_errors = sorted(
+            Draft202012Validator(capabilities_schema).iter_errors(capabilities),
+            key=lambda error: list(error.path),
+        )
+        if capability_errors:
+            raise ProfileValidationError(
+                f"{radio_path}: {_format_schema_errors(capability_errors)}"
+            )
 
     try:
         from ssrf import resolve_ssrf_roots
@@ -146,6 +253,8 @@ def _load_and_validate_profile(
             f"profile expands to {total_channels} channels; "
             f"radio limit is {limits['max_channels']}"
         )
+
+    _check_radio_support(capabilities, documents, selected)
     return profile, documents
 
 

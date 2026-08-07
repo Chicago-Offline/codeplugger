@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/capabilities-0.2.schema.json",
+  "title": "Codeplugger radio capabilities",
+  "description": "Describes what a target radio can physically accept. Scoped to facts a generator needs in order to decide whether a profile will fit and work on the radio, not to model the radio's full feature set.",
+  "type": "object",
+  "required": ["id", "name", "limits"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable radio identifier; must match the containing directory name.",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable radio name.",
+      "minLength": 1
+    },
+    "capabilities_version": {
+      "type": "string",
+      "description": "Schema version this document targets.",
+      "const": "0.2"
+    },
+    "limits": {
+      "type": "object",
+      "description": "Hard structural limits enforced against a resolved profile.",
+      "required": ["max_channels", "max_zones", "max_channels_per_zone"],
+      "additionalProperties": false,
+      "properties": {
+        "max_channels": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total channels the radio can store."
+        },
+        "max_zones": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zones the radio can store. 0 means the radio has no zone concept."
+        },
+        "max_channels_per_zone": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Channels a single zone can hold."
+        },
+        "max_scan_lists": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Scan lists the radio can store. Omit when unknown."
+        },
+        "max_contacts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Contacts the radio can store. Omit when unknown."
+        },
+        "max_dmr_ids": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Distinct DMR radio IDs the radio can store."
+        }
+      }
+    },
+    "bands": {
+      "type": "array",
+      "description": "Frequency ranges the radio can tune, in MHz. A channel whose RX or TX frequency falls outside every listed band cannot work on this radio. Omit when unknown; validation is then skipped rather than assumed.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["min_mhz", "max_mhz"],
+        "additionalProperties": false,
+        "properties": {
+          "min_mhz": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Inclusive lower bound in MHz."
+          },
+          "max_mhz": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Inclusive upper bound in MHz."
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional label, e.g. 'VHF' or 'UHF'."
+          },
+          "rx_only": {
+            "type": "boolean",
+            "default": false,
+            "description": "Radio can receive but not transmit in this range (e.g. a broadcast or airband RX span)."
+          }
+        }
+      }
+    },
+    "modes": {
+      "type": "array",
+      "description": "Channel modes the radio supports. Omit when unknown; validation is then skipped.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["FM", "DMR"]
+      }
+    },
+    "bandwidths_khz": {
+      "type": "array",
+      "description": "Analog FM channel bandwidths the radio supports, in kHz. Omit when unknown; validation is then skipped.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form provenance or caveats, e.g. where the figures were sourced."
+    }
+  }
+}
