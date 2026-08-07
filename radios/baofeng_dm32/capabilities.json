@@ -5,8 +5,11 @@
   "limits": {
     "max_channels": 4000,
     "max_zones": 250,
-    "max_channels_per_zone": 250,
-    "max_scan_lists": 32
+    "max_channels_per_zone": 64,
+    "max_scan_lists": 32,
+    "max_channels_per_scan_list": 15,
+    "max_rx_group_lists": 32,
+    "max_talkgroups_per_rx_group_list": 32
   },
   "bands": [
     {
@@ -22,5 +25,5 @@
   ],
   "modes": ["FM", "DMR"],
   "bandwidths_khz": [12.5, 25.0],
-  "notes": "Dual-band VHF/UHF, so it can carry MURS (151/154 MHz) as well as GMRS. Band edges and scan-list count cross-checked against qdmr's DM32UVLimits (lib/dm32uv_limits.cc), which declares 136-174 and 400-480 MHz and a narrow/wide bandwidth enum."
+  "notes": "Dual-band VHF/UHF, so it can carry MURS (151/154 MHz) as well as GMRS. Band edges and scan-list count cross-checked against qdmr's DM32UVLimits (lib/dm32uv_limits.cc), which declares 136-174 and 400-480 MHz and a narrow/wide bandwidth enum. max_channels_per_zone is 64, confirmed in OEM CPS v1.59 (channels 1-64 per zone); it is NOT 250, which is the max_zones count. max_channels_per_scan_list is 15, derived from the on-radio record layout rather than the CPS UI: NeonPlug's DM-32UV codec (src/radios/dm32uv/structures.ts) places the scan-list channel array at +0x1A with the next field at +0x38, so 30 bytes = 15 x uint16, and both its encoder and decoder hard-loop i < 15 with channelCount at +0x0B documented 0-15. The OEM CPS appears to offer 16 because its available-channels list includes a 'Current Channel' entry registered at index 0 in addition to 15 definable members; do not raise this to 16. Exceeding 15 is silently destructive: NeonPlug clamps to Math.min(len, 15) but only writes the 0x0000 terminator when channelCount < 15, so a full 15-member list emits no terminator and the radio parses past the end of the record into the adjacent field, which makes every scan list unselectable rather than just the oversized one. RX group limits (32 lists, 32 talkgroups each) confirmed in OEM CPS v1.59; for more than 32 talkgroups on one channel use Group Call Match / promiscuous mode instead."
 }

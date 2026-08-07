@@ -48,6 +48,21 @@
           "minimum": 0,
           "description": "Scan lists the radio can store. Omit when unknown."
         },
+        "max_channels_per_scan_list": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Channels a single scan list can hold. This is the on-radio storage capacity, which may be smaller than the count a CPS UI appears to offer. Omit when unknown."
+        },
+        "max_rx_group_lists": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "DMR RX group lists the radio can store. Omit when unknown."
+        },
+        "max_talkgroups_per_rx_group_list": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Talkgroups a single DMR RX group list can hold. Omit when unknown."
+        },
         "max_contacts": {
           "type": "integer",
           "minimum": 0,
