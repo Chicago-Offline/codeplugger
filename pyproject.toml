@@ -2,6 +2,10 @@
 name = "codeplugger"
 version = "0.1.0"
 description = "Build radio codeplugs from SSRF data and explicit user profiles"
+license = { file = "LICENSE" }
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+]
 requires-python = ">=3.10"
 dependencies = [
   "jsonschema>=4.20",
