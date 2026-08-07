@@ -30,15 +30,20 @@ The diagram source is also available in [docs/workflow.mmd](docs/workflow.mmd).
 
 - **`ssrf-lite`** is the authoritative source for shareable RF facts: channel
   plans, repeaters, stations, talkgroups, and their schema.
-- **[`chioff-ssrf-private`](https://github.com/Chicago-Offline/chioff-ssrf-private)**
+- **[`chioff-ssrf-test`](https://github.com/Chicago-Offline/chioff-ssrf-test)**
   is a public reference overlay. It models the structure and merge behavior of
   a private SSRF repository using only public or synthetic fixture data.
+- **[`chioff-ssrf-shared`](https://github.com/Chicago-Offline/chioff-ssrf-shared)**
+  holds real Chicago Offline community-net RF facts (shared GMRS and MURS
+  channels) that members merge on top of `ssrf-lite`.
 - **`username-ssrf-private`** contains private RF records and explicit
   overrides of `ssrf-lite`, such as local names, unpublished channels, or
   user-specific grouping metadata.
-- **[`chioff-codeplugger-profiles`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles)**
+- **[`chioff-codeplugger-profiles-test`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles-test)**
   contains public reference profiles for Chicago Offline radios and provides
   realistic inputs for end-to-end integration tests.
+- **[`chioff-codeplugger-profiles-shared`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles-shared)**
+  contains profiles selecting the shared community net for supported radios.
 - **`username-codeplugger-profiles`** contains radio and output preferences:
   channel selection, zones, scan lists, button assignments, display settings,
   and per-radio variants.
@@ -75,14 +80,18 @@ The two `chioff-*` repositories form a public reference configuration for
 integration testing:
 
 ```text
-ssrf-lite + chioff-ssrf-private + chioff-codeplugger-profiles -> codeplugger
+ssrf-lite + chioff-ssrf-test + chioff-codeplugger-profiles-test -> codeplugger
 ```
 
-Despite its name, `chioff-ssrf-private` is public: "private" describes its role
-as an overlay in the merge model. Real user repositories may follow the same
-layout while remaining private. Public fixtures must not contain personal
-identities, unpublished frequencies, credentials, location-sensitive records,
-or exports from real radios.
+The `-test` repositories hold only synthetic fixture data and exist to model
+the overlay merge behavior. Real user repositories may follow the same layout
+while remaining private. Public fixtures must not contain personal identities,
+unpublished frequencies, credentials, location-sensitive records, or exports
+from real radios.
+
+The `-shared` repositories are the exception: they carry real Chicago Offline
+community-net channels that are intended to be published and shared. They
+still must not contain personal identities, credentials, or radio exports.
 
 Small synthetic fixtures should remain in this repository for fast,
 deterministic unit tests. The `chioff-*` repositories are intended for broader
@@ -137,7 +146,7 @@ Validate a profile against authoritative data, overlays, and radio limits:
 ```bash
 uv run codeplugger-profile path/to/profile.yml \
   --ssrf-root ../ssrf-lite/ssrf \
-  --ssrf-root ../chioff-ssrf-private/ssrf
+  --ssrf-root ../chioff-ssrf-test/ssrf
 ```
 
 Inspect the normalized, exporter-neutral codeplug as deterministic YAML or
@@ -146,7 +155,7 @@ JSON:
 ```bash
 uv run codeplugger-profile path/to/profile.yml \
   --ssrf-root ../ssrf-lite/ssrf \
-  --ssrf-root ../chioff-ssrf-private/ssrf \
+  --ssrf-root ../chioff-ssrf-test/ssrf \
   --output-format yaml
 ```
 
