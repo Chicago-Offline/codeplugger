@@ -9,7 +9,11 @@
     "max_scan_lists": 32,
     "max_channels_per_scan_list": 15,
     "max_rx_group_lists": 32,
-    "max_talkgroups_per_rx_group_list": 32
+    "max_talkgroups_per_rx_group_list": 32,
+    "max_channel_name_chars": 16,
+    "max_zone_name_chars": 16,
+    "max_scan_list_name_chars": 10,
+    "max_contact_name_chars": 16
   },
   "bands": [
     {

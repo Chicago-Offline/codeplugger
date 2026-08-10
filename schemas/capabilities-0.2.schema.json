@@ -72,6 +72,26 @@
           "type": "integer",
           "minimum": 0,
           "description": "Distinct DMR radio IDs the radio can store."
+        },
+        "max_channel_name_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Characters a channel display name can hold. Names longer than this may be silently truncated by the CPS or on-radio encoder rather than rejected. Omit when unknown."
+        },
+        "max_zone_name_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Characters a zone name can hold. Omit when unknown."
+        },
+        "max_scan_list_name_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Characters a scan list name can hold. Omit when unknown."
+        },
+        "max_contact_name_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Characters a contact name can hold. Omit when unknown."
         }
       }
     },
