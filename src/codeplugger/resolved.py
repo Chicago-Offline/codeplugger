@@ -9,7 +9,13 @@ from typing import Any, Sequence
 
 import yaml
 
-from .profile import DEFAULT_RADIO_ROOT, DEFAULT_SCHEMA_PATH, _load_and_validate_profile
+from .profile import (
+    DEFAULT_RADIO_ROOT,
+    DEFAULT_SCHEMA_PATH,
+    _check_name_length,
+    _load_and_validate_profile,
+    _load_capabilities,
+)
 
 
 @dataclass(frozen=True)
@@ -193,6 +199,7 @@ def resolve_codeplug(
         schema_path=schema_path,
         radio_root=radio_root,
     )
+    limits = _load_capabilities(profile["radio"], radio_root)["limits"]
     assignments = {
         assignment.id: (document, assignment)
         for document in documents
@@ -206,6 +213,13 @@ def resolve_codeplug(
         for assignment_id in zone["assignments"]:
             document, assignment = assignments[assignment_id]
             resolved_channels = _resolve_assignment(document, assignment)
+            for resolved_channel in resolved_channels:
+                _check_name_length(
+                    limits,
+                    "max_channel_name_chars",
+                    "channel",
+                    resolved_channel.display_name,
+                )
             channels.extend(resolved_channels)
             channel_references.extend(
                 channel.reference for channel in resolved_channels

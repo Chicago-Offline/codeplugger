@@ -69,6 +69,28 @@ def _assignment_channel_counts(
     return channel_counts, ambiguous
 
 
+def _check_name_length(
+    limits: Mapping[str, int],
+    limit_key: str,
+    kind: str,
+    name: str,
+) -> None:
+    """Raise when a name exceeds the radio's storage for that name field.
+
+    Skipped when the capability is absent, so an incomplete capabilities file
+    degrades to today's behavior instead of producing false failures.
+    """
+
+    limit = limits.get(limit_key)
+    if limit is None:
+        return
+    if len(name) > limit:
+        raise ProfileValidationError(
+            f"{kind} name '{name}' is {len(name)} characters; "
+            f"radio limit is {limit}"
+        )
+
+
 def _band_label(band: Mapping[str, Any]) -> str:
     name = band.get("name")
     span = f"{band['min_mhz']}-{band['max_mhz']} MHz"
@@ -161,6 +183,31 @@ def _check_radio_support(
                     )
 
 
+def _load_capabilities(
+    radio_id: str,
+    radio_root: Path = DEFAULT_RADIO_ROOT,
+) -> dict[str, Any]:
+    """Load and schema-validate a radio's capabilities document."""
+
+    radio_path = radio_root / radio_id / "capabilities.json"
+    if not radio_path.is_file():
+        raise ProfileValidationError(f"unknown radio '{radio_id}'")
+    capabilities = json.loads(radio_path.read_text(encoding="utf-8"))
+    if DEFAULT_CAPABILITIES_SCHEMA_PATH.is_file():
+        capabilities_schema = json.loads(
+            DEFAULT_CAPABILITIES_SCHEMA_PATH.read_text(encoding="utf-8")
+        )
+        capability_errors = sorted(
+            Draft202012Validator(capabilities_schema).iter_errors(capabilities),
+            key=lambda error: list(error.path),
+        )
+        if capability_errors:
+            raise ProfileValidationError(
+                f"{radio_path}: {_format_schema_errors(capability_errors)}"
+            )
+    return capabilities
+
+
 def _load_and_validate_profile(
     profile_path: Path,
     ssrf_roots: Sequence[Path],
@@ -181,23 +228,7 @@ def _load_and_validate_profile(
             f"{profile_path}: {_format_schema_errors(schema_errors)}"
         )
 
-    radio_id = profile["radio"]
-    radio_path = radio_root / radio_id / "capabilities.json"
-    if not radio_path.is_file():
-        raise ProfileValidationError(f"unknown radio '{radio_id}'")
-    capabilities = json.loads(radio_path.read_text(encoding="utf-8"))
-    if DEFAULT_CAPABILITIES_SCHEMA_PATH.is_file():
-        capabilities_schema = json.loads(
-            DEFAULT_CAPABILITIES_SCHEMA_PATH.read_text(encoding="utf-8")
-        )
-        capability_errors = sorted(
-            Draft202012Validator(capabilities_schema).iter_errors(capabilities),
-            key=lambda error: list(error.path),
-        )
-        if capability_errors:
-            raise ProfileValidationError(
-                f"{radio_path}: {_format_schema_errors(capability_errors)}"
-            )
+    capabilities = _load_capabilities(profile["radio"], radio_root)
 
     try:
         from ssrf import resolve_ssrf_roots
@@ -223,6 +254,7 @@ def _load_and_validate_profile(
         if zone["id"] in zone_ids:
             raise ProfileValidationError(f"duplicate zone ID '{zone['id']}'")
         zone_ids.add(zone["id"])
+        _check_name_length(limits, "max_zone_name_chars", "zone", zone["name"])
         zone_channel_count = 0
         for assignment_id in zone["assignments"]:
             if assignment_id in ambiguous_assignments:

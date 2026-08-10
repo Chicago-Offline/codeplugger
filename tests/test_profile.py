@@ -327,3 +327,115 @@ def test_resolved_codeplug_output_is_repeatable() -> None:
     assert first.to_json() == second.to_json()
     assert first.to_yaml() == second.to_yaml()
     assert json.loads(first.to_json()) == yaml.safe_load(first.to_yaml())
+
+def _write_radio_with_limits(root: Path, extra_limits: dict) -> None:
+    """Write a test radio whose capabilities carry additional limit keys."""
+
+    radio = root / "test_radio"
+    radio.mkdir(parents=True, exist_ok=True)
+    limits = {
+        "max_channels": 2,
+        "max_zones": 1,
+        "max_channels_per_zone": 2,
+    }
+    limits.update(extra_limits)
+    (radio / "capabilities.json").write_text(
+        json.dumps({"id": "test_radio", "name": "Test radio", "limits": limits}),
+        encoding="utf-8",
+    )
+
+
+def test_profile_enforces_zone_name_length() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["name"] = "A" * 17
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio_with_limits(root / "radios", {"max_zone_name_chars": 16})
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="17 characters"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_zone_name_at_limit_is_accepted() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["name"] = "A" * 16
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio_with_limits(root / "radios", {"max_zone_name_chars": 16})
+        _write_ssrf(root / "ssrf")
+
+        loaded = load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["zones"][0]["name"] == "A" * 16
+
+
+def test_absent_name_limit_skips_check() -> None:
+    """An incomplete capabilities file must degrade, not fail."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["name"] = "A" * 200
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio_with_limits(root / "radios", {})
+        _write_ssrf(root / "ssrf")
+
+        loaded = load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["zones"][0]["name"] == "A" * 200
+
+
+def test_resolver_enforces_channel_name_length() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio_with_limits(root / "radios", {"max_channel_name_chars": 8})
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["assignments"][0]["display_name"] = "WAY TOO LONG NAME"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ProfileValidationError, match="channel name"):
+            resolve_codeplug(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_dm32_capabilities_declare_name_limits() -> None:
+    """The shipped DM-32 document must carry the field-verified name limits."""
+
+    capabilities = json.loads(
+        (Path(__file__).resolve().parents[1] / "radios" / "baofeng_dm32" / "capabilities.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    limits = capabilities["limits"]
+    assert limits["max_channel_name_chars"] == 16
+    assert limits["max_zone_name_chars"] == 16
+    assert limits["max_scan_list_name_chars"] == 10
+    assert limits["max_contact_name_chars"] == 16
