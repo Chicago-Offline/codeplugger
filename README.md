@@ -164,3 +164,26 @@ frequencies, mode, service, analog tones, overlay-resolved notes, and explicit
 TX permission. It intentionally excludes scan lists, contacts, DMR identities,
 button settings, and NeonPlug fields; exporters translate this stable model
 without participating in input resolution.
+
+## CHIRP workflow for analog radios
+
+For analog radios such as the UV-5R Mini, codeplugger can emit CHIRP-compatible
+CSV and CHIRP remains the upload interface to the radio.
+
+Generate CHIRP CSV from a validated profile:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-test/ssrf \
+  --output-format chirp-csv > output.csv
+```
+
+Then import `output.csv` in CHIRP and upload from CHIRP to the radio.
+
+Notes:
+
+- CHIRP CSV export currently supports FM channels only.
+- Any non-FM channel selected by the profile fails export with an explicit
+  error.
+- Channel order in the CSV matches resolved profile order.

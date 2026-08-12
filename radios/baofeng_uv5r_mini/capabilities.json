@@ -1,0 +1,26 @@
+{
+  "id": "baofeng_uv5r_mini",
+  "name": "Baofeng UV-5R Mini",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 128,
+    "max_zones": 1,
+    "max_channels_per_zone": 128,
+    "max_channel_name_chars": 7
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 520.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "UV-5R Mini is modeled as FM-only for codeplugger mode validation. Limits and RF/bandwidth ranges are based on published UV-5R Mini spec sheets and CHIRP profile conventions: 128 channel memories, dual-band 136-174 and 400-520 MHz coverage, and narrow/wide FM (12.5/25 kHz). max_zones is set to 1 as a profile-0.1 compatibility shim because profile-0.1 always requires at least one zone; the physical radio does not expose user-defined zones in the same sense as DMR handhelds. max_channel_name_chars is 7, matching common UV-5R display behavior for channel names."
+}

@@ -439,3 +439,62 @@ def test_dm32_capabilities_declare_name_limits() -> None:
     assert limits["max_zone_name_chars"] == 16
     assert limits["max_scan_list_name_chars"] == 10
     assert limits["max_contact_name_chars"] == 16
+
+
+def test_fm_only_radio_rejects_dmr_assignment_mode() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_ssrf(root / "ssrf")
+
+        radio = root / "radios" / "test_radio"
+        radio.mkdir(parents=True)
+        (radio / "capabilities.json").write_text(
+            json.dumps(
+                {
+                    "id": "test_radio",
+                    "name": "FM-only test radio",
+                    "capabilities_version": "0.2",
+                    "limits": {
+                        "max_channels": 32,
+                        "max_zones": 1,
+                        "max_channels_per_zone": 32,
+                    },
+                    "modes": ["FM"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"]["type"] = "DMR"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ProfileValidationError, match="does not support"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_uv5r_mini_fixture_profile_validates_end_to_end() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_ssrf(root / "ssrf")
+
+        fixture_profile = (
+            Path(__file__).resolve().parents[1]
+            / "profiles"
+            / "baofeng_uv5r_mini"
+            / "reference.yml"
+        )
+        loaded = load_and_validate_profile(
+            fixture_profile,
+            [root / "ssrf"],
+        )
+
+    assert loaded["radio"] == "baofeng_uv5r_mini"
+    assert loaded["zones"][0]["assignments"] == ["asg_one"]
