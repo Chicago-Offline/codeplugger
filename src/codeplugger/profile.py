@@ -72,6 +72,56 @@ def _assignment_channel_counts(
     return channel_counts, ambiguous
 
 
+def _resolve_firmware_limits(
+    capabilities: Mapping[str, Any],
+    firmware: str | None,
+) -> tuple[dict[str, int], str]:
+    """Return the effective limits for ``firmware`` plus a description of them.
+
+    Some limits change across firmware versions on the same radio. The DM-32UV
+    ROW line is the known case: ``DM32.01.L01.048`` stores 150,000 CSV contacts
+    but has no record function, and ``DM32.01.01.049`` restores record and drops
+    back to 50,000. A profile that only fits on 048 must not validate clean
+    against a radio running 049.
+
+    Resolution:
+
+    * A firmware with an entry in ``firmware_limits`` uses ``limits`` updated by
+      that entry.
+    * A known radio with an *unknown* firmware uses the **most conservative**
+      value across the base limits and every declared override, so an unverified
+      radio cannot validate against a capacity no shipped firmware provides.
+    * A radio declaring no ``firmware_limits`` behaves exactly as before.
+    """
+
+    base = dict(capabilities["limits"])
+    overrides: Mapping[str, Mapping[str, int]] = capabilities.get(
+        "firmware_limits", {}
+    )
+    if not overrides:
+        return base, "radio limit"
+
+    if firmware is not None and firmware in overrides:
+        base.update(overrides[firmware])
+        return base, f"limit for firmware {firmware}"
+
+    # Unknown or undeclared firmware: take the floor of every possibility so
+    # validation cannot pass something that fits on no shipped firmware.
+    for override in overrides.values():
+        for key, value in override.items():
+            current = base.get(key)
+            base[key] = value if current is None else min(current, value)
+
+    if firmware is None:
+        reason = "conservative limit across all known firmware (no firmware declared)"
+    else:
+        reason = (
+            f"conservative limit across all known firmware "
+            f"(firmware {firmware} is not declared in firmware_limits)"
+        )
+    return base, reason
+
+
 def _check_name_length(
     limits: Mapping[str, int],
     limit_key: str,
@@ -297,11 +347,15 @@ def _load_and_validate_profile(
     documents = resolve_ssrf_roots(ssrf_roots)
     channel_counts, ambiguous_assignments = _assignment_channel_counts(documents)
     zones = profile["zones"]
-    limits: Mapping[str, int] = capabilities["limits"]
+    firmware = None
+    if instance_metadata is not None:
+        firmware = instance_metadata.get("firmware")
+    limits, limit_source = _resolve_firmware_limits(capabilities, firmware)
 
     if len(zones) > limits["max_zones"]:
         raise ProfileValidationError(
-            f"profile has {len(zones)} zones; radio limit is {limits['max_zones']}"
+            f"profile has {len(zones)} zones; "
+            f"{limit_source} is {limits['max_zones']}"
         )
 
     zone_ids: set[str] = set()
@@ -333,14 +387,14 @@ def _load_and_validate_profile(
         if zone_channel_count > limits["max_channels_per_zone"]:
             raise ProfileValidationError(
                 f"zone '{zone['name']}' expands to {zone_channel_count} channels; "
-                f"radio limit is {limits['max_channels_per_zone']}"
+                f"{limit_source} is {limits['max_channels_per_zone']}"
             )
         total_channels += zone_channel_count
 
     if total_channels > limits["max_channels"]:
         raise ProfileValidationError(
             f"profile expands to {total_channels} channels; "
-            f"radio limit is {limits['max_channels']}"
+            f"{limit_source} is {limits['max_channels']}"
         )
 
     _check_radio_support(capabilities, documents, selected)
