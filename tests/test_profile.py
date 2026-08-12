@@ -102,6 +102,21 @@ def _write_ssrf(root: Path) -> None:
     )
 
 
+def _write_instance_registry(root: Path, instances: dict[str, dict]) -> Path:
+    path = root / "instances.yml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "version": "0.1",
+                "instances": instances,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_profile_resolves_ordered_assignment_ids() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -141,6 +156,7 @@ def test_resolved_codeplug_defaults_instance_to_profile_id() -> None:
         )
 
     assert resolved.radio_instance_id == "test_profile"
+    assert resolved.radio_instance is None
 
 
 def test_profile_rejects_unknown_assignment() -> None:
@@ -498,3 +514,86 @@ def test_uv5r_mini_fixture_profile_validates_end_to_end() -> None:
 
     assert loaded["radio"] == "baofeng_uv5r_mini"
     assert loaded["zones"][0]["assignments"] == ["asg_one"]
+
+
+def test_profile_rejects_missing_instance_registry_entry() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "other_radio_01": {
+                    "radio": "test_radio",
+                }
+            },
+        )
+
+        with pytest.raises(ProfileValidationError, match="missing instance"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_profile_rejects_instance_registry_radio_mismatch() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "dm32_green_01": {
+                    "radio": "some_other_radio",
+                }
+            },
+        )
+
+        with pytest.raises(ProfileValidationError, match="targets radio"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_resolved_codeplug_includes_instance_registry_metadata() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "dm32_green_01": {
+                    "radio": "test_radio",
+                    "label": "Green test radio",
+                    "firmware": "TEST.01",
+                }
+            },
+        )
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+        )
+
+    assert resolved.radio_instance_id == "dm32_green_01"
+    assert resolved.radio_instance == {
+        "radio": "test_radio",
+        "label": "Green test radio",
+        "firmware": "TEST.01",
+    }

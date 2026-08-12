@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/instance-registry-0.1.schema.json",
+  "title": "Codeplugger instance registry 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "instances"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": "0.1" },
+    "instances": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["radio"],
+        "properties": {
+          "radio": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "profile": { "type": "string" },
+          "label": { "type": "string" },
+          "owner": { "type": "string" },
+          "case_serial": { "type": "string" },
+          "fcc_id": { "type": "string" },
+          "hardware_family": { "type": "string" },
+          "firmware": { "type": "string" },
+          "sk_buttons": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

@@ -59,6 +59,7 @@ class ResolvedCodeplug:
 
     radio_id: str
     radio_instance_id: str
+    radio_instance: dict[str, Any] | None
     channels: tuple[ResolvedChannel, ...]
     zones: tuple[ResolvedZone, ...]
 
@@ -190,14 +191,16 @@ def resolve_codeplug(
     *,
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
+    instance_registry_path: Path | None = None,
 ) -> ResolvedCodeplug:
     """Validate and normalize a profile plus precedence-ordered SSRF roots."""
 
-    profile, documents = _load_and_validate_profile(
+    profile, documents, instance_metadata = _load_and_validate_profile(
         profile_path,
         ssrf_roots,
         schema_path=schema_path,
         radio_root=radio_root,
+        instance_registry_path=instance_registry_path,
     )
     limits = _load_capabilities(profile["radio"], radio_root)["limits"]
     assignments = {
@@ -235,6 +238,7 @@ def resolve_codeplug(
     return ResolvedCodeplug(
         radio_id=profile["radio"],
         radio_instance_id=profile.get("radio_instance", profile["id"]),
+        radio_instance=instance_metadata,
         channels=tuple(channels),
         zones=tuple(zones),
     )

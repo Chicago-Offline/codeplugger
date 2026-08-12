@@ -187,3 +187,33 @@ Notes:
 - Any non-FM channel selected by the profile fails export with an explicit
   error.
 - Channel order in the CSV matches resolved profile order.
+
+## Optional instance registry
+
+Profiles may declare `radio_instance`, and codeplugger can optionally validate
+that identifier against a separate instance registry document:
+
+```yaml
+version: "0.1"
+instances:
+  dm32_green_01:
+    radio: baofeng_dm32
+    label: "Green DM-32"
+    firmware: "DM32.01.L01.048"
+```
+
+Use `--instance-registry` to enable this join check:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --instance-registry path/to/instances.yml
+```
+
+When enabled, codeplugger verifies:
+
+- the profile instance ID exists in the registry
+- the registry entry's `radio` matches the profile's `radio`
+
+If no registry is provided, behavior stays backward compatible with existing
+profile-only workflows.
