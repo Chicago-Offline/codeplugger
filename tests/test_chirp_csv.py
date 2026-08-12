@@ -19,6 +19,7 @@ def _codeplug(channels: list[ResolvedChannel]) -> ResolvedCodeplug:
     return ResolvedCodeplug(
         radio_id="baofeng_uv5r_mini",
         radio_instance_id="5rm_01",
+        radio_instance=None,
         channels=tuple(channels),
         zones=(ResolvedZone(id="z1", name="Reference", channel_references=refs),),
     )
