@@ -13,7 +13,16 @@
     "max_channel_name_chars": 16,
     "max_zone_name_chars": 16,
     "max_scan_list_name_chars": 10,
-    "max_contact_name_chars": 16
+    "max_contact_name_chars": 16,
+    "max_contacts": 50000
+  },
+  "firmware_limits": {
+    "DM32.01.L01.048": {
+      "max_contacts": 150000
+    },
+    "DM32.01.01.049": {
+      "max_contacts": 50000
+    }
   },
   "bands": [
     {
@@ -27,7 +36,13 @@
       "max_mhz": 480.0
     }
   ],
-  "modes": ["FM", "DMR"],
-  "bandwidths_khz": [12.5, 25.0],
-  "notes": "Dual-band VHF/UHF, so it can carry MURS (151/154 MHz) as well as GMRS. Band edges and scan-list count cross-checked against qdmr's DM32UVLimits (lib/dm32uv_limits.cc), which declares 136-174 and 400-480 MHz and a narrow/wide bandwidth enum. max_channels_per_zone is 64, confirmed in OEM CPS v1.59 (channels 1-64 per zone); it is NOT 250, which is the max_zones count. max_channels_per_scan_list is 15, derived from the on-radio record layout rather than the CPS UI: NeonPlug's DM-32UV codec (src/radios/dm32uv/structures.ts) places the scan-list channel array at +0x1A with the next field at +0x38, so 30 bytes = 15 x uint16, and both its encoder and decoder hard-loop i < 15 with channelCount at +0x0B documented 0-15. The OEM CPS appears to offer 16 because its available-channels list includes a 'Current Channel' entry registered at index 0 in addition to 15 definable members; do not raise this to 16. Exceeding 15 is silently destructive: NeonPlug clamps to Math.min(len, 15) but only writes the 0x0000 terminator when channelCount < 15, so a full 15-member list emits no terminator and the radio parses past the end of the record into the adjacent field, which makes every scan list unselectable rather than just the oversized one. RX group limits (32 lists, 32 talkgroups each) confirmed in OEM CPS v1.59; for more than 32 talkgroups on one channel use Group Call Match / promiscuous mode instead."
+  "modes": [
+    "FM",
+    "DMR"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25.0
+  ],
+  "notes": "Dual-band VHF/UHF, so it can carry MURS (151/154 MHz) as well as GMRS. Band edges and scan-list count cross-checked against qdmr's DM32UVLimits (lib/dm32uv_limits.cc), which declares 136-174 and 400-480 MHz and a narrow/wide bandwidth enum. max_channels_per_zone is 64, confirmed in OEM CPS v1.59 (channels 1-64 per zone); it is NOT 250, which is the max_zones count. max_channels_per_scan_list is 15, derived from the on-radio record layout rather than the CPS UI: NeonPlug's DM-32UV codec (src/radios/dm32uv/structures.ts) places the scan-list channel array at +0x1A with the next field at +0x38, so 30 bytes = 15 x uint16, and both its encoder and decoder hard-loop i < 15 with channelCount at +0x0B documented 0-15. The OEM CPS appears to offer 16 because its available-channels list includes a 'Current Channel' entry registered at index 0 in addition to 15 definable members; do not raise this to 16. Exceeding 15 is silently destructive: NeonPlug clamps to Math.min(len, 15) but only writes the 0x0000 terminator when channelCount < 15, so a full 15-member list emits no terminator and the radio parses past the end of the record into the adjacent field, which makes every scan list unselectable rather than just the oversized one. RX group limits (32 lists, 32 talkgroups each) confirmed in OEM CPS v1.59; for more than 32 talkgroups on one channel use Group Call Match / promiscuous mode instead. CSV contact capacity is firmware-dependent on the ROW line: DM32.01.L01.048 removed the record function and raised CSV contacts to 150,000; DM32.01.01.049 restored record and returned to 50,000 (memory/2026-08-07.md, M7OCM archive release notes). Base limits.max_contacts is therefore set to the SMALLER 50,000 so that validating without a known firmware cannot pass a profile that only fits on 048. Upgrading 048 -> 049 is a capacity regression: check CSV size first. Not verified for the HR Vocoder line (DM32.00.*), which has no 049 at all, or for DM32.NRF.*."
 }

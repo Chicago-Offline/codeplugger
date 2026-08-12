@@ -597,3 +597,156 @@ def test_resolved_codeplug_includes_instance_registry_metadata() -> None:
         "label": "Green test radio",
         "firmware": "TEST.01",
     }
+
+
+def _write_radio_with_firmware_limits(root: Path) -> None:
+    """A radio whose contact capacity changes across firmware versions.
+
+    Mirrors the DM-32UV ROW line: 048 stores more contacts than 049.
+    """
+
+    radio = root / "test_radio"
+    radio.mkdir(parents=True, exist_ok=True)
+    (radio / "capabilities.json").write_text(
+        json.dumps(
+            {
+                "id": "test_radio",
+                "name": "Test radio",
+                "capabilities_version": "0.2",
+                "limits": {
+                    "max_channels": 2,
+                    "max_zones": 1,
+                    "max_channels_per_zone": 2,
+                    "max_contacts": 50000,
+                },
+                "firmware_limits": {
+                    "FW.048": {"max_contacts": 150000},
+                    "FW.049": {"max_contacts": 50000},
+                    "FW.050": {"max_zones": 1, "max_channels": 1},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _resolve(firmware: str | None) -> dict:
+    """Resolve effective limits for ``firmware`` against the fixture radio."""
+
+    from codeplugger.profile import _resolve_firmware_limits
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_radio_with_firmware_limits(root / "radios")
+        capabilities = json.loads(
+            (root / "radios" / "test_radio" / "capabilities.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    limits, source = _resolve_firmware_limits(capabilities, firmware)
+    return {"limits": limits, "source": source}
+
+
+def test_declared_firmware_selects_its_own_limits() -> None:
+    """048 gets the larger contact ceiling; 049 gets the smaller one."""
+
+    assert _resolve("FW.048")["limits"]["max_contacts"] == 150000
+    assert _resolve("FW.049")["limits"]["max_contacts"] == 50000
+    assert "FW.048" in _resolve("FW.048")["source"]
+
+
+def test_unknown_firmware_falls_back_to_the_conservative_floor() -> None:
+    """An unverified radio must not validate against 048-only capacity.
+
+    This is the safety property: absent firmware information, take the minimum
+    across every declared firmware rather than the base value.
+    """
+
+    resolved = _resolve(None)
+    assert resolved["limits"]["max_contacts"] == 50000
+    # FW.050 declares a *smaller* channel ceiling, so the floor must pick it up
+    # even though the base limits allow 2.
+    assert resolved["limits"]["max_channels"] == 1
+    assert "conservative" in resolved["source"]
+
+
+def test_firmware_absent_from_overrides_is_treated_as_unknown() -> None:
+    """A radio running firmware we have not characterized gets the floor."""
+
+    resolved = _resolve("FW.999")
+    assert resolved["limits"]["max_contacts"] == 50000
+    assert resolved["limits"]["max_channels"] == 1
+    assert "FW.999" in resolved["source"]
+    assert "conservative" in resolved["source"]
+
+
+def test_radio_without_firmware_limits_is_unchanged() -> None:
+    """Radios that declare no firmware_limits keep today's behavior exactly."""
+
+    from codeplugger.profile import _resolve_firmware_limits
+
+    capabilities = {
+        "id": "test_radio",
+        "name": "Test radio",
+        "limits": {"max_channels": 2, "max_zones": 1, "max_channels_per_zone": 2},
+    }
+    limits, source = _resolve_firmware_limits(capabilities, None)
+    assert limits == capabilities["limits"]
+    assert source == "radio limit"
+
+
+def test_instance_firmware_drives_enforcement_end_to_end() -> None:
+    """The registry's firmware field must reach the limit check.
+
+    FW.050 declares max_channels 1, so a two-channel profile fails only when
+    the instance's firmware is consulted.
+    """
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one", "asg_two"])
+        _write_radio_with_firmware_limits(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "dm32_green_01": {
+                    "radio": "test_radio",
+                    "firmware": "FW.050",
+                }
+            },
+        )
+
+        with pytest.raises(ProfileValidationError, match="firmware FW.050"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_dm32_declares_firmware_dependent_contact_limits() -> None:
+    """The real DM-32 file records the 048/049 contact split.
+
+    Base max_contacts must be the SMALLER value so an unknown-firmware
+    validation cannot pass a profile that only fits on 048.
+    """
+
+    capabilities = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "radios"
+            / "baofeng_dm32"
+            / "capabilities.json"
+        ).read_text(encoding="utf-8")
+    )
+    firmware_limits = capabilities["firmware_limits"]
+
+    assert firmware_limits["DM32.01.L01.048"]["max_contacts"] == 150000
+    assert firmware_limits["DM32.01.01.049"]["max_contacts"] == 50000
+    assert capabilities["limits"]["max_contacts"] == 50000
+    assert capabilities["limits"]["max_contacts"] == min(
+        override["max_contacts"] for override in firmware_limits.values()
+    )
