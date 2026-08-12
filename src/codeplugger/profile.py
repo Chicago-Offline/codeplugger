@@ -16,6 +16,9 @@ DEFAULT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "profile-0.1.schema.json"
 DEFAULT_CAPABILITIES_SCHEMA_PATH = (
     PROJECT_ROOT / "schemas" / "capabilities-0.2.schema.json"
 )
+DEFAULT_INSTANCE_REGISTRY_SCHEMA_PATH = (
+    PROJECT_ROOT / "schemas" / "instance-registry-0.1.schema.json"
+)
 DEFAULT_RADIO_ROOT = PROJECT_ROOT / "radios"
 
 
@@ -208,13 +211,59 @@ def _load_capabilities(
     return capabilities
 
 
+def _load_instance_registry(
+    registry_path: Path,
+    *,
+    schema_path: Path = DEFAULT_INSTANCE_REGISTRY_SCHEMA_PATH,
+) -> dict[str, Any]:
+    """Load and schema-validate an instance registry document."""
+
+    registry = _load_mapping(registry_path)
+    if schema_path.is_file():
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        errors = sorted(
+            Draft202012Validator(schema).iter_errors(registry),
+            key=lambda error: list(error.path),
+        )
+        if errors:
+            raise ProfileValidationError(
+                f"{registry_path}: {_format_schema_errors(errors)}"
+            )
+    return registry
+
+
+def _validate_instance_reference(
+    profile: Mapping[str, Any],
+    registry_path: Path,
+    registry: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Ensure the profile's radio_instance resolves to matching registry data."""
+
+    instances = registry.get("instances", {})
+    instance_id = profile.get("radio_instance", profile["id"])
+    if instance_id not in instances:
+        raise ProfileValidationError(
+            f"{registry_path}: missing instance '{instance_id}'"
+        )
+
+    instance = instances[instance_id]
+    instance_radio = instance.get("radio")
+    if instance_radio != profile["radio"]:
+        raise ProfileValidationError(
+            f"{registry_path}: instance '{instance_id}' targets radio "
+            f"'{instance_radio}', but profile targets '{profile['radio']}'"
+        )
+    return dict(instance)
+
+
 def _load_and_validate_profile(
     profile_path: Path,
     ssrf_roots: Sequence[Path],
     *,
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
-) -> tuple[dict[str, Any], Sequence[Any]]:
+    instance_registry_path: Path | None = None,
+) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None]:
     """Load a profile and its validated, overlay-resolved SSRF documents."""
 
     profile = _load_mapping(profile_path)
@@ -229,6 +278,14 @@ def _load_and_validate_profile(
         )
 
     capabilities = _load_capabilities(profile["radio"], radio_root)
+    instance_metadata: dict[str, Any] | None = None
+    if instance_registry_path is not None:
+        registry = _load_instance_registry(instance_registry_path)
+        instance_metadata = _validate_instance_reference(
+            profile,
+            instance_registry_path,
+            registry,
+        )
 
     try:
         from ssrf import resolve_ssrf_roots
@@ -287,7 +344,7 @@ def _load_and_validate_profile(
         )
 
     _check_radio_support(capabilities, documents, selected)
-    return profile, documents
+    return profile, documents, instance_metadata
 
 
 def load_and_validate_profile(
@@ -296,14 +353,16 @@ def load_and_validate_profile(
     *,
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
+    instance_registry_path: Path | None = None,
 ) -> dict[str, Any]:
     """Load a profile and validate its schema, references, and radio limits."""
 
-    profile, _ = _load_and_validate_profile(
+    profile, _, _ = _load_and_validate_profile(
         profile_path,
         ssrf_roots,
         schema_path=schema_path,
         radio_root=radio_root,
+        instance_registry_path=instance_registry_path,
     )
     return profile
 
@@ -320,6 +379,12 @@ def main() -> int:
     )
     parser.add_argument("--radio-root", type=Path, default=DEFAULT_RADIO_ROOT)
     parser.add_argument(
+        "--instance-registry",
+        type=Path,
+        default=None,
+        help="optional path to instance registry file",
+    )
+    parser.add_argument(
         "--output-format",
         choices=("summary", "json", "yaml", "chirp-csv"),
         default="summary",
@@ -333,6 +398,7 @@ def main() -> int:
                 args.profile,
                 args.ssrf_root,
                 radio_root=args.radio_root,
+                instance_registry_path=args.instance_registry,
             )
         else:
             from .resolved import resolve_codeplug
@@ -341,6 +407,7 @@ def main() -> int:
                 args.profile,
                 args.ssrf_root,
                 radio_root=args.radio_root,
+                instance_registry_path=args.instance_registry,
             )
     except (OSError, ProfileValidationError, ValueError) as exc:
         parser.exit(1, f"error: {exc}\n")
