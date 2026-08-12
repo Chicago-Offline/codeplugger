@@ -3,24 +3,42 @@
   "name": "Baofeng UV-5R Mini",
   "capabilities_version": "0.2",
   "limits": {
-    "max_channels": 128,
+    "max_channels": 999,
     "max_zones": 1,
-    "max_channels_per_zone": 128,
-    "max_channel_name_chars": 7
+    "max_channels_per_zone": 999,
+    "max_channel_name_chars": 12
   },
   "bands": [
+    {
+      "name": "Airband",
+      "min_mhz": 108.0,
+      "max_mhz": 136.0,
+      "rx_only": true
+    },
     {
       "name": "VHF",
       "min_mhz": 136.0,
       "max_mhz": 174.0
     },
     {
+      "name": "UHF RX low",
+      "min_mhz": 350.0,
+      "max_mhz": 390.0,
+      "rx_only": true
+    },
+    {
       "name": "UHF",
       "min_mhz": 400.0,
-      "max_mhz": 520.0
+      "max_mhz": 480.0
+    },
+    {
+      "name": "UHF RX high",
+      "min_mhz": 480.0,
+      "max_mhz": 520.0,
+      "rx_only": true
     }
   ],
   "modes": ["FM"],
   "bandwidths_khz": [12.5, 25.0],
-  "notes": "UV-5R Mini is modeled as FM-only for codeplugger mode validation. Limits and RF/bandwidth ranges are based on published UV-5R Mini spec sheets and CHIRP profile conventions: 128 channel memories, dual-band 136-174 and 400-520 MHz coverage, and narrow/wide FM (12.5/25 kHz). max_zones is set to 1 as a profile-0.1 compatibility shim because profile-0.1 always requires at least one zone; the physical radio does not expose user-defined zones in the same sense as DMR handhelds. max_channel_name_chars is 7, matching common UV-5R display behavior for channel names."
+  "notes": "Figures taken from the CHIRP driver, which is the primary checkable source for this radio: chirp/drivers/baofeng_uv17Pro.py, class UV5RMini(UV17Pro). NOTE THE PLATFORM: the UV-5R Mini is a UV-17Pro-family radio and is NOT handled by chirp/drivers/uv5r.py. Do not source its limits from the classic UV-5R; that mistake produced the earlier values here (128 channels, 7-character names), which are UV-5R figures (uv5r.py: memory_bounds (0,127), valid_name_length 7) and are wrong for this model. max_channels 999 is UV5RMini.CHANNELS = 999, giving memory_bounds (1, 999). max_channel_name_chars 12 is LENGTH_NAME = 12 inherited from the UV17Pro base; UV5RMini does not override it. Bands are UV5RMini.VALID_BANDS: airband 108-136 (RX only), VHF 136-174 (TX), 350-390 (RX only), 400-480 (TX), 480-520 (RX only). The RX-only spans are marked so validation cannot accept a TX assignment in a receive-only range; a single 400-520 TX block would wrongly permit transmit above 480 MHz. modes is [\"FM\"] as a deliberate CODEPLUGGER POLICY, not a hardware claim: CHIRP declares MODES = UV17Pro.MODES + ['AM'] (i.e. NFM, FM, AM), where AM is receive-only airband. Codeplugger emits analog FM channels only, so DMR selection against this radio is rejected by design; do not restate this as the radio being incapable of AM. bandwidths_khz 12.5/25 corresponds to CHIRP's NFM/FM. max_zones is 1 as a profile-0.1 compatibility shim because profile-0.1 always requires at least one zone; this radio has no user-facing zone concept, so treat the value as a schema artifact rather than a radio fact."
 }
