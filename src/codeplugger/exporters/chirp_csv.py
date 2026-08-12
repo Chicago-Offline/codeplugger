@@ -1,4 +1,19 @@
-"""Export resolved analog channels as CHIRP-compatible CSV."""
+"""Export resolved analog channels as CHIRP-compatible CSV.
+
+Two constraints shape this exporter:
+
+``Duplex`` is limited to ``+``, ``-`` or empty. CHIRP's in-memory model also
+allows ``split`` and ``off``, but its CSV *parser* does not
+(``chirp_common.really_from_csv``, verified against ``kk7ds/chirp`` @
+``a229fae``), so emitting either produces a file CHIRP cannot import.
+
+Receive-only channels are exported as ordinary simplex channels. That mirrors
+existing practice in our own reference codeplugs: in
+``muehlstein-codeplugger-profiles`` the CPD/CFD receive-only blocks
+(``BF-888_CPDCFD.img`` ch11-16, ``TYT_TH-9800``) are stored with ``tx == rx``
+and no transmit inhibit, with the intent carried in the channel name. Callers
+that need transmit actually blocked must enforce it outside the CSV.
+"""
 
 from __future__ import annotations
 
@@ -60,10 +75,13 @@ def _tone_fields(channel: ResolvedChannel) -> dict[str, str]:
 
     if has_dcs:
         fields["Tone"] = "DTCS"
-        tx_code = str(tones.dcs_tx_code or tones.dcs_rx_code)
-        rx_code = str(tones.dcs_rx_code or tones.dcs_tx_code)
-        fields["DtcsCode"] = tx_code
-        fields["RxDtcsCode"] = rx_code
+        # CHIRP writes DTCS codes zero-padded to three digits ("%03i"), and
+        # existing reference exports use that form. Match it so generated CSVs
+        # are byte-comparable with CPS/CHIRP output.
+        tx_code = tones.dcs_tx_code if tones.dcs_tx_code is not None else tones.dcs_rx_code
+        rx_code = tones.dcs_rx_code if tones.dcs_rx_code is not None else tones.dcs_tx_code
+        fields["DtcsCode"] = f"{int(tx_code):03d}"
+        fields["RxDtcsCode"] = f"{int(rx_code):03d}"
         return fields
 
     tx_tone = tones.ctcss_tx_hz
@@ -84,17 +102,26 @@ def _tone_fields(channel: ResolvedChannel) -> dict[str, str]:
 
 
 def _duplex_and_offset(channel: ResolvedChannel) -> tuple[str, str]:
+    """Return CHIRP ``(Duplex, Offset)`` for one channel.
+
+    CHIRP's CSV reader (``chirp_common.really_from_csv``) accepts only ``+``,
+    ``-`` or an empty ``Duplex``; ``split`` and ``off`` raise
+    ``InvalidDataError`` and make the whole row unimportable. Every value
+    returned here is therefore one of those three.
+
+    Receive-only channels are emitted as plain simplex, matching how they are
+    actually stored in our reference codeplugs (see module docstring). The
+    receive-only intent is carried by the channel name/comment, not by the
+    frequency fields.
+    """
+
     if not channel.tx_permitted or channel.tx_frequency_mhz is None:
-        return "off", _format_frequency(0.0)
+        return "", _format_frequency(0.0)
 
     diff = channel.tx_frequency_mhz - channel.rx_frequency_mhz
     abs_diff = abs(diff)
     if abs_diff < 1e-6:
         return "", _format_frequency(0.0)
-
-    # CHIRP uses "split" when TX cannot be represented as +/- offset.
-    if abs_diff > 30.0:
-        return "split", _format_frequency(channel.tx_frequency_mhz)
 
     duplex = "+" if diff > 0 else "-"
     return duplex, _format_frequency(abs_diff)
