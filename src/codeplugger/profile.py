@@ -321,7 +321,7 @@ def main() -> int:
     parser.add_argument("--radio-root", type=Path, default=DEFAULT_RADIO_ROOT)
     parser.add_argument(
         "--output-format",
-        choices=("summary", "json", "yaml"),
+        choices=("summary", "json", "yaml", "chirp-csv"),
         default="summary",
         help="inspection output format (default: summary)",
     )
@@ -349,6 +349,11 @@ def main() -> int:
         return 0
     if args.output_format == "yaml":
         print(codeplug.to_yaml(), end="")
+        return 0
+    if args.output_format == "chirp-csv":
+        from .exporters.chirp_csv import chirp_csv_from_resolved
+
+        print(chirp_csv_from_resolved(codeplug), end="")
         return 0
     assignment_count = sum(len(zone["assignments"]) for zone in profile["zones"])
     print(

@@ -1,0 +1,11 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "muehlstein_uv5r_mini"
+name: "UV-5R Mini reference fixture"
+radio: "baofeng_uv5r_mini"
+radio_instance: "5rm_01"
+zones:
+  - id: "reference"
+    name: "Reference"
+    assignments:
+      - "asg_one"
