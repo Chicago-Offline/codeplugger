@@ -6,11 +6,13 @@ requires-python = ">=3.10"
 dependencies = [
   "jsonschema>=4.20",
   "pyyaml>=6.0.1",
-  "ssrf-lite @ git+https://github.com/Chicago-Offline/ssrf-lite.git@6bf4f87131ba6592ebacbb5e84fd778c6459342b",
+  "tomlkit>=0.13",
+  "ssrf-lite @ git+https://github.com/Chicago-Offline/ssrf-lite.git@bb78a3967529f6bbab7ff7dade183e1b3c0eb21d",
 ]
 
 [project.scripts]
 codeplugger-profile = "codeplugger.profile:main"
+codeplugger-fleet = "codeplugger.fleet:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

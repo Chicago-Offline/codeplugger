@@ -135,6 +135,23 @@ def test_profile_resolves_ordered_assignment_ids() -> None:
     assert loaded["radio_instance"] == "dm32_green_01"
 
 
+def test_profile_supports_profile_local_assignment_display_names() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_one", "display_name": "CO ONE"}])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.channels[0].display_name == "CO ONE"
+
+
 def test_resolved_codeplug_defaults_instance_to_profile_id() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -311,9 +328,13 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
     assert resolved.channels[0].tx_frequency_mhz is None
     assert resolved.channels[0].tx_permitted is False
     assert resolved.channels[0].notes == "Overlay note"
-    assert resolved.channels[1].rx_frequency_mhz == 146.94
-    assert resolved.channels[1].tx_frequency_mhz == 146.34
+    assert resolved.channels[1].rx_frequency_mhz == 146.34
+    assert resolved.channels[1].tx_frequency_mhz == 146.94
     assert resolved.channels[1].service == "amateur"
+    assert resolved.channels[1].bandwidth_khz is None
+    assert resolved.channels[1].power_w is None
+    assert resolved.channels[1].color_code is None
+    assert resolved.channels[1].timeslot is None
     assert resolved.channels[1].tones == ResolvedTones(
         ctcss_tx_hz=100.0,
         ctcss_rx_hz=123.0,

@@ -42,6 +42,10 @@ class ResolvedChannel:
     tones: ResolvedTones
     tx_permitted: bool
     notes: str | None = None
+    bandwidth_khz: float | None = None
+    power_w: float | None = None
+    color_code: int | None = None
+    timeslot: int | None = None
 
 
 @dataclass(frozen=True)
@@ -85,8 +89,8 @@ class ResolvedCodeplug:
         return yaml.safe_dump(self.to_dict(), sort_keys=True)
 
 
-def _display_name(assignment: Any, fallback: str) -> str:
-    return assignment.display_name or assignment.channel_name or fallback
+def _display_name(assignment: Any, fallback: str, override: str | None) -> str:
+    return override or assignment.display_name or assignment.channel_name or fallback
 
 
 def _tones(mode: Any | None) -> ResolvedTones:
@@ -100,7 +104,9 @@ def _tones(mode: Any | None) -> ResolvedTones:
     )
 
 
-def _resolve_assignment(document: Any, assignment: Any) -> list[ResolvedChannel]:
+def _resolve_assignment(
+    document: Any, assignment: Any, display_name_override: str | None = None
+) -> list[ResolvedChannel]:
     reference = document.reference
     authorization = next(
         (
@@ -120,16 +126,15 @@ def _resolve_assignment(document: Any, assignment: Any) -> list[ResolvedChannel]
             (item for item in reference.stations if item.id == rf_chain.station_id),
             None,
         )
-        station_tx_frequency = rf_chain.tx.freq_mhz
-        rx_frequency = station_tx_frequency or rf_chain.rx.freq_mhz
-        tx_frequency = (
-            rf_chain.rx.freq_mhz if station_tx_frequency is not None else None
-        )
+        rx_frequency = rf_chain.rx.freq_mhz
+        tx_frequency = rf_chain.tx.freq_mhz
         return [
             ResolvedChannel(
                 reference=assignment.id,
                 assignment_id=assignment.id,
-                display_name=_display_name(assignment, assignment.id),
+                display_name=_display_name(
+                    assignment, assignment.id, display_name_override
+                ),
                 rx_frequency_mhz=rx_frequency,
                 tx_frequency_mhz=tx_frequency,
                 mode=rf_chain.mode.type,
@@ -141,6 +146,14 @@ def _resolve_assignment(document: Any, assignment: Any) -> list[ResolvedChannel]
                 tones=_tones(rf_chain.mode),
                 tx_permitted=tx_frequency is not None,
                 notes=assignment.notes,
+                bandwidth_khz=rf_chain.tx.bandwidth_khz,
+                power_w=rf_chain.tx.power_w,
+                color_code=rf_chain.mode.color_code,
+                timeslot=(
+                    rf_chain.mode.timeslots[0]
+                    if rf_chain.mode.timeslots
+                    else None
+                ),
             )
         ]
 
@@ -168,7 +181,9 @@ def _resolve_assignment(document: Any, assignment: Any) -> list[ResolvedChannel]
                 else assignment.id
             ),
             assignment_id=assignment.id,
-            display_name=_display_name(assignment, channel.name),
+            display_name=_display_name(
+                assignment, channel.name, display_name_override
+            ),
             rx_frequency_mhz=channel.freq_mhz,
             tx_frequency_mhz=channel.tx_freq_mhz,
             mode=None,
@@ -180,6 +195,7 @@ def _resolve_assignment(document: Any, assignment: Any) -> list[ResolvedChannel]
             tones=ResolvedTones(),
             tx_permitted=channel.tx_freq_mhz is not None,
             notes=assignment.notes or channel.notes,
+            bandwidth_khz=channel.bandwidth_khz,
         )
         for channel in selected_channels
     ]
@@ -213,9 +229,21 @@ def resolve_codeplug(
     zones: list[ResolvedZone] = []
     for zone in profile["zones"]:
         channel_references: list[str] = []
-        for assignment_id in zone["assignments"]:
+        for assignment_value in zone["assignments"]:
+            assignment_id = (
+                assignment_value["id"]
+                if isinstance(assignment_value, dict)
+                else assignment_value
+            )
             document, assignment = assignments[assignment_id]
-            resolved_channels = _resolve_assignment(document, assignment)
+            display_name_override = (
+                assignment_value.get("display_name")
+                if isinstance(assignment_value, dict)
+                else None
+            )
+            resolved_channels = _resolve_assignment(
+                document, assignment, display_name_override
+            )
             for resolved_channel in resolved_channels:
                 _check_name_length(
                     limits,
