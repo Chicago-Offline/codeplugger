@@ -216,6 +216,12 @@ also be passed to a backend as an `ArtifactStore` to audit device reads and
 writes. Generated artifacts are evidence of an operation, not an authoritative
 profile or RF data source.
 
+The reference begins with the radio model, instance identity, UTC generation
+time, and channel, zone, and contact counts. It then lists channels by numbered
+zone followed by the DMR contact table. When `--instance-registry` is supplied,
+the heading uses the instance's DMR ID and color metadata and the contact table
+includes every registry instance that has a DMR ID.
+
 ## Registry-driven fleet dry run
 
 The physical fleet registry is the source of truth for which radio instance
