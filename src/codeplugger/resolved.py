@@ -185,7 +185,15 @@ def _resolve_assignment(
                 assignment, channel.name, display_name_override
             ),
             rx_frequency_mhz=channel.freq_mhz,
-            tx_frequency_mhz=channel.tx_freq_mhz,
+            tx_frequency_mhz=(
+                channel.tx_freq_mhz
+                if channel.tx_freq_mhz is not None
+                else (
+                    channel.freq_mhz
+                    if assignment.usage in {"call", "simplex"}
+                    else None
+                )
+            ),
             mode=None,
             service=(
                 assignment.service
@@ -193,7 +201,10 @@ def _resolve_assignment(
                 or plan.service
             ),
             tones=ResolvedTones(),
-            tx_permitted=channel.tx_freq_mhz is not None,
+            tx_permitted=(
+                channel.tx_freq_mhz is not None
+                or assignment.usage in {"call", "simplex"}
+            ),
             notes=assignment.notes or channel.notes,
             bandwidth_khz=channel.bandwidth_khz,
         )

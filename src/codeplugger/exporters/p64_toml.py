@@ -155,18 +155,26 @@ def _apply_fleet_identities(
     next_index = max((record.get("index", 0) for record in contact_records), default=0)
     for instance_id, instance in fleet_instances.items():
         dmr_id = instance.get("dmr_id")
-        if dmr_id is None or dmr_id in existing_ids:
+        if dmr_id is None:
             continue
-        next_index += 1
-        contact = table()
-        contact.update({
-            "index": next_index,
-            "name": instance.get("dmr_contact_name", str(dmr_id)),
-            "dmr_id": dmr_id,
-            "call_type": "private",
-        })
-        contact_records.append(contact)
-        existing_ids.add(dmr_id)
+        contact_name = instance.get("dmr_contact_name", str(dmr_id))
+        for record in contact_records:
+            if record.get("dmr_id") == dmr_id:
+                record["name"] = contact_name
+                break
+        else:
+            if dmr_id in existing_ids:
+                continue
+            next_index += 1
+            contact = table()
+            contact.update({
+                "index": next_index,
+                "name": contact_name,
+                "dmr_id": dmr_id,
+                "call_type": "private",
+            })
+            contact_records.append(contact)
+            existing_ids.add(dmr_id)
 
 
 def write_p64_toml(

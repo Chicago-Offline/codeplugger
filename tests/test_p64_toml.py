@@ -83,6 +83,40 @@ channels = [1]
     assert result["zone"][0]["name"] == "Family"
 
 
+def test_p64_toml_updates_existing_fleet_contact_names() -> None:
+    codeplug = ResolvedCodeplug(
+        "retevis_matetalk_p4", "p4_01", None, (), ()
+    )
+    result = tomllib.loads(
+        p64_toml_from_resolved(
+            codeplug,
+            """
+[radio]
+[general]
+[[channel]]
+index = 1
+name = "BASE"
+mode = "analog"
+power = "high"
+[[contact]]
+index = 1
+name = "682041"
+dmr_id = 682041
+call_type = "private"
+[[zone]]
+index = 1
+name = "BASE"
+channels = [1]
+""",
+            fleet_instances={
+                "p4_01": {"dmr_id": 682041, "dmr_contact_name": "COP4BLUE"}
+            },
+        )
+    )
+
+    assert result["contact"][0]["name"] == "COP4BLUE"
+
+
 def test_p64_toml_rejects_insufficient_baseline_capacity() -> None:
     channel = ResolvedChannel(
         "asg1", "asg1", "ONE", 446.0, 446.0, "FM", "pmr", ResolvedTones(), True

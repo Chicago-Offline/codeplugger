@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from codeplugger.backends.p64tool import P64Tool, P64ToolError
+from codeplugger.artifacts import ArtifactStore
 
 
 def test_p64tool_write_is_explicit_and_verified_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -45,3 +46,22 @@ def test_p64tool_reports_command_failures(monkeypatch: pytest.MonkeyPatch) -> No
 
     with pytest.raises(P64ToolError, match="bad cable"):
         P64Tool().info("/dev/cu.p4")
+
+
+def test_p64tool_can_audit_device_operations(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def fake_run(command: list[str], **_: object) -> object:
+        return type("Result", (), {"returncode": 0, "stdout": "ok\n", "stderr": ""})()
+
+    monkeypatch.setattr("codeplugger.backends.p64tool.subprocess.run", fake_run)
+    store = ArtifactStore(tmp_path / "profiles", "retevis_matetalk_p4", "p4_01")
+
+    P64Tool("p64tool", store).write(
+        "/dev/cu.p4", config=Path("radio.toml"), confirm=True
+    )
+
+    log = store.log_path.read_text(encoding="utf-8")
+    assert '"operation": "write"' in log
+    assert '"status": "success"' in log
+    assert 'radio.toml' in log
