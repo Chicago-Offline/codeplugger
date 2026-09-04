@@ -422,10 +422,23 @@ def main() -> int:
             )
     except (OSError, ProfileValidationError, ValueError) as exc:
         parser.exit(1, f"error: {exc}\n")
+    render_options: dict[str, Any] = {}
+    if args.output_format != "summary" and (
+        args.output_format == "html" or args.artifact_root is not None
+    ):
+        render_options["radio_name"] = _load_capabilities(
+            codeplug.radio_id, args.radio_root
+        ).get("name")
+        if args.instance_registry is not None:
+            render_options["fleet_instances"] = _load_instance_registry(
+                args.instance_registry
+            )["instances"]
     if args.artifact_root is not None and args.output_format != "summary":
         from .artifacts import write_profile_artifacts
 
-        reference_path, _ = write_profile_artifacts(args.artifact_root, codeplug)
+        reference_path, _ = write_profile_artifacts(
+            args.artifact_root, codeplug, **render_options
+        )
         if args.output_format == "html":
             print(reference_path, end="\n")
             return 0
@@ -443,7 +456,7 @@ def main() -> int:
     if args.output_format == "html":
         from .artifacts import html_reference_from_resolved
 
-        print(html_reference_from_resolved(codeplug), end="")
+        print(html_reference_from_resolved(codeplug, **render_options), end="")
         return 0
     assignment_count = sum(len(zone["assignments"]) for zone in profile["zones"])
     print(

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import html
 import json
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 
 @dataclass(frozen=True)
@@ -58,12 +58,49 @@ class ArtifactStore:
         return self.log_path
 
 
-def html_reference_from_resolved(codeplug: Any) -> str:
+def html_reference_from_resolved(
+    codeplug: Any,
+    *,
+    radio_name: str | None = None,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+    programmed_at: datetime | None = None,
+) -> str:
     """Render a self-contained printable reference for any resolved radio."""
+
+    metadata = codeplug.radio_instance or {}
+    programmed_at = programmed_at or datetime.now(timezone.utc)
+    if programmed_at.tzinfo is None:
+        programmed_at = programmed_at.replace(tzinfo=timezone.utc)
+    programmed = programmed_at.astimezone(timezone.utc).strftime("%Y.%m.%d %H:%M UTC")
+    organization = metadata.get("organization", "Chicago Offline")
+    model = radio_name or codeplug.radio_id.replace("_", " ").title()
+    if " " in model:
+        model = model.split(" ", 1)[1]
+    identity = metadata.get("dmr_id", codeplug.radio_instance_id)
+    color = metadata.get("tape_color") or metadata.get("case_color")
+    heading_parts = [organization, model, str(identity)]
+    if color:
+        heading_parts.append(str(color).title())
+
+    contact_instances = fleet_instances
+    if contact_instances is None and metadata.get("dmr_id") is not None:
+        contact_instances = {codeplug.radio_instance_id: metadata}
+    contact_rows = []
+    for instance in (contact_instances or {}).values():
+        dmr_id = instance.get("dmr_id")
+        if dmr_id is None:
+            continue
+        contact_rows.append(
+            "<tr>"
+            f"<td>{len(contact_rows) + 1}</td>"
+            f"<td>{html.escape(str(instance.get('dmr_contact_name', dmr_id)))}</td>"
+            f"<td>{dmr_id}</td><td>Private</td>"
+            "</tr>"
+        )
 
     channels = {channel.reference: channel for channel in codeplug.channels}
     sections: list[str] = []
-    for zone in codeplug.zones:
+    for zone_index, zone in enumerate(codeplug.zones, 1):
         rows = []
         for index, reference in enumerate(zone.channel_references, 1):
             channel = channels[reference]
@@ -83,7 +120,7 @@ def html_reference_from_resolved(codeplug: Any) -> str:
                 "</tr>"
             )
         sections.append(
-            f"<h2>{html.escape(zone.name)}</h2>"
+            f"<h3>Zone {zone_index} - {html.escape(zone.name)}</h3>"
             "<table><thead><tr><th>#</th><th>Name</th><th>RX</th><th>TX</th>"
             "<th>Mode</th><th>Service</th><th>TX permitted</th><th>Notes</th>"
             "</tr></thead><tbody>"
@@ -94,32 +131,49 @@ def html_reference_from_resolved(codeplug: Any) -> str:
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         f"<title>{html.escape(codeplug.radio_instance_id)} codeplug</title>"
         "<style>body{font:14px -apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;"
-        "color:#17202a;margin:2rem}h1{margin-bottom:.2rem}.meta{color:#59636e;"
-        "margin-bottom:2rem}table{border-collapse:collapse;width:100%;margin-bottom:2rem}"
+        "color:#17202a;margin:2rem}h1{margin-bottom:.4rem}h1+h3{margin-top:0}"
+        "h3{color:#59636e}table{border-collapse:collapse;width:100%;margin-bottom:2rem}"
         "th,td{border:1px solid #c8ced4;padding:.45rem .55rem;text-align:left}"
         "th{background:#e9eef2}tr:nth-child(even){background:#f7f9fa}"
-        "@media print{body{margin:0}h2{break-after:avoid}table{font-size:10pt}}"
+        "@media print{body{margin:0}h2,h3{break-after:avoid}table{font-size:10pt}}"
         "</style></head><body>"
-        f"<h1>{html.escape(codeplug.radio_id)}</h1>"
-        f"<div class=\"meta\">Radio instance: {html.escape(codeplug.radio_instance_id)}"
-        f"<br>Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)}</div>"
+        f"<h1>{html.escape(' - '.join(heading_parts))}</h1>"
+        f"<h3>Programmed: {programmed}</h3>"
+        f"<h3>Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)} | "
+        f"Contacts: {len(contact_rows)}</h3>"
+        "<h2>Zones / Channels</h2>"
         + "".join(sections)
+        + "<h2>Contacts</h2>"
+        + "<table><thead><tr><th>#</th><th>Name</th><th>DMR ID</th>"
+        "<th>Type</th></tr></thead><tbody>"
+        + "".join(contact_rows)
+        + "</tbody></table>"
         + "</body></html>\n"
     )
 
 
-def write_html_reference(path: Path, codeplug: Any) -> None:
+def write_html_reference(
+    path: Path,
+    codeplug: Any,
+    **render_options: Any,
+) -> None:
     """Write a resolved codeplug's printable reference."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html_reference_from_resolved(codeplug), encoding="utf-8")
+    path.write_text(
+        html_reference_from_resolved(codeplug, **render_options), encoding="utf-8"
+    )
 
 
-def write_profile_artifacts(root: Path, codeplug: Any) -> tuple[Path, Path]:
+def write_profile_artifacts(
+    root: Path,
+    codeplug: Any,
+    **render_options: Any,
+) -> tuple[Path, Path]:
     """Write the HTML reference and generation log for a resolved radio."""
 
     store = ArtifactStore(root, codeplug.radio_id, codeplug.radio_instance_id)
     reference_path = store.directory / "reference.html"
-    write_html_reference(reference_path, codeplug)
+    write_html_reference(reference_path, codeplug, **render_options)
     store.record("generate", "success", artifacts=(reference_path,))
     return reference_path, store.log_path
