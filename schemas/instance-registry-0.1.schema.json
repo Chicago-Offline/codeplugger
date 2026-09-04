@@ -24,11 +24,17 @@
           },
           "profile": { "type": "string" },
           "label": { "type": "string" },
+          "dmr_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16776415
+          },
+          "dmr_contact_name": { "type": "string", "minLength": 1 },
           "owner": { "type": "string" },
-          "case_serial": { "type": "string" },
-          "fcc_id": { "type": "string" },
+          "case_serial": { "type": ["string", "null"] },
+          "fcc_id": { "type": ["string", "null"] },
           "hardware_family": { "type": "string" },
-          "firmware": { "type": "string" },
+          "firmware": { "type": ["string", "null"] },
           "sk_buttons": {
             "type": ["string", "null"]
           }

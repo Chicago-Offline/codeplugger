@@ -165,6 +165,57 @@ TX permission. It intentionally excludes scan lists, contacts, DMR identities,
 button settings, and NeonPlug fields; exporters translate this stable model
 without participating in input resolution.
 
+## P4 TOML export
+
+The P4 exporter requires a TOML file produced by `p64tool decode` as its
+baseline. It updates resolved channel and zone records in place and preserves
+radio-wide settings, existing contacts, RX groups, and fields codeplugger does
+not yet model. It can also explicitly set analog bandwidth, clear unused
+channel/zone slots, and add contacts from a fleet registry:
+
+```python
+from codeplugger.exporters.p64_toml import p64_toml_from_resolved
+
+output = p64_toml_from_resolved(
+  resolved,
+  baseline_toml,
+  fleet_instances=registry["instances"],
+  clear_unused_channels=True,
+  analog_bandwidth_khz=25.0,
+  digital_contact_index=1,
+  digital_rx_group_index=1,
+)
+```
+
+When `fleet_instances` is supplied, the target radio's `dmr_id` becomes
+`general.radio_dmr_id` and each registry radio is appended as a private
+contact. Contact and RX-group indices must refer to records already present in
+the baseline; the exporter does not invent talkgroup semantics.
+
+The external `p64tool` backend wrapper provides read-only `info`, `read`, and
+`roundtrip` operations plus an explicit `confirm=True` write operation. It
+always uses p64tool's known-firmware gate and read-back verification by default.
+
+## Registry-driven fleet dry run
+
+The physical fleet registry is the source of truth for which radio instance
+gets which profile. A registry entry's `profile` value names a profile file
+under the profile repository, and the profile's `radio_instance` must match the
+registry key. No radio is changed by this command:
+
+```bash
+uv run codeplugger-fleet \
+  --instance-registry ../muehlstein-codeplugger-profiles/instances.yml \
+  --profiles-root ../muehlstein-codeplugger-profiles/profiles \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../muehlstein-ssrf-private/ssrf
+```
+
+The command resolves every registered radio, validates its profile against the
+radio capabilities, and reports a deterministic SHA-256 of the resolved
+codeplug. A nonzero exit status means at least one instance is not ready; this
+is the planning gate before a programming adapter is invoked.
+
 ## CHIRP workflow for analog radios
 
 For analog radios such as the UV-5R Mini, codeplugger can emit CHIRP-compatible

@@ -8,6 +8,7 @@ from .resolved import (
 	ResolvedZone,
 	resolve_codeplug,
 )
+from .fleet import FleetPlan, FleetRadioPlan, plan_registry
 
 __all__ = [
 	"ProfileValidationError",
@@ -17,4 +18,7 @@ __all__ = [
 	"ResolvedZone",
 	"load_and_validate_profile",
 	"resolve_codeplug",
+	"FleetPlan",
+	"FleetRadioPlan",
+	"plan_registry",
 ]

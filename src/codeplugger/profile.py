@@ -26,6 +26,10 @@ class ProfileValidationError(ValueError):
     """Raised when a profile cannot be resolved into a valid selection."""
 
 
+def _assignment_id(value: Any) -> str:
+    return value["id"] if isinstance(value, dict) else value
+
+
 def _load_mapping(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
@@ -367,7 +371,8 @@ def _load_and_validate_profile(
         zone_ids.add(zone["id"])
         _check_name_length(limits, "max_zone_name_chars", "zone", zone["name"])
         zone_channel_count = 0
-        for assignment_id in zone["assignments"]:
+        for assignment in zone["assignments"]:
+            assignment_id = _assignment_id(assignment)
             if assignment_id in ambiguous_assignments:
                 raise ProfileValidationError(
                     f"zone '{zone['name']}' references ambiguous assignment "
