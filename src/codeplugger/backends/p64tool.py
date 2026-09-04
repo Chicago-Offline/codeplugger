@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 from typing import Sequence
 
+from ..artifacts import ArtifactStore
+
 
 class P64ToolError(RuntimeError):
     """Raised when p64tool cannot complete an operation."""
@@ -17,8 +19,9 @@ class P64Tool:
     """Safe command wrapper for a p64tool executable."""
 
     executable: Path | str = "p64tool"
+    artifact_store: ArtifactStore | None = None
 
-    def _run(self, args: Sequence[str]) -> str:
+    def _run(self, args: Sequence[str], *, artifacts: Sequence[Path] = ()) -> str:
         command = [str(self.executable), *args]
         try:
             result = subprocess.run(
@@ -28,12 +31,24 @@ class P64Tool:
                 text=True,
             )
         except OSError as exc:
+            if self.artifact_store is not None:
+                self.artifact_store.record(
+                    args[0], "failure", command=command, artifacts=artifacts, detail=str(exc)
+                )
             raise P64ToolError(f"could not run p64tool: {exc}") from exc
         if result.returncode != 0:
             detail = (result.stderr or result.stdout).strip()
+            if self.artifact_store is not None:
+                self.artifact_store.record(
+                    args[0], "failure", command=command, artifacts=artifacts, detail=detail
+                )
             raise P64ToolError(
                 f"p64tool {' '.join(args)} failed ({result.returncode})"
                 + (f": {detail}" if detail else "")
+            )
+        if self.artifact_store is not None:
+            self.artifact_store.record(
+                args[0], "success", command=command, artifacts=artifacts
             )
         return result.stdout
 
@@ -48,12 +63,12 @@ class P64Tool:
         args = ["read", "--port", port, "--out", str(output)]
         if verbose:
             args.append("--verbose")
-        return self._run(args)
+        return self._run(args, artifacts=(output,))
 
     def roundtrip(self, dump: Path) -> str:
         """Verify that a dump decodes and re-encodes byte-for-byte."""
 
-        return self._run(["roundtrip", str(dump)])
+        return self._run(["roundtrip", str(dump)], artifacts=(dump,))
 
     def write(
         self,
@@ -86,4 +101,5 @@ class P64Tool:
         if verbose:
             args.append("--verbose")
         args.append("--yes")
-        return self._run(args)
+        artifacts = tuple(path for path in (config, from_dump) if path is not None)
+        return self._run(args, artifacts=artifacts)

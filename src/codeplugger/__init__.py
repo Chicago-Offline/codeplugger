@@ -9,6 +9,7 @@ from .resolved import (
 	resolve_codeplug,
 )
 from .fleet import FleetPlan, FleetRadioPlan, plan_registry
+from .artifacts import ArtifactStore, OperationRecord, write_profile_artifacts
 
 __all__ = [
 	"ProfileValidationError",
@@ -21,4 +22,7 @@ __all__ = [
 	"FleetPlan",
 	"FleetRadioPlan",
 	"plan_registry",
+	"ArtifactStore",
+	"OperationRecord",
+	"write_profile_artifacts",
 ]

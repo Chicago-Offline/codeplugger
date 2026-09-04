@@ -152,6 +152,41 @@ def test_profile_supports_profile_local_assignment_display_names() -> None:
     assert resolved.channels[0].display_name == "CO ONE"
 
 
+def test_simplex_channel_plan_defaults_tx_to_rx_frequency() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_plan"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["channel_plans"] = [
+            {
+                "id": "plan_test",
+                "name": "Test plan",
+                "channels": [{"name": "One", "freq_mhz": 446.025}],
+            }
+        ]
+        data["assignments"].append(
+            {
+                "id": "asg_plan",
+                "channel_plan_id": "plan_test",
+                "usage": "simplex",
+            }
+        )
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.channels[0].tx_frequency_mhz == 446.025
+    assert resolved.channels[0].tx_permitted
+
+
 def test_resolved_codeplug_defaults_instance_to_profile_id() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
