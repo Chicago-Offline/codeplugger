@@ -196,6 +196,32 @@ The external `p64tool` backend wrapper provides read-only `info`, `read`, and
 `roundtrip` operations plus an explicit `confirm=True` write operation. It
 always uses p64tool's known-firmware gate and read-back verification by default.
 
+## Radio artifacts and operation logs
+
+Resolved profiles can produce a self-contained, printable HTML reference and a
+JSON Lines operation log under the profiles repository. The artifact format is
+radio-independent, so it works for DM-32, P4, and other resolved radio models:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-test/ssrf \
+  --output-format html \
+  --artifact-root path/to/profiles
+```
+
+This creates `.artifacts/<radio>/<radio-instance>/reference.html` and
+`operations.jsonl`. The latter records successful profile generation and can
+also be passed to a backend as an `ArtifactStore` to audit device reads and
+writes. Generated artifacts are evidence of an operation, not an authoritative
+profile or RF data source.
+
+The reference begins with the radio model, instance identity, UTC generation
+time, and channel, zone, and contact counts. It then lists channels by numbered
+zone followed by the DMR contact table. When `--instance-registry` is supplied,
+the heading uses the instance's DMR ID and color metadata and the contact table
+includes every registry instance that has a DMR ID.
+
 ## Registry-driven fleet dry run
 
 The physical fleet registry is the source of truth for which radio instance
