@@ -1,15 +1,21 @@
 flowchart LR
     public["ssrf-lite<br/>Authoritative public RF data"]
-    private["SSRF overlay<br/>chioff fixture or private user data"]
-    profiles["Codeplugger profile<br/>chioff fixture or user preferences"]
-    merge["Resolve and validate inputs"]
-    codeplugger["codeplugger<br/>Generate CPS import"]
-    cps["neonplug / DM32 CPS"]
-    radio["DM32 radio"]
+    private["SSRF overlay<br/>shared or private user data"]
+    profile["Profile<br/>selection and ordering policy"]
+    registry["Instance registry<br/>fleet radios, optional"]
+    resolve["codeplugger<br/>Resolve and validate against radio capabilities"]
+    resolved["Resolved codeplug<br/>radio-neutral, deterministic"]
+    backend["Programming backend<br/>gated write: p64tool today, DM-32 planned"]
+    exporter["Exporter<br/>CHIRP CSV / P4 TOML"]
+    cps["CPS tool<br/>CHIRP / vendor CPS"]
+    artifacts["Artifacts<br/>HTML reference + operation log"]
+    radio["Radio"]
 
-    public --> merge
-    private --> merge
-    profiles --> codeplugger
-    merge --> codeplugger
-    codeplugger --> cps
-    cps --> radio
+    public --> resolve
+    private --> resolve
+    profile --> resolve
+    registry --> resolve
+    resolve --> resolved
+    resolved --> backend --> radio
+    resolved --> exporter --> cps --> radio
+    resolved --> artifacts

@@ -1,27 +1,39 @@
 # codeplugger
 
 `codeplugger` builds radio codeplugs from shared RF data and user-owned
-configuration. Its initial target is a neonplug-compatible import for the
-Baofeng DM-32, with room to support other radios and CPS tools later.
+configuration. It aims to be a general-purpose codeplug compiler: SSRF data
+plus a profile compiles deterministically into a validated, radio-neutral
+codeplug, and vendor CPS tools are replaceable export or programming
+backends rather than the workflow. Current targets are the Baofeng DM-32,
+Retevis MateTalk P4, and Baofeng UV-5R Mini.
 
-## Proposed workflow
+Intent, guiding principles, current state, and the roadmap live in
+[docs/plan.md](docs/plan.md).
+
+## Workflow
 
 ```mermaid
 flowchart LR
     public["ssrf-lite<br/>Authoritative public RF data"]
-  private["SSRF overlay<br/>chioff fixture or private user data"]
-  profiles["Codeplugger profile<br/>chioff fixture or user preferences"]
-    merge["Resolve and validate inputs"]
-    codeplugger["codeplugger<br/>Generate CPS import"]
-    cps["neonplug / DM32 CPS"]
-    radio["DM32 radio"]
+    private["SSRF overlay<br/>shared or private user data"]
+    profile["Profile<br/>selection and ordering policy"]
+    registry["Instance registry<br/>fleet radios, optional"]
+    resolve["codeplugger<br/>Resolve and validate against radio capabilities"]
+    resolved["Resolved codeplug<br/>radio-neutral, deterministic"]
+    backend["Programming backend<br/>gated write: p64tool today, DM-32 planned"]
+    exporter["Exporter<br/>CHIRP CSV / P4 TOML"]
+    cps["CPS tool<br/>CHIRP / vendor CPS"]
+    artifacts["Artifacts<br/>HTML reference + operation log"]
+    radio["Radio"]
 
-    public --> merge
-    private --> merge
-    profiles --> codeplugger
-    merge --> codeplugger
-    codeplugger --> cps
-    cps --> radio
+    public --> resolve
+    private --> resolve
+    profile --> resolve
+    registry --> resolve
+    resolve --> resolved
+    resolved --> backend --> radio
+    resolved --> exporter --> cps --> radio
+    resolved --> artifacts
 ```
 
 The diagram source is also available in [docs/workflow.mmd](docs/workflow.mmd).
@@ -97,16 +109,15 @@ Small synthetic fixtures should remain in this repository for fast,
 deterministic unit tests. The `chioff-*` repositories are intended for broader
 cross-repository contract and end-to-end tests.
 
-## Initial scope
+## Scope and status
 
-The first end-to-end milestone is intentionally narrow:
+Profile resolution and validation, the fleet dry run, P4 TOML export with a
+gated `p64tool` write backend, CHIRP CSV export for analog radios, and
+HTML/operation-log artifacts are working today. The near-term priority is
+headless DM-32 programming; see [docs/plan.md](docs/plan.md) for the
+sequenced plan and what is deliberately deferred.
 
-1. Read `ssrf-lite` plus optional private overrides.
-2. Read one DM-32 profile.
-3. Validate channel and radio constraints.
-4. Produce an import accepted by neonplug.
-
-The directories in this repository are intended to evolve along these lines:
+Repository directories:
 
 - `radios/`: radio capabilities, constraints, and exporter-specific mappings.
 - `profiles/`: public examples and fixtures, not real user secrets.
