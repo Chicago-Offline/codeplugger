@@ -11,7 +11,7 @@ from codeplugger.profile import ProfileValidationError, load_and_validate_profil
 from codeplugger.resolved import ResolvedTones, resolve_codeplug
 
 
-def _write_profile(path: Path, assignments: list[str]) -> None:
+def _write_profile(path: Path, assignments: list[str], **extra) -> None:
     path.write_text(
         yaml.safe_dump(
             {
@@ -27,6 +27,7 @@ def _write_profile(path: Path, assignments: list[str]) -> None:
                         "assignments": assignments,
                     }
                 ],
+                **extra,
             },
             sort_keys=False,
         ),
@@ -34,7 +35,11 @@ def _write_profile(path: Path, assignments: list[str]) -> None:
     )
 
 
-def _write_radio(root: Path, max_channels_per_zone: int = 2) -> None:
+def _write_radio(
+    root: Path,
+    max_channels_per_zone: int = 2,
+    extra_limits: dict | None = None,
+) -> None:
     radio = root / "test_radio"
     radio.mkdir(parents=True)
     (radio / "capabilities.json").write_text(
@@ -46,6 +51,7 @@ def _write_radio(root: Path, max_channels_per_zone: int = 2) -> None:
                     "max_channels": 2,
                     "max_zones": 1,
                     "max_channels_per_zone": max_channels_per_zone,
+                    **(extra_limits or {}),
                 },
             }
         ),
@@ -53,7 +59,7 @@ def _write_radio(root: Path, max_channels_per_zone: int = 2) -> None:
     )
 
 
-def _write_ssrf(root: Path) -> None:
+def _write_ssrf(root: Path, contacts: list[dict] | None = None) -> None:
     systems = root / "systems"
     systems.mkdir(parents=True)
     (systems / "fixture.yml").write_text(
@@ -95,6 +101,7 @@ def _write_ssrf(root: Path) -> None:
                         "usage": "simplex",
                     },
                 ],
+                **({"contacts": contacts} if contacts is not None else {}),
             },
             sort_keys=False,
         ),
@@ -913,3 +920,251 @@ def test_conservative_firmware_fallback_emits_hint() -> None:
     assert hints
     assert "conservative" in hints[0].message
     assert not report.has_critical
+
+
+_FIXTURE_CONTACTS = [
+    {"id": "tg_local", "name": "Local", "kind": "Group", "number": 9},
+    {"id": "tg_state", "name": "Statewide", "kind": "Group", "number": 3117},
+    {"id": "ct_ops", "name": "Ops", "kind": "Private", "number": 3117001},
+]
+
+
+def test_rx_groups_and_scan_lists_resolve() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            [
+                {
+                    "id": "asg_one",
+                    "contact": "tg_local",
+                    "rx_group": "grp_local",
+                    "scan_list": "city",
+                },
+                "asg_two",
+            ],
+            rx_groups=[
+                {
+                    "id": "grp_local",
+                    "name": "Local",
+                    "contacts": ["tg_local", "tg_state"],
+                }
+            ],
+            scan_lists=[
+                {
+                    "id": "city",
+                    "name": "City",
+                    "channels": ["asg_one", "asg_two"],
+                }
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=_FIXTURE_CONTACTS)
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert [contact.id for contact in resolved.contacts] == [
+        "tg_local",
+        "tg_state",
+    ]
+    assert resolved.contacts[0].number == 9
+    assert resolved.contacts[0].kind == "group"
+    assert resolved.rx_groups[0].id == "grp_local"
+    assert resolved.rx_groups[0].contact_ids == ("tg_local", "tg_state")
+    assert resolved.scan_lists[0].channel_references == ("asg_one", "asg_two")
+    assert resolved.channels[0].contact_id == "tg_local"
+    assert resolved.channels[0].rx_group_id == "grp_local"
+    assert resolved.channels[0].scan_list_id == "city"
+    assert resolved.channels[1].contact_id is None
+    round_tripped = json.loads(resolved.to_json())
+    assert round_tripped["rx_groups"][0]["contact_ids"] == [
+        "tg_local",
+        "tg_state",
+    ]
+    assert round_tripped["scan_lists"][0]["channel_references"] == [
+        "asg_one",
+        "asg_two",
+    ]
+
+
+def test_assignment_contact_outside_rx_groups_is_included() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_one", "contact": "ct_ops"}])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=_FIXTURE_CONTACTS)
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert [contact.id for contact in resolved.contacts] == ["ct_ops"]
+    assert resolved.contacts[0].kind == "private"
+
+
+def test_rx_group_with_unknown_contact_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one"],
+            rx_groups=[
+                {"id": "grp_bad", "name": "Bad", "contacts": ["tg_missing"]}
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=_FIXTURE_CONTACTS)
+
+        with pytest.raises(
+            ProfileValidationError, match="unknown SSRF contact 'tg_missing'"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_rx_group_rejects_private_contacts() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one"],
+            rx_groups=[
+                {"id": "grp_bad", "name": "Bad", "contacts": ["ct_ops"]}
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=_FIXTURE_CONTACTS)
+
+        with pytest.raises(
+            ProfileValidationError, match="group calls only"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_rx_group_contact_without_number_fails() -> None:
+    contacts = [{"id": "tg_nonum", "name": "NoNum", "kind": "Group"}]
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one"],
+            rx_groups=[
+                {"id": "grp_bad", "name": "Bad", "contacts": ["tg_nonum"]}
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=contacts)
+
+        with pytest.raises(ProfileValidationError, match="no DMR number"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_scan_list_referencing_unselected_assignment_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one"],
+            scan_lists=[
+                {"id": "city", "name": "City", "channels": ["asg_two"]}
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(
+            ProfileValidationError, match="which no zone selects"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_scan_list_capability_limits_enforced() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one", "asg_two"],
+            scan_lists=[
+                {
+                    "id": "city",
+                    "name": "TOO LONG NAME",
+                    "channels": ["asg_one", "asg_two"],
+                }
+            ],
+        )
+        _write_radio(
+            root / "radios",
+            extra_limits={
+                "max_channels_per_scan_list": 1,
+                "max_scan_list_name_chars": 8,
+            },
+        )
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError) as excinfo:
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+    message = str(excinfo.value)
+    assert "expands to 2 channels" in message
+    assert "TOO LONG NAME" in message
+
+
+def test_assignment_referencing_unknown_rx_group_or_scan_list_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            [
+                {
+                    "id": "asg_one",
+                    "rx_group": "grp_missing",
+                    "scan_list": "scan_missing",
+                }
+            ],
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf", contacts=_FIXTURE_CONTACTS)
+
+        with pytest.raises(ProfileValidationError) as excinfo:
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+    message = str(excinfo.value)
+    assert "unknown RX group list 'grp_missing'" in message
+    assert "unknown scan list 'scan_missing'" in message

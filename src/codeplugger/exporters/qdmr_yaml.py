@@ -67,6 +67,13 @@ PLACEHOLDER_TALKGROUP_NAME = "UNUSED TG99"
 PLACEHOLDER_TALKGROUP_NUMBER = 99
 PLACEHOLDER_GROUP_LIST_NAME = "UNUSED"
 
+# Resolved contact kinds mapped to qdmr DMR contact types.
+CONTACT_TYPES = {
+    "group": "GroupCall",
+    "private": "PrivateCall",
+    "all": "AllCall",
+}
+
 
 def _frequency(value_mhz: float) -> str:
     text = f"{value_mhz:.6f}".rstrip("0").rstrip(".")
@@ -167,7 +174,12 @@ def _fm_channel(
     return {"fm": record}
 
 
-def _dmr_channel(channel: ResolvedChannel, channel_id: str) -> dict[str, Any]:
+def _dmr_channel(
+    channel: ResolvedChannel,
+    channel_id: str,
+    contact_ids: Mapping[str, str],
+    rx_group_ids: Mapping[str, str],
+) -> dict[str, Any]:
     if channel.color_code is None:
         raise ValueError(
             f"DMR channel '{channel.display_name}' has no color code; color "
@@ -189,21 +201,55 @@ def _dmr_channel(channel: ResolvedChannel, channel_id: str) -> dict[str, Any]:
             "admit": DEFAULT_DMR_ADMIT,
             "colorCode": channel.color_code,
             "timeSlot": f"TS{timeslot}",
+            **(
+                {"groupList": rx_group_ids[channel.rx_group_id]}
+                if channel.rx_group_id is not None
+                else {}
+            ),
+            **(
+                {"contact": contact_ids[channel.contact_id]}
+                if channel.contact_id is not None
+                else {}
+            ),
             "power": _power(channel.power_w),
         }
     }
 
 
 def _contacts(
+    codeplug: ResolvedCodeplug,
     fleet_instances: Mapping[str, Mapping[str, Any]] | None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Return (contacts, groupLists) satisfying DM-32UV structural minimums.
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, str],
+    dict[str, str],
+]:
+    """Return (contacts, groupLists, contact id map, RX group id map).
 
-    Fleet-registry members become private contacts, mirroring the P4
-    exporter's contact policy; anything richer stays deferred.
+    Profile-selected talkgroups come first; fleet-registry members become
+    private contacts, mirroring the P4 exporter's contact policy. When the
+    profile defines no RX groups, the DM-32UV structural minimums (\u22651
+    group-call contact, \u22651 RX group list) are satisfied by the UNUSED
+    placeholder, exactly as before.
     """
 
     contacts: list[dict[str, Any]] = []
+    contact_ids: dict[str, str] = {}
+    for contact in codeplug.contacts:
+        yaml_id = f"cont{len(contacts) + 1}"
+        contact_ids[contact.id] = yaml_id
+        contacts.append(
+            {
+                "dmr": {
+                    "id": yaml_id,
+                    "name": contact.name,
+                    "ring": False,
+                    "type": CONTACT_TYPES[contact.kind],
+                    "number": contact.number,
+                }
+            }
+        )
     for instance in (fleet_instances or {}).values():
         dmr_id = instance.get("dmr_id")
         if dmr_id is None:
@@ -219,26 +265,42 @@ def _contacts(
                 }
             }
         )
-    placeholder_id = f"cont{len(contacts) + 1}"
-    contacts.append(
-        {
-            "dmr": {
-                "id": placeholder_id,
-                "name": PLACEHOLDER_TALKGROUP_NAME,
-                "ring": False,
-                "type": "GroupCall",
-                "number": PLACEHOLDER_TALKGROUP_NUMBER,
+
+    group_lists: list[dict[str, Any]] = []
+    rx_group_ids: dict[str, str] = {}
+    for group in codeplug.rx_groups:
+        yaml_id = f"grp{len(group_lists) + 1}"
+        rx_group_ids[group.id] = yaml_id
+        group_lists.append(
+            {
+                "id": yaml_id,
+                "name": group.name,
+                "contacts": [
+                    contact_ids[contact_id] for contact_id in group.contact_ids
+                ],
             }
-        }
-    )
-    group_lists = [
-        {
-            "id": "grp1",
-            "name": PLACEHOLDER_GROUP_LIST_NAME,
-            "contacts": [placeholder_id],
-        }
-    ]
-    return contacts, group_lists
+        )
+    if not group_lists:
+        placeholder_id = f"cont{len(contacts) + 1}"
+        contacts.append(
+            {
+                "dmr": {
+                    "id": placeholder_id,
+                    "name": PLACEHOLDER_TALKGROUP_NAME,
+                    "ring": False,
+                    "type": "GroupCall",
+                    "number": PLACEHOLDER_TALKGROUP_NUMBER,
+                }
+            }
+        )
+        group_lists.append(
+            {
+                "id": "grp1",
+                "name": PLACEHOLDER_GROUP_LIST_NAME,
+                "contacts": [placeholder_id],
+            }
+        )
+    return contacts, group_lists, contact_ids, rx_group_ids
 
 
 def qdmr_yaml_from_resolved(
@@ -255,17 +317,27 @@ def qdmr_yaml_from_resolved(
 
     channels: list[dict[str, Any]] = []
     channel_ids: dict[str, str] = {}
+    contacts, group_lists, contact_ids, rx_group_ids = _contacts(
+        codeplug, fleet_instances
+    )
+    scan_list_ids = {
+        scan_list.id: f"scan{index + 1}"
+        for index, scan_list in enumerate(codeplug.scan_lists)
+    }
     has_dmr = False
     for index, channel in enumerate(codeplug.channels):
         channel_id = f"ch{index + 1}"
         channel_ids[channel.reference] = channel_id
         if (channel.mode or "FM").upper() == "DMR":
             has_dmr = True
-            channels.append(_dmr_channel(channel, channel_id))
+            record = _dmr_channel(channel, channel_id, contact_ids, rx_group_ids)
         else:
-            channels.append(
-                _fm_channel(channel, channel_id, analog_bandwidth_khz)
-            )
+            record = _fm_channel(channel, channel_id, analog_bandwidth_khz)
+        if channel.scan_list_id is not None:
+            next(iter(record.values()))["scanList"] = scan_list_ids[
+                channel.scan_list_id
+            ]
+        channels.append(record)
 
     zones = [
         {
@@ -277,7 +349,6 @@ def qdmr_yaml_from_resolved(
         for index, zone in enumerate(codeplug.zones)
     ]
 
-    contacts, group_lists = _contacts(fleet_instances)
     document: dict[str, Any] = {
         "version": QDMR_CONFIG_VERSION,
         "settings": dict(DEFAULT_SETTINGS),
@@ -287,6 +358,17 @@ def qdmr_yaml_from_resolved(
         "channels": channels,
         "zones": zones,
     }
+    if codeplug.scan_lists:
+        document["scanLists"] = [
+            {
+                "id": scan_list_ids[scan_list.id],
+                "name": scan_list.name,
+                "channels": [
+                    channel_ids[ref] for ref in scan_list.channel_references
+                ],
+            }
+            for scan_list in codeplug.scan_lists
+        ]
 
     metadata = codeplug.radio_instance or {}
     dmr_id = metadata.get("dmr_id")

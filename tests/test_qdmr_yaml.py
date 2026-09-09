@@ -14,6 +14,9 @@ from codeplugger.exporters.qdmr_yaml import (
 from codeplugger.resolved import (
     ResolvedChannel,
     ResolvedCodeplug,
+    ResolvedContact,
+    ResolvedRxGroup,
+    ResolvedScanList,
     ResolvedTones,
     ResolvedZone,
 )
@@ -41,6 +44,7 @@ def _codeplug(
     channels: tuple[ResolvedChannel, ...],
     *,
     radio_instance: dict | None = None,
+    **extra,
 ) -> ResolvedCodeplug:
     return ResolvedCodeplug(
         radio_id="baofeng_dm32",
@@ -52,6 +56,7 @@ def _codeplug(
                 "z1", "Zone 1", tuple(ch.reference for ch in channels)
             ),
         ),
+        **extra,
     )
 
 
@@ -200,6 +205,62 @@ def test_placeholder_contact_present_without_fleet_registry() -> None:
     assert len(document["groupLists"]) == 1
 
 
+def test_contacts_group_lists_and_scan_lists_from_profile() -> None:
+    dmr = _channel(
+        reference="d1",
+        assignment_id="d1",
+        display_name="RPT",
+        rx_frequency_mhz=442.5,
+        tx_frequency_mhz=447.5,
+        mode="DMR",
+        color_code=1,
+        timeslot=2,
+        contact_id="tg_local",
+        rx_group_id="grp_local",
+        scan_list_id="city",
+    )
+    fm = _channel(scan_list_id="city")
+    codeplug = _codeplug(
+        (dmr, fm),
+        radio_instance={"dmr_id": 1234567},
+        contacts=(
+            ResolvedContact("tg_local", "Local", 9, "group"),
+            ResolvedContact("tg_state", "Statewide", 3117, "group"),
+        ),
+        rx_groups=(
+            ResolvedRxGroup("grp_local", "Local", ("tg_local", "tg_state")),
+        ),
+        scan_lists=(ResolvedScanList("city", "City", ("d1", "a1")),),
+    )
+
+    document = yaml.safe_load(
+        qdmr_yaml_from_resolved(
+            codeplug,
+            fleet_instances={"dm32_01": {"dmr_id": 1234567}},
+        )
+    )
+
+    contacts = [entry["dmr"] for entry in document["contacts"]]
+    assert [(c["name"], c["type"], c["number"]) for c in contacts] == [
+        ("Local", "GroupCall", 9),
+        ("Statewide", "GroupCall", 3117),
+        ("1234567", "PrivateCall", 1234567),
+    ]
+    assert document["groupLists"] == [
+        {"id": "grp1", "name": "Local", "contacts": ["cont1", "cont2"]}
+    ]
+    record = document["channels"][0]["dmr"]
+    assert record["groupList"] == "grp1"
+    assert record["contact"] == "cont1"
+    assert record["scanList"] == "scan1"
+    assert document["channels"][1]["fm"]["scanList"] == "scan1"
+    assert document["scanLists"] == [
+        {"id": "scan1", "name": "City", "channels": ["ch1", "ch2"]}
+    ]
+    # Real group policy defined: no UNUSED placeholder needed.
+    assert all(c["number"] != PLACEHOLDER_TALKGROUP_NUMBER for c in contacts)
+
+
 def test_dmr_channel_without_color_code_fails() -> None:
     dmr = _channel(mode="DMR", timeslot=1)
     codeplug = _codeplug((dmr,), radio_instance={"dmr_id": 1})
@@ -256,7 +317,7 @@ def test_mixed_ctcss_and_dcs_on_one_side_fails() -> None:
 )
 def test_dmrconf_verify_accepts_generated_codeplug(tmp_path) -> None:
     channels = (
-        _channel(tones=ResolvedTones(ctcss_tx_hz=67.0)),
+        _channel(tones=ResolvedTones(ctcss_tx_hz=67.0), scan_list_id="city"),
         _channel(
             reference="d1",
             assignment_id="d1",
@@ -267,9 +328,18 @@ def test_dmrconf_verify_accepts_generated_codeplug(tmp_path) -> None:
             power_w=5.0,
             color_code=1,
             timeslot=2,
+            contact_id="tg_local",
+            rx_group_id="grp_local",
+            scan_list_id="city",
         ),
     )
-    codeplug = _codeplug((channels), radio_instance={"dmr_id": 1234567})
+    codeplug = _codeplug(
+        (channels),
+        radio_instance={"dmr_id": 1234567},
+        contacts=(ResolvedContact("tg_local", "Local", 9, "group"),),
+        rx_groups=(ResolvedRxGroup("grp_local", "Local", ("tg_local",)),),
+        scan_lists=(ResolvedScanList("city", "City", ("a1", "d1")),),
+    )
     output = tmp_path / "codeplug.yaml"
     write_qdmr_yaml(output, codeplug)
 

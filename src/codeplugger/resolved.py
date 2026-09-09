@@ -14,8 +14,10 @@ from .profile import (
     DEFAULT_SCHEMA_PATH,
     ProfileValidationError,
     _check_name_length,
+    _contact_kind,
     _load_and_validate_profile,
     _load_capabilities,
+    _ssrf_contacts,
 )
 from .validation import ValidationReport
 
@@ -28,6 +30,34 @@ class ResolvedTones:
     ctcss_rx_hz: float | None = None
     dcs_tx_code: str | int | None = None
     dcs_rx_code: str | int | None = None
+
+
+@dataclass(frozen=True)
+class ResolvedContact:
+    """A DMR contact selected from SSRF facts by profile policy."""
+
+    id: str
+    name: str
+    number: int
+    kind: str  # "group", "private", or "all"
+
+
+@dataclass(frozen=True)
+class ResolvedRxGroup:
+    """A DMR RX group list with ordered references to resolved contacts."""
+
+    id: str
+    name: str
+    contact_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ResolvedScanList:
+    """A scan list with ordered references to resolved channels."""
+
+    id: str
+    name: str
+    channel_references: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -49,6 +79,9 @@ class ResolvedChannel:
     color_code: int | None = None
     timeslots: tuple[int, ...] = ()
     timeslot: int | None = None
+    contact_id: str | None = None
+    rx_group_id: str | None = None
+    scan_list_id: str | None = None
     extensions: dict[str, Any] = field(default_factory=dict)
 
 
@@ -70,6 +103,9 @@ class ResolvedCodeplug:
     radio_instance: dict[str, Any] | None
     channels: tuple[ResolvedChannel, ...]
     zones: tuple[ResolvedZone, ...]
+    contacts: tuple[ResolvedContact, ...] = ()
+    rx_groups: tuple[ResolvedRxGroup, ...] = ()
+    scan_lists: tuple[ResolvedScanList, ...] = ()
     extensions: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -80,6 +116,15 @@ class ResolvedCodeplug:
         data["zones"] = [
             {**zone, "channel_references": list(zone["channel_references"])}
             for zone in data["zones"]
+        ]
+        data["contacts"] = list(data["contacts"])
+        data["rx_groups"] = [
+            {**group, "contact_ids": list(group["contact_ids"])}
+            for group in data["rx_groups"]
+        ]
+        data["scan_lists"] = [
+            {**scan, "channel_references": list(scan["channel_references"])}
+            for scan in data["scan_lists"]
         ]
         return data
 
@@ -114,6 +159,9 @@ def _resolve_assignment(
     assignment: Any,
     display_name_override: str | None = None,
     extensions: dict[str, Any] | None = None,
+    contact_id: str | None = None,
+    rx_group_id: str | None = None,
+    scan_list_id: str | None = None,
 ) -> list[ResolvedChannel]:
     reference = document.reference
     extensions = extensions or {}
@@ -164,6 +212,9 @@ def _resolve_assignment(
                     if rf_chain.mode.timeslots
                     else None
                 ),
+                contact_id=contact_id,
+                rx_group_id=rx_group_id,
+                scan_list_id=scan_list_id,
                 extensions=extensions,
             )
         ]
@@ -218,6 +269,9 @@ def _resolve_assignment(
             ),
             notes=assignment.notes or channel.notes,
             bandwidth_khz=channel.bandwidth_khz,
+            contact_id=contact_id,
+            rx_group_id=rx_group_id,
+            scan_list_id=scan_list_id,
             extensions=extensions,
         )
         for channel in selected_channels
@@ -251,6 +305,8 @@ def resolve_codeplug(
 
     channels: list[ResolvedChannel] = []
     zones: list[ResolvedZone] = []
+    assignment_channel_refs: dict[str, tuple[str, ...]] = {}
+    contact_order: list[str] = []
     for zone in profile["zones"]:
         channel_references: list[str] = []
         for assignment_value in zone["assignments"]:
@@ -270,8 +326,21 @@ def resolve_codeplug(
                 if isinstance(assignment_value, dict)
                 else {}
             )
+            contact_id = rx_group_id = scan_list_id = None
+            if isinstance(assignment_value, dict):
+                contact_id = assignment_value.get("contact")
+                rx_group_id = assignment_value.get("rx_group")
+                scan_list_id = assignment_value.get("scan_list")
+            if contact_id is not None and contact_id not in contact_order:
+                contact_order.append(contact_id)
             resolved_channels = _resolve_assignment(
-                document, assignment, display_name_override, assignment_extensions
+                document,
+                assignment,
+                display_name_override,
+                assignment_extensions,
+                contact_id,
+                rx_group_id,
+                scan_list_id,
             )
             for resolved_channel in resolved_channels:
                 _check_name_length(
@@ -282,6 +351,9 @@ def resolve_codeplug(
                     resolved_channel.display_name,
                 )
             channels.extend(resolved_channels)
+            assignment_channel_refs[assignment_id] = tuple(
+                channel.reference for channel in resolved_channels
+            )
             channel_references.extend(
                 channel.reference for channel in resolved_channels
             )
@@ -296,11 +368,58 @@ def resolve_codeplug(
     if report.has_critical:
         raise ProfileValidationError(report.critical_message())
 
+    ssrf_contacts = _ssrf_contacts(documents)
+    rx_group_contact_ids = [
+        contact_id
+        for group in profile.get("rx_groups", [])
+        for contact_id in group["contacts"]
+    ]
+    seen_contacts: set[str] = set()
+    contacts: list[ResolvedContact] = []
+    for contact_id in [*rx_group_contact_ids, *contact_order]:
+        if contact_id in seen_contacts:
+            continue
+        seen_contacts.add(contact_id)
+        contact = ssrf_contacts[contact_id]
+        kind = _contact_kind(contact.kind)
+        assert kind is not None and contact.number is not None  # validated above
+        contacts.append(
+            ResolvedContact(
+                id=contact.id,
+                name=contact.name,
+                number=int(contact.number),
+                kind=kind,
+            )
+        )
+    rx_groups = tuple(
+        ResolvedRxGroup(
+            id=group["id"],
+            name=group["name"],
+            contact_ids=tuple(group["contacts"]),
+        )
+        for group in profile.get("rx_groups", [])
+    )
+    scan_lists = tuple(
+        ResolvedScanList(
+            id=scan_list["id"],
+            name=scan_list["name"],
+            channel_references=tuple(
+                reference
+                for assignment_id in scan_list["channels"]
+                for reference in assignment_channel_refs[assignment_id]
+            ),
+        )
+        for scan_list in profile.get("scan_lists", [])
+    )
+
     return ResolvedCodeplug(
         radio_id=profile["radio"],
         radio_instance_id=profile.get("radio_instance", profile["id"]),
         radio_instance=instance_metadata,
         channels=tuple(channels),
         zones=tuple(zones),
+        contacts=tuple(contacts),
+        rx_groups=rx_groups,
+        scan_lists=scan_lists,
         extensions=profile.get("extensions", {}),
     )

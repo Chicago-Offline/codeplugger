@@ -28,6 +28,57 @@ def _p64_tone(ctcss_hz: float | None, dcs_code: str | int | None) -> str | None:
     return None
 
 
+# p64tool ScanList priority fields use 0xFFFF for "off".
+_P64_PRIORITY_OFF = 0xFFFF
+
+
+def _apply_talkgroup_contacts(
+    document: Any, codeplug: ResolvedCodeplug
+) -> dict[str, int]:
+    """Merge resolved contacts into [[contact]]; return contact id -> index."""
+
+    contact_records = document.get("contact")
+    if contact_records is None:
+        contact_records = aot()
+        document["contact"] = contact_records
+    next_index = max(
+        (record.get("index", 0) for record in contact_records), default=0
+    )
+    indices: dict[str, int] = {}
+    for resolved in codeplug.contacts:
+        for record in contact_records:
+            if (
+                record.get("dmr_id") == resolved.number
+                and record.get("call_type") == resolved.kind
+            ):
+                record["name"] = resolved.name
+                indices[resolved.id] = record["index"]
+                break
+        else:
+            next_index += 1
+            contact = table()
+            contact.update({
+                "index": next_index,
+                "name": resolved.name,
+                "dmr_id": resolved.number,
+                "call_type": resolved.kind,
+            })
+            contact_records.append(contact)
+            indices[resolved.id] = next_index
+    return indices
+
+
+def _replace_records(document: Any, key: str, records: Sequence[dict[str, Any]]) -> None:
+    """Replace the [[key]] array with freshly built records."""
+
+    array = aot()
+    for values in records:
+        record = table()
+        record.update(values)
+        array.append(record)
+    document[key] = array
+
+
 def p64_toml_from_resolved(
     codeplug: ResolvedCodeplug,
     baseline_toml: str,
@@ -47,6 +98,52 @@ def p64_toml_from_resolved(
     document = parse(baseline_toml)
     if fleet_instances is not None:
         _apply_fleet_identities(document, codeplug, fleet_instances)
+    contact_indices = _apply_talkgroup_contacts(document, codeplug)
+    rx_group_indices = {
+        group.id: index + 1 for index, group in enumerate(codeplug.rx_groups)
+    }
+    if codeplug.rx_groups:
+        _replace_records(
+            document,
+            "rx_group",
+            [
+                {
+                    "index": rx_group_indices[group.id],
+                    "name": group.name,
+                    "contacts": [
+                        contact_indices[contact_id]
+                        for contact_id in group.contact_ids
+                    ],
+                }
+                for group in codeplug.rx_groups
+            ],
+        )
+    scan_list_indices = {
+        scan_list.id: index + 1
+        for index, scan_list in enumerate(codeplug.scan_lists)
+    }
+    channel_by_reference = {
+        channel.reference: index + 1
+        for index, channel in enumerate(codeplug.channels)
+    }
+    if codeplug.scan_lists:
+        _replace_records(
+            document,
+            "scan",
+            [
+                {
+                    "index": scan_list_indices[scan_list.id],
+                    "name": scan_list.name,
+                    "channels": [
+                        channel_by_reference[reference]
+                        for reference in scan_list.channel_references
+                    ],
+                    "priority1": _P64_PRIORITY_OFF,
+                    "priority2": _P64_PRIORITY_OFF,
+                }
+                for scan_list in codeplug.scan_lists
+            ],
+        )
     channel_records = _required_array(document, "channel")
     if len(codeplug.channels) > len(channel_records):
         raise ValueError(
@@ -80,10 +177,16 @@ def p64_toml_from_resolved(
         if channel.timeslot is not None:
             record["time_slot"] = channel.timeslot
         if (channel.mode or "FM").upper() == "DMR":
-            if digital_contact_index is not None:
+            if channel.contact_id is not None:
+                record["contact"] = contact_indices[channel.contact_id]
+            elif digital_contact_index is not None:
                 record["contact"] = digital_contact_index
-            if digital_rx_group_index is not None:
+            if channel.rx_group_id is not None:
+                record["rx_group"] = rx_group_indices[channel.rx_group_id]
+            elif digital_rx_group_index is not None:
                 record["rx_group"] = digital_rx_group_index
+        if channel.scan_list_id is not None:
+            record["scan_list"] = scan_list_indices[channel.scan_list_id]
         rx_tone = _p64_tone(
             channel.tones.ctcss_rx_hz,
             channel.tones.dcs_rx_code,
@@ -110,10 +213,6 @@ def p64_toml_from_resolved(
             f"profile has {len(codeplug.zones)} zones but baseline has "
             f"{len(zone_records)} zone records"
         )
-    channel_by_reference = {
-        channel.reference: index + 1
-        for index, channel in enumerate(codeplug.channels)
-    }
     for index, zone in enumerate(codeplug.zones):
         record = zone_records[index]
         record["index"] = index + 1

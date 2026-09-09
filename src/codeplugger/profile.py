@@ -29,6 +29,31 @@ class ProfileValidationError(ValueError):
     """Raised when a profile cannot be resolved into a valid selection."""
 
 
+# SSRF contact ``kind`` spellings mapped to the neutral form exporters use.
+_CONTACT_KINDS = {
+    "group": "group",
+    "private": "private",
+    "all": "all",
+    "allcall": "all",
+}
+
+
+def _contact_kind(kind: Any) -> str | None:
+    """Normalize an SSRF contact kind; None when unrecognized."""
+
+    return _CONTACT_KINDS.get(str(kind).strip().lower())
+
+
+def _ssrf_contacts(documents: Sequence[Any]) -> dict[str, Any]:
+    """Index SSRF contacts by id; later documents take precedence."""
+
+    return {
+        contact.id: contact
+        for document in documents
+        for contact in document.reference.contacts
+    }
+
+
 def _assignment_id(value: Any) -> str:
     return value["id"] if isinstance(value, dict) else value
 
@@ -151,6 +176,146 @@ def _check_name_length(
             f"{kind} name '{name}' is {len(name)} characters; "
             f"radio limit is {limit}",
         )
+
+
+def _check_group_policy(
+    report: ValidationReport,
+    profile: Mapping[str, Any],
+    limits: Mapping[str, int],
+    limit_source: str,
+    contacts: Mapping[str, Any],
+    channel_counts: Mapping[str, int],
+    ambiguous_assignments: set[str],
+    selected: set[str],
+) -> None:
+    """Validate profile rx_groups, scan_lists, and per-assignment references."""
+
+    rx_groups = profile.get("rx_groups", [])
+    scan_lists = profile.get("scan_lists", [])
+
+    max_rx_groups = limits.get("max_rx_group_lists")
+    if max_rx_groups is not None and len(rx_groups) > max_rx_groups:
+        report.critical(
+            (),
+            f"profile has {len(rx_groups)} RX group lists; "
+            f"{limit_source} is {max_rx_groups}",
+        )
+
+    def _check_contact(context: str, contact_id: str, *, require_group: bool) -> None:
+        contact = contacts.get(contact_id)
+        if contact is None:
+            report.critical(
+                (), f"{context} references unknown SSRF contact '{contact_id}'"
+            )
+            return
+        kind = _contact_kind(contact.kind)
+        if kind is None:
+            report.critical(
+                (),
+                f"{context} references contact '{contact_id}' with "
+                f"unrecognized kind '{contact.kind}'",
+            )
+        elif require_group and kind != "group":
+            report.critical(
+                (),
+                f"{context} references contact '{contact_id}' of kind "
+                f"'{contact.kind}'; RX group lists hold group calls only",
+            )
+        if contact.number is None:
+            report.critical(
+                (),
+                f"{context} references contact '{contact_id}', "
+                "which has no DMR number",
+            )
+        _check_name_length(
+            report, limits, "max_contact_name_chars", "contact", contact.name
+        )
+
+    rx_group_ids: set[str] = set()
+    for group in rx_groups:
+        if group["id"] in rx_group_ids:
+            report.critical((), f"duplicate RX group list ID '{group['id']}'")
+        rx_group_ids.add(group["id"])
+        context = f"RX group list '{group['id']}'"
+        max_members = limits.get("max_talkgroups_per_rx_group_list")
+        if max_members is not None and len(group["contacts"]) > max_members:
+            report.critical(
+                (),
+                f"{context} has {len(group['contacts'])} talkgroups; "
+                f"{limit_source} is {max_members}",
+            )
+        for contact_id in group["contacts"]:
+            _check_contact(context, contact_id, require_group=True)
+
+    max_scan_lists = limits.get("max_scan_lists")
+    if max_scan_lists is not None and len(scan_lists) > max_scan_lists:
+        report.critical(
+            (),
+            f"profile has {len(scan_lists)} scan lists; "
+            f"{limit_source} is {max_scan_lists}",
+        )
+
+    scan_list_ids: set[str] = set()
+    for scan_list in scan_lists:
+        if scan_list["id"] in scan_list_ids:
+            report.critical((), f"duplicate scan list ID '{scan_list['id']}'")
+        scan_list_ids.add(scan_list["id"])
+        context = f"scan list '{scan_list['id']}'"
+        _check_name_length(
+            report, limits, "max_scan_list_name_chars", "scan list", scan_list["name"]
+        )
+        channel_count = 0
+        for assignment_id in scan_list["channels"]:
+            if assignment_id in ambiguous_assignments:
+                report.critical(
+                    (),
+                    f"{context} references ambiguous assignment "
+                    f"'{assignment_id}'",
+                )
+                continue
+            if assignment_id not in channel_counts:
+                report.critical(
+                    (),
+                    f"{context} references unknown assignment "
+                    f"'{assignment_id}'",
+                )
+                continue
+            if assignment_id not in selected:
+                report.critical(
+                    (),
+                    f"{context} references assignment '{assignment_id}', "
+                    "which no zone selects",
+                )
+                continue
+            channel_count += channel_counts[assignment_id]
+        max_members = limits.get("max_channels_per_scan_list")
+        if max_members is not None and channel_count > max_members:
+            report.critical(
+                (),
+                f"{context} expands to {channel_count} channels; "
+                f"{limit_source} is {max_members}",
+            )
+
+    for zone in profile["zones"]:
+        for assignment in zone["assignments"]:
+            if not isinstance(assignment, dict):
+                continue
+            context = f"assignment '{assignment['id']}'"
+            contact_id = assignment.get("contact")
+            if contact_id is not None:
+                _check_contact(context, contact_id, require_group=False)
+            rx_group = assignment.get("rx_group")
+            if rx_group is not None and rx_group not in rx_group_ids:
+                report.critical(
+                    (),
+                    f"{context} references unknown RX group list '{rx_group}'",
+                )
+            scan_list = assignment.get("scan_list")
+            if scan_list is not None and scan_list not in scan_list_ids:
+                report.critical(
+                    (),
+                    f"{context} references unknown scan list '{scan_list}'",
+                )
 
 
 def _band_label(band: Mapping[str, Any]) -> str:
@@ -430,6 +595,16 @@ def _load_and_validate_profile(
             f"{limit_source} is {limits['max_channels']}",
         )
 
+    _check_group_policy(
+        report,
+        profile,
+        limits,
+        limit_source,
+        _ssrf_contacts(documents),
+        channel_counts,
+        ambiguous_assignments,
+        selected,
+    )
     _check_radio_support(report, capabilities, documents, selected)
     if report.has_critical:
         raise ProfileValidationError(report.critical_message())

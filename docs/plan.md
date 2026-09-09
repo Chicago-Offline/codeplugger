@@ -104,8 +104,7 @@ Sequenced work:
 Until the explicit-ID workflow is proven end to end on more radios:
 
 - Profile selectors (anything beyond explicit ordered assignment IDs)
-- Scan lists, button mappings, display and exporter settings in profiles
-- Contact policy beyond fleet-registry private contacts
+- Button mappings, display and exporter settings in profiles
 - Radios beyond the current three (DM-32, MateTalk P4, UV-5R Mini)
 
 ## Non-goals
