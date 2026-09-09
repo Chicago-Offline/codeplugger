@@ -57,30 +57,42 @@ Working today:
 ## Now: DM-32 headless programming
 
 The near-term priority is programming the Baofeng DM-32 without an
-interactive NeonPlug/CPS session, following the safety pattern established
-by the P4 `p64tool` backend.
+interactive CPS session, following the safety pattern established by the
+P4 `p64tool` backend.
+
+**Transport decision (resolved 2026-09-08): qdmr's `dmrconf` CLI.**
+Upstream qdmr supports the DM-32UV (`--radio=dm32uv`, still flagged as
+under development), and its extensible YAML codeplug format gives a
+documented, radio-neutral interchange file plus headless `verify`,
+`encode`, `read`, and `write` commands. The earlier NeonPlug import
+experiment ([neonplug-base-free-experiment.md](neonplug-base-free-experiment.md))
+is retained as evidence but the NeonPlug exporter path is dropped.
 
 Sequenced work:
 
-1. **Base-free codeplug generation.** The NeonPlug import experiment
-   ([neonplug-base-free-experiment.md](neonplug-base-free-experiment.md))
-   showed a device-derived base codeplug is not required at the import and
-   channel/zone encoding boundary, but each exporter default (power,
-   bandwidth, squelch, step frequency, unknown fields) must be named and
-   reviewed rather than copied from `createDefaultChannel()`.
-2. **Synthetic `.neonplug` validation.** Generate a synthetic codeplug,
-   inspect imported values in the pinned NeonPlug revision, and confirm
-   `validateChannelForEncoding()` passes for every emitted channel.
-3. **Transport decision.** Choose between driving NeonPlug's write path
-   headlessly and a direct serial protocol backend informed by `dm32-info`
-   research. Stable findings become radio definitions or validation rules
-   here; generation must not depend on research notes directly.
-4. **Gated write backend.** Whatever the transport, the backend mirrors the
-   `p64tool` wrapper: read-only info/read/roundtrip operations, explicit
-   `confirm=True` writes, firmware gate, read-back verification, and
-   operation-log auditing.
-5. **Hardware smoke test.** A DM-32UV write and verification on a real
+1. **qdmr YAML exporter.** *(done)* `exporters/qdmr_yaml.py` emits the
+   extensible codeplug format from a resolved codeplug, with every default
+   named and reviewed (verified against qdmr `e84d4b3a`). Structural
+   minimums the DM-32UV encoder imposes (≥1 group-call contact, ≥1 RX
+   group list) are satisfied by an explicit unused placeholder, not by
+   inventing talkgroup policy; fleet-registry members become private
+   contacts as on the P4.
+2. **Headless validation.** *(done)* `dmrconf verify --radio=dm32uv`
+   passes on generated output and `encode`/`decode` round-trips it; a
+   skip-if-uninstalled test keeps this checked in CI-like runs.
+3. **Gated write backend.** *(done)* `backends/dmrconf.py` mirrors the
+   `p64tool` wrapper: read-only `detect`/`read`/`verify`, explicit
+   `confirm=True` writes, a pre-write `verify` gate (dmrconf's own
+   write-time check logs but does not abort), a detected-radio identity
+   gate, optional post-write read-back archiving, and operation-log
+   auditing.
+4. **Hardware smoke test.** A DM-32UV write and verification on a real
    radio is the acceptance gate before the path is considered safe.
+   Compare a post-write `dmrconf read` against the intended codeplug and
+   spot-check on-radio behavior (zones, tones, color code, timeslot).
+5. **Profile coverage.** Build out the real DM-32 profile
+   (`profiles/baofeng_dm32_chioff/`) and fleet-registry entries so the
+   fleet dry run covers the radio end to end.
 
 ## In flight
 

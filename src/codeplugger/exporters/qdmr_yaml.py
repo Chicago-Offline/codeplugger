@@ -1,0 +1,324 @@
+"""Export resolved codeplugs as qdmr extensible-codeplug YAML.
+
+The output targets ``dmrconf`` (qdmr's CLI): ``dmrconf verify --radio=dm32uv``
+validates a generated file against radio limits without hardware, and
+``dmrconf write`` programs the radio. Field names and value syntax were
+verified against qdmr @ ``e84d4b3a`` (v0.15.1 + DM32UV DCS fix #990):
+
+- Channels are ``{fm: {...}}`` or ``{dmr: {...}}`` maps; zones reference
+  channel ids in ``A``/``B`` lists (``lib/zone.cc``).
+- Tones serialize as ``{ctcss: "67.0 Hz"}`` or ``{dcs: "n023"}`` where the
+  prefix is ``n`` (normal) or ``i`` (inverted) and the digits are the
+  standard octal DCS code (``SelectiveCall::format`` in ``lib/signaling.cc``).
+- Channel power is one of ``Min``/``Low``/``Mid``/``High``/``Max``
+  (``Channel::Power`` in ``lib/channel.hh``).
+
+Every exporter default below is named and deliberate; none are copied
+blindly from a CPS implementation (see docs/plan.md).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Mapping
+
+import yaml
+
+from ..resolved import ResolvedChannel, ResolvedCodeplug
+
+# qdmr config format version this exporter was verified against.
+QDMR_CONFIG_VERSION = "0.15.1"
+
+# Radio-wide settings. micLevel/squelch/vox/tot match qdmr's own defaults
+# (ConfigItem defaults); they are operator preferences, not RF facts.
+DEFAULT_SETTINGS: dict[str, Any] = {
+    "introLine1": "",
+    "introLine2": "",
+    "micLevel": 3,
+    "speech": False,
+    "power": "High",
+    "squelch": 1,
+    "vox": 0,
+    "tot": 0,
+}
+
+# Used when a channel has no resolved power_w. High is the OEM CPS default
+# and errs toward making contact rather than silently under-powering.
+DEFAULT_POWER = "High"
+
+# FM admit criterion: transmit regardless of channel state, the OEM default.
+DEFAULT_FM_ADMIT = "Always"
+
+# DMR admit criterion: require matching color code, standard repeater practice.
+DEFAULT_DMR_ADMIT = "ColorCode"
+
+# Watts at or below these map to qdmr's Low/Mid steps; above is High.
+POWER_LOW_MAX_W = 1.0
+POWER_MID_MAX_W = 2.5
+
+# The DM-32UV encoder unconditionally requires at least one group-call
+# contact and one RX group list, even when no channel references them
+# (qdmr lib/dm32uv_limits.cc: RadioLimitList minimums of 1, and
+# RadioLimitGroupCallRefList(1, 32)). This placeholder satisfies that
+# structural minimum without inventing talkgroup policy: no channel
+# references it, and TG99 is the conventional DMR simplex talkgroup, so
+# accidental manual selection stays harmless.
+PLACEHOLDER_TALKGROUP_NAME = "UNUSED TG99"
+PLACEHOLDER_TALKGROUP_NUMBER = 99
+PLACEHOLDER_GROUP_LIST_NAME = "UNUSED"
+
+
+def _frequency(value_mhz: float) -> str:
+    text = f"{value_mhz:.6f}".rstrip("0").rstrip(".")
+    return f"{text} MHz"
+
+
+def _power(power_w: float | None) -> str:
+    if power_w is None:
+        return DEFAULT_POWER
+    if power_w <= POWER_LOW_MAX_W:
+        return "Low"
+    if power_w <= POWER_MID_MAX_W:
+        return "Mid"
+    return "High"
+
+
+def _dcs(code: str | int, *, channel_name: str) -> str:
+    text = str(code).strip().upper()
+    inverted = False
+    if text.startswith("D"):
+        text = text[1:]
+    if text.endswith(("N", "I")):
+        inverted = text.endswith("I")
+        text = text[:-1]
+    if not text.isdigit():
+        raise ValueError(
+            f"channel '{channel_name}' has unsupported DCS code {code!r}"
+        )
+    return f"{'i' if inverted else 'n'}{int(text):03d}"
+
+
+def _tone(
+    ctcss_hz: float | None, dcs_code: str | int | None, *, channel_name: str
+) -> dict[str, str] | None:
+    if ctcss_hz is not None and dcs_code is not None:
+        raise ValueError(
+            f"channel '{channel_name}' mixes CTCSS and DCS on one side, "
+            "which qdmr's SelectiveCall cannot represent"
+        )
+    if ctcss_hz is not None:
+        return {"ctcss": f"{ctcss_hz:.1f} Hz"}
+    if dcs_code is not None:
+        return {"dcs": _dcs(dcs_code, channel_name=channel_name)}
+    return None
+
+
+def _frequencies(channel: ResolvedChannel) -> dict[str, Any]:
+    rx = channel.rx_frequency_mhz
+    tx = channel.tx_frequency_mhz
+    rx_only = not channel.tx_permitted or tx is None
+    return {
+        "rxFrequency": _frequency(rx),
+        # qdmr requires a TX frequency even for rxOnly channels; reuse RX so
+        # no transmittable frequency is invented.
+        "txFrequency": _frequency(tx if tx is not None else rx),
+        "rxOnly": rx_only,
+    }
+
+
+def _fm_channel(
+    channel: ResolvedChannel,
+    channel_id: str,
+    analog_bandwidth_khz: float | None,
+) -> dict[str, Any]:
+    bandwidth_khz = channel.bandwidth_khz or analog_bandwidth_khz
+    if bandwidth_khz is None:
+        raise ValueError(
+            f"channel '{channel.display_name}' has no bandwidth and no "
+            "analog_bandwidth_khz default was provided"
+        )
+    if bandwidth_khz not in (12.5, 25.0):
+        raise ValueError(
+            f"channel '{channel.display_name}' bandwidth {bandwidth_khz} kHz "
+            "is not representable in qdmr (Narrow=12.5, Wide=25)"
+        )
+    record: dict[str, Any] = {
+        "id": channel_id,
+        "name": channel.display_name,
+        **_frequencies(channel),
+        "bandwidth": "Narrow" if bandwidth_khz == 12.5 else "Wide",
+        "admit": DEFAULT_FM_ADMIT,
+        "power": _power(channel.power_w),
+    }
+    rx_tone = _tone(
+        channel.tones.ctcss_rx_hz,
+        channel.tones.dcs_rx_code,
+        channel_name=channel.display_name,
+    )
+    tx_tone = _tone(
+        channel.tones.ctcss_tx_hz,
+        channel.tones.dcs_tx_code,
+        channel_name=channel.display_name,
+    )
+    if rx_tone is not None:
+        record["rxTone"] = rx_tone
+    if tx_tone is not None:
+        record["txTone"] = tx_tone
+    return {"fm": record}
+
+
+def _dmr_channel(channel: ResolvedChannel, channel_id: str) -> dict[str, Any]:
+    if channel.color_code is None:
+        raise ValueError(
+            f"DMR channel '{channel.display_name}' has no color code; color "
+            "codes are RF facts and must come from SSRF data, not a default"
+        )
+    timeslot = channel.timeslot
+    if timeslot is None and len(channel.timeslots) == 1:
+        timeslot = channel.timeslots[0]
+    if timeslot not in (1, 2):
+        raise ValueError(
+            f"DMR channel '{channel.display_name}' has no usable timeslot; "
+            "timeslots are RF facts and must come from SSRF data"
+        )
+    return {
+        "dmr": {
+            "id": channel_id,
+            "name": channel.display_name,
+            **_frequencies(channel),
+            "admit": DEFAULT_DMR_ADMIT,
+            "colorCode": channel.color_code,
+            "timeSlot": f"TS{timeslot}",
+            "power": _power(channel.power_w),
+        }
+    }
+
+
+def _contacts(
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return (contacts, groupLists) satisfying DM-32UV structural minimums.
+
+    Fleet-registry members become private contacts, mirroring the P4
+    exporter's contact policy; anything richer stays deferred.
+    """
+
+    contacts: list[dict[str, Any]] = []
+    for instance in (fleet_instances or {}).values():
+        dmr_id = instance.get("dmr_id")
+        if dmr_id is None:
+            continue
+        contacts.append(
+            {
+                "dmr": {
+                    "id": f"cont{len(contacts) + 1}",
+                    "name": str(instance.get("dmr_contact_name", dmr_id)),
+                    "ring": False,
+                    "type": "PrivateCall",
+                    "number": int(dmr_id),
+                }
+            }
+        )
+    placeholder_id = f"cont{len(contacts) + 1}"
+    contacts.append(
+        {
+            "dmr": {
+                "id": placeholder_id,
+                "name": PLACEHOLDER_TALKGROUP_NAME,
+                "ring": False,
+                "type": "GroupCall",
+                "number": PLACEHOLDER_TALKGROUP_NUMBER,
+            }
+        }
+    )
+    group_lists = [
+        {
+            "id": "grp1",
+            "name": PLACEHOLDER_GROUP_LIST_NAME,
+            "contacts": [placeholder_id],
+        }
+    ]
+    return contacts, group_lists
+
+
+def qdmr_yaml_from_resolved(
+    codeplug: ResolvedCodeplug,
+    *,
+    analog_bandwidth_khz: float | None = None,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+) -> str:
+    """Return a qdmr extensible-codeplug YAML document.
+
+    DMR channels require a radio identity: the resolved instance metadata
+    must carry ``dmr_id`` (from the instance registry).
+    """
+
+    channels: list[dict[str, Any]] = []
+    channel_ids: dict[str, str] = {}
+    has_dmr = False
+    for index, channel in enumerate(codeplug.channels):
+        channel_id = f"ch{index + 1}"
+        channel_ids[channel.reference] = channel_id
+        if (channel.mode or "FM").upper() == "DMR":
+            has_dmr = True
+            channels.append(_dmr_channel(channel, channel_id))
+        else:
+            channels.append(
+                _fm_channel(channel, channel_id, analog_bandwidth_khz)
+            )
+
+    zones = [
+        {
+            "id": f"zone{index + 1}",
+            "name": zone.name,
+            "A": [channel_ids[ref] for ref in zone.channel_references],
+            "B": [],
+        }
+        for index, zone in enumerate(codeplug.zones)
+    ]
+
+    contacts, group_lists = _contacts(fleet_instances)
+    document: dict[str, Any] = {
+        "version": QDMR_CONFIG_VERSION,
+        "settings": dict(DEFAULT_SETTINGS),
+        "radioIDs": [],
+        "contacts": contacts,
+        "groupLists": group_lists,
+        "channels": channels,
+        "zones": zones,
+    }
+
+    metadata = codeplug.radio_instance or {}
+    dmr_id = metadata.get("dmr_id")
+    if dmr_id is not None:
+        name = str(metadata.get("dmr_contact_name", codeplug.radio_instance_id))
+        document["radioIDs"] = [
+            {"dmr": {"id": "id1", "name": name, "number": int(dmr_id)}}
+        ]
+        document["settings"]["defaultID"] = "id1"
+    elif has_dmr:
+        raise ValueError(
+            f"instance '{codeplug.radio_instance_id}' has DMR channels but "
+            "no dmr_id in its registry metadata"
+        )
+
+    return yaml.safe_dump(document, sort_keys=False, allow_unicode=True)
+
+
+def write_qdmr_yaml(
+    path: Path,
+    codeplug: ResolvedCodeplug,
+    *,
+    analog_bandwidth_khz: float | None = None,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+) -> None:
+    """Write qdmr YAML to ``path``."""
+
+    path.write_text(
+        qdmr_yaml_from_resolved(
+            codeplug,
+            analog_bandwidth_khz=analog_bandwidth_khz,
+            fleet_instances=fleet_instances,
+        ),
+        encoding="utf-8",
+    )
