@@ -12,6 +12,7 @@
     "name": { "type": "string", "minLength": 1 },
     "radio": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
     "radio_instance": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+    "extensions": { "$ref": "#/$defs/extensions" },
     "zones": {
       "type": "array",
       "minItems": 1,
@@ -32,10 +33,15 @@
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["id", "display_name"],
+                  "required": ["id"],
+                  "anyOf": [
+                    { "required": ["display_name"] },
+                    { "required": ["extensions"] }
+                  ],
                   "properties": {
                     "id": { "type": "string", "minLength": 1 },
-                    "display_name": { "type": "string", "minLength": 1 }
+                    "display_name": { "type": "string", "minLength": 1 },
+                    "extensions": { "$ref": "#/$defs/extensions" }
                   }
                 }
               ]
@@ -43,6 +49,15 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced escape hatch for radio- or backend-specific settings the core schema does not model. Keys are namespaces (usually a radio or backend id); values are passed through to exporters unvalidated, mirroring qdmr's extension mechanism.",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_]*$" },
+      "additionalProperties": { "type": "object" }
     }
   }
 }

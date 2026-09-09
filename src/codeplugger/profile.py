@@ -5,10 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 import yaml
+
+from .validation import ValidationReport
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -127,12 +130,13 @@ def _resolve_firmware_limits(
 
 
 def _check_name_length(
+    report: ValidationReport,
     limits: Mapping[str, int],
     limit_key: str,
     kind: str,
     name: str,
 ) -> None:
-    """Raise when a name exceeds the radio's storage for that name field.
+    """Record a critical issue when a name exceeds the radio's storage.
 
     Skipped when the capability is absent, so an incomplete capabilities file
     degrades to today's behavior instead of producing false failures.
@@ -142,9 +146,10 @@ def _check_name_length(
     if limit is None:
         return
     if len(name) > limit:
-        raise ProfileValidationError(
+        report.critical(
+            (),
             f"{kind} name '{name}' is {len(name)} characters; "
-            f"radio limit is {limit}"
+            f"radio limit is {limit}",
         )
 
 
@@ -172,6 +177,7 @@ def _frequency_in_bands(
 
 
 def _check_radio_support(
+    report: ValidationReport,
     capabilities: Mapping[str, Any],
     documents: Sequence[Any],
     selected: set[str],
@@ -214,18 +220,20 @@ def _check_radio_support(
                         continue
                     if not _frequency_in_bands(freq_mhz, bands, transmit=transmit):
                         supported = ", ".join(_band_label(band) for band in bands)
-                        raise ProfileValidationError(
-                            f"channel '{label}' {direction} {freq_mhz} MHz is "
+                        report.critical(
+                            (f"channel '{label}'",),
+                            f"{direction} {freq_mhz} MHz is "
                             f"outside the bands supported by {radio_name} "
-                            f"({supported})"
+                            f"({supported})",
                         )
 
             mode = getattr(getattr(chain, "mode", None), "type", None)
             if mode_set and mode and str(mode).upper() not in mode_set:
-                raise ProfileValidationError(
-                    f"channel '{label}' uses mode {mode}, which "
+                report.critical(
+                    (f"channel '{label}'",),
+                    f"uses mode {mode}, which "
                     f"{radio_name} does not support "
-                    f"({', '.join(sorted(mode_set))})"
+                    f"({', '.join(sorted(mode_set))})",
                 )
 
             if bandwidths and getattr(chain, "tx", None) is not None:
@@ -234,9 +242,10 @@ def _check_radio_support(
                     abs(bandwidth_khz - supported) < 1e-6 for supported in bandwidths
                 ):
                     allowed = ", ".join(str(value) for value in bandwidths)
-                    raise ProfileValidationError(
-                        f"channel '{label}' uses {bandwidth_khz} kHz bandwidth, "
-                        f"which {radio_name} does not support ({allowed} kHz)"
+                    report.critical(
+                        (f"channel '{label}'",),
+                        f"uses {bandwidth_khz} kHz bandwidth, "
+                        f"which {radio_name} does not support ({allowed} kHz)",
                     )
 
 
@@ -317,8 +326,14 @@ def _load_and_validate_profile(
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
-) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None]:
-    """Load a profile and its validated, overlay-resolved SSRF documents."""
+) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None, ValidationReport]:
+    """Load a profile and its validated, overlay-resolved SSRF documents.
+
+    Raises on the first structural failure (unreadable input, schema error,
+    registry mismatch). Limit and radio-support findings are collected into a
+    severity-graded report instead, so one failed run surfaces every critical
+    issue at once; the report also carries non-fatal hints and warnings.
+    """
 
     profile = _load_mapping(profile_path)
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -356,10 +371,15 @@ def _load_and_validate_profile(
         firmware = instance_metadata.get("firmware")
     limits, limit_source = _resolve_firmware_limits(capabilities, firmware)
 
+    report = ValidationReport()
+    if "conservative" in limit_source:
+        report.hint((), f"validating against {limit_source}")
+
     if len(zones) > limits["max_zones"]:
-        raise ProfileValidationError(
+        report.critical(
+            (),
             f"profile has {len(zones)} zones; "
-            f"{limit_source} is {limits['max_zones']}"
+            f"{limit_source} is {limits['max_zones']}",
         )
 
     zone_ids: set[str] = set()
@@ -367,43 +387,53 @@ def _load_and_validate_profile(
     total_channels = 0
     for zone in zones:
         if zone["id"] in zone_ids:
-            raise ProfileValidationError(f"duplicate zone ID '{zone['id']}'")
+            report.critical((), f"duplicate zone ID '{zone['id']}'")
         zone_ids.add(zone["id"])
-        _check_name_length(limits, "max_zone_name_chars", "zone", zone["name"])
+        _check_name_length(report, limits, "max_zone_name_chars", "zone", zone["name"])
         zone_channel_count = 0
         for assignment in zone["assignments"]:
             assignment_id = _assignment_id(assignment)
             if assignment_id in ambiguous_assignments:
-                raise ProfileValidationError(
+                report.critical(
+                    (),
                     f"zone '{zone['name']}' references ambiguous assignment "
-                    f"'{assignment_id}'"
+                    f"'{assignment_id}'",
                 )
+                continue
             if assignment_id not in channel_counts:
-                raise ProfileValidationError(
+                report.critical(
+                    (),
                     f"zone '{zone['name']}' references unknown assignment "
-                    f"'{assignment_id}'"
+                    f"'{assignment_id}'",
                 )
+                continue
             if assignment_id in selected:
-                raise ProfileValidationError(
-                    f"assignment '{assignment_id}' is selected more than once"
+                report.critical(
+                    (),
+                    f"assignment '{assignment_id}' is selected more than once",
                 )
+                continue
             selected.add(assignment_id)
             zone_channel_count += channel_counts[assignment_id]
         if zone_channel_count > limits["max_channels_per_zone"]:
-            raise ProfileValidationError(
+            report.critical(
+                (),
                 f"zone '{zone['name']}' expands to {zone_channel_count} channels; "
-                f"{limit_source} is {limits['max_channels_per_zone']}"
+                f"{limit_source} is {limits['max_channels_per_zone']}",
             )
         total_channels += zone_channel_count
 
     if total_channels > limits["max_channels"]:
-        raise ProfileValidationError(
+        report.critical(
+            (),
             f"profile expands to {total_channels} channels; "
-            f"{limit_source} is {limits['max_channels']}"
+            f"{limit_source} is {limits['max_channels']}",
         )
 
-    _check_radio_support(capabilities, documents, selected)
-    return profile, documents, instance_metadata
+    _check_radio_support(report, capabilities, documents, selected)
+    if report.has_critical:
+        raise ProfileValidationError(report.critical_message())
+    return profile, documents, instance_metadata, report
 
 
 def load_and_validate_profile(
@@ -416,7 +446,7 @@ def load_and_validate_profile(
 ) -> dict[str, Any]:
     """Load a profile and validate its schema, references, and radio limits."""
 
-    profile, _, _ = _load_and_validate_profile(
+    profile, _, _, _ = _load_and_validate_profile(
         profile_path,
         ssrf_roots,
         schema_path=schema_path,
@@ -445,7 +475,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-format",
-        choices=("summary", "json", "yaml", "chirp-csv", "html"),
+        choices=("summary", "json", "yaml", "chirp-csv", "qdmr-yaml", "html"),
         default="summary",
         help="inspection output format (default: summary)",
     )
@@ -459,12 +489,17 @@ def main() -> int:
 
     try:
         if args.output_format == "summary":
-            profile = load_and_validate_profile(
+            profile, _, _, report = _load_and_validate_profile(
                 args.profile,
                 args.ssrf_root,
                 radio_root=args.radio_root,
                 instance_registry_path=args.instance_registry,
             )
+            for issue in report.non_critical():
+                print(
+                    f"{issue.severity.name.lower()}: {issue.format()}",
+                    file=sys.stderr,
+                )
         else:
             from .resolved import resolve_codeplug
 
@@ -506,6 +541,19 @@ def main() -> int:
         from .exporters.chirp_csv import chirp_csv_from_resolved
 
         print(chirp_csv_from_resolved(codeplug), end="")
+        return 0
+    if args.output_format == "qdmr-yaml":
+        from .exporters.qdmr_yaml import qdmr_yaml_from_resolved
+
+        fleet_instances = None
+        if args.instance_registry is not None:
+            fleet_instances = _load_instance_registry(args.instance_registry)[
+                "instances"
+            ]
+        print(
+            qdmr_yaml_from_resolved(codeplug, fleet_instances=fleet_instances),
+            end="",
+        )
         return 0
     if args.output_format == "html":
         from .artifacts import html_reference_from_resolved

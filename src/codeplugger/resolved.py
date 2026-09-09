@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
 from typing import Any, Sequence
@@ -12,10 +12,12 @@ import yaml
 from .profile import (
     DEFAULT_RADIO_ROOT,
     DEFAULT_SCHEMA_PATH,
+    ProfileValidationError,
     _check_name_length,
     _load_and_validate_profile,
     _load_capabilities,
 )
+from .validation import ValidationReport
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class ResolvedChannel:
     color_code: int | None = None
     timeslots: tuple[int, ...] = ()
     timeslot: int | None = None
+    extensions: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -67,6 +70,7 @@ class ResolvedCodeplug:
     radio_instance: dict[str, Any] | None
     channels: tuple[ResolvedChannel, ...]
     zones: tuple[ResolvedZone, ...]
+    extensions: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a structure containing only JSON/YAML data types."""
@@ -106,9 +110,13 @@ def _tones(mode: Any | None) -> ResolvedTones:
 
 
 def _resolve_assignment(
-    document: Any, assignment: Any, display_name_override: str | None = None
+    document: Any,
+    assignment: Any,
+    display_name_override: str | None = None,
+    extensions: dict[str, Any] | None = None,
 ) -> list[ResolvedChannel]:
     reference = document.reference
+    extensions = extensions or {}
     authorization = next(
         (
             item
@@ -156,6 +164,7 @@ def _resolve_assignment(
                     if rf_chain.mode.timeslots
                     else None
                 ),
+                extensions=extensions,
             )
         ]
 
@@ -209,6 +218,7 @@ def _resolve_assignment(
             ),
             notes=assignment.notes or channel.notes,
             bandwidth_khz=channel.bandwidth_khz,
+            extensions=extensions,
         )
         for channel in selected_channels
     ]
@@ -224,13 +234,14 @@ def resolve_codeplug(
 ) -> ResolvedCodeplug:
     """Validate and normalize a profile plus precedence-ordered SSRF roots."""
 
-    profile, documents, instance_metadata = _load_and_validate_profile(
+    profile, documents, instance_metadata, _ = _load_and_validate_profile(
         profile_path,
         ssrf_roots,
         schema_path=schema_path,
         radio_root=radio_root,
         instance_registry_path=instance_registry_path,
     )
+    report = ValidationReport()
     limits = _load_capabilities(profile["radio"], radio_root)["limits"]
     assignments = {
         assignment.id: (document, assignment)
@@ -254,11 +265,17 @@ def resolve_codeplug(
                 if isinstance(assignment_value, dict)
                 else None
             )
+            assignment_extensions = (
+                assignment_value.get("extensions", {})
+                if isinstance(assignment_value, dict)
+                else {}
+            )
             resolved_channels = _resolve_assignment(
-                document, assignment, display_name_override
+                document, assignment, display_name_override, assignment_extensions
             )
             for resolved_channel in resolved_channels:
                 _check_name_length(
+                    report,
                     limits,
                     "max_channel_name_chars",
                     "channel",
@@ -276,10 +293,14 @@ def resolve_codeplug(
             )
         )
 
+    if report.has_critical:
+        raise ProfileValidationError(report.critical_message())
+
     return ResolvedCodeplug(
         radio_id=profile["radio"],
         radio_instance_id=profile.get("radio_instance", profile["id"]),
         radio_instance=instance_metadata,
         channels=tuple(channels),
         zones=tuple(zones),
+        extensions=profile.get("extensions", {}),
     )

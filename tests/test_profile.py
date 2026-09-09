@@ -812,3 +812,104 @@ def test_dm32_declares_firmware_dependent_contact_limits() -> None:
     assert capabilities["limits"]["max_contacts"] == min(
         override["max_contacts"] for override in firmware_limits.values()
     )
+
+
+def test_profile_extensions_flow_through_to_resolved_codeplug() -> None:
+    """Namespaced extensions pass from profile to IR untouched (qdmr-style)."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["extensions"] = {"dm32": {"boot_screen": "logo"}}
+        data["zones"][0]["assignments"] = [
+            {"id": "asg_one", "extensions": {"dm32": {"scan_list": "city"}}},
+            "asg_two",
+        ]
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.extensions == {"dm32": {"boot_screen": "logo"}}
+    assert resolved.channels[0].extensions == {"dm32": {"scan_list": "city"}}
+    assert resolved.channels[1].extensions == {}
+    round_tripped = json.loads(resolved.to_json())
+    assert round_tripped["extensions"] == {"dm32": {"boot_screen": "logo"}}
+    assert round_tripped["channels"][0]["extensions"] == {
+        "dm32": {"scan_list": "city"}
+    }
+
+
+def test_profile_rejects_invalid_extension_namespace() -> None:
+    """Namespace keys must be lowercase identifiers."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["extensions"] = {"DM32": {"boot_screen": "logo"}}
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="DM32"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_validation_reports_all_critical_issues_at_once() -> None:
+    """One failed run surfaces every critical issue, qdmr RadioLimits style."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_missing", "asg_absent"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError) as excinfo:
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+    message = str(excinfo.value)
+    assert "asg_missing" in message
+    assert "asg_absent" in message
+
+
+def test_conservative_firmware_fallback_emits_hint() -> None:
+    """Falling back to the conservative floor is reported, not silent."""
+
+    from codeplugger.profile import _load_and_validate_profile
+    from codeplugger.validation import Severity
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio_with_firmware_limits(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        _, _, _, report = _load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    hints = [issue for issue in report.issues if issue.severity is Severity.HINT]
+    assert hints
+    assert "conservative" in hints[0].message
+    assert not report.has_critical
