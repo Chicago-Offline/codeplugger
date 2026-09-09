@@ -45,6 +45,7 @@ class ResolvedChannel:
     bandwidth_khz: float | None = None
     power_w: float | None = None
     color_code: int | None = None
+    timeslots: tuple[int, ...] = ()
     timeslot: int | None = None
 
 
@@ -149,6 +150,7 @@ def _resolve_assignment(
                 bandwidth_khz=rf_chain.tx.bandwidth_khz,
                 power_w=rf_chain.tx.power_w,
                 color_code=rf_chain.mode.color_code,
+                timeslots=tuple(rf_chain.mode.timeslots or ()),
                 timeslot=(
                     rf_chain.mode.timeslots[0]
                     if rf_chain.mode.timeslots

@@ -312,7 +312,12 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
         fixture = root / "ssrf" / "systems" / "fixture.yml"
         data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
         data["rf_chains"][0]["mode"].update(
-            {"ctcss_tx_hz": 100.0, "ctcss_rx_hz": 123.0}
+            {
+                "ctcss_tx_hz": 100.0,
+                "ctcss_rx_hz": 123.0,
+                "color_code": 1,
+                "timeslots": [1],
+            }
         )
         data["rf_chains"][0]["rx"]["freq_mhz"] = 146.34
         data["rf_chains"][0]["tx"]["freq_mhz"] = 146.94
@@ -368,12 +373,13 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
     assert resolved.channels[1].service == "amateur"
     assert resolved.channels[1].bandwidth_khz is None
     assert resolved.channels[1].power_w is None
-    assert resolved.channels[1].color_code is None
-    assert resolved.channels[1].timeslot is None
     assert resolved.channels[1].tones == ResolvedTones(
         ctcss_tx_hz=100.0,
         ctcss_rx_hz=123.0,
     )
+    assert resolved.channels[1].color_code == 1
+    assert resolved.channels[1].timeslots == (1,)
+    assert resolved.channels[1].timeslot == 1
     assert resolved.zones[0].channel_references == ("asg_two", "asg_one")
 
 
