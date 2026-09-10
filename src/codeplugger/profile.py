@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 from pathlib import Path
 import sys
@@ -27,6 +28,144 @@ DEFAULT_RADIO_ROOT = PROJECT_ROOT / "radios"
 
 class ProfileValidationError(ValueError):
     """Raised when a profile cannot be resolved into a valid selection."""
+
+
+_MAX_PROFILE_INHERITANCE_DEPTH = 32
+_PROFILE_INHERITANCE_KEYS = {"extends", "zones_only", "omit_zones"}
+
+
+def _merge_profile_values(parent: Any, child: Any) -> Any:
+    """Merge profile mappings and ID-keyed object lists recursively."""
+
+    if isinstance(parent, Mapping) and isinstance(child, Mapping):
+        merged = copy.deepcopy(dict(parent))
+        for key, value in child.items():
+            merged[key] = (
+                _merge_profile_values(merged[key], value)
+                if key in merged
+                else copy.deepcopy(value)
+            )
+        return merged
+
+    if isinstance(parent, list) and isinstance(child, list):
+        items = parent + child
+        if items and all(isinstance(item, Mapping) and "id" in item for item in items):
+            merged = copy.deepcopy(parent)
+            positions = {item["id"]: index for index, item in enumerate(merged)}
+            for item in child:
+                item_id = item["id"]
+                if item_id in positions:
+                    index = positions[item_id]
+                    merged[index] = _merge_profile_values(merged[index], item)
+                else:
+                    positions[item_id] = len(merged)
+                    merged.append(copy.deepcopy(item))
+            return merged
+
+    return copy.deepcopy(child)
+
+
+def _profile_zone_filter(value: Any, key: str, profile_path: Path) -> list[str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ProfileValidationError(
+            f"{profile_path}: '{key}' must be a list of zone IDs"
+        )
+    return value
+
+
+def _load_profile_with_inheritance(
+    profile_path: Path,
+    *,
+    stack: tuple[Path, ...] = (),
+) -> dict[str, Any]:
+    """Load a profile and resolve its relative inheritance chain."""
+
+    profile_path = profile_path.resolve()
+    if profile_path in stack:
+        chain = " -> ".join(str(path) for path in (*stack, profile_path))
+        raise ProfileValidationError(f"profile inheritance cycle: {chain}")
+    if len(stack) >= _MAX_PROFILE_INHERITANCE_DEPTH:
+        raise ProfileValidationError(
+            f"{profile_path}: profile inheritance exceeds the maximum depth of "
+            f"{_MAX_PROFILE_INHERITANCE_DEPTH}"
+        )
+
+    profile = _load_mapping(profile_path)
+    extends = profile.get("extends")
+    zones_only = _profile_zone_filter(profile.get("zones_only"), "zones_only", profile_path)
+    omit_zones = _profile_zone_filter(profile.get("omit_zones"), "omit_zones", profile_path)
+    if zones_only is not None and omit_zones is not None:
+        raise ProfileValidationError(
+            f"{profile_path}: 'zones_only' and 'omit_zones' are mutually exclusive"
+        )
+
+    if extends is None:
+        merged = copy.deepcopy(profile)
+    else:
+        if not isinstance(extends, str) or not extends:
+            raise ProfileValidationError(f"{profile_path}: 'extends' must be a path")
+        parent_path = (profile_path.parent / extends).resolve()
+        if "radio_instance" not in profile:
+            raise ProfileValidationError(
+                f"{profile_path}: child profiles must define 'radio_instance'"
+            )
+        try:
+            parent = _load_profile_with_inheritance(
+                parent_path, stack=(*stack, profile_path)
+            )
+        except OSError as exc:
+            raise ProfileValidationError(
+                f"{profile_path}: could not load parent profile '{extends}': {exc}"
+            ) from exc
+        if "radio" in profile and profile["radio"] != parent.get("radio"):
+            raise ProfileValidationError(
+                f"{profile_path}: profile radio '{profile.get('radio')}' does not "
+                f"match parent radio '{parent.get('radio')}'"
+            )
+        parent.pop("id", None)
+        parent.pop("radio_instance", None)
+        child = {
+            key: value
+            for key, value in profile.items()
+            if key not in _PROFILE_INHERITANCE_KEYS
+        }
+        merged = _merge_profile_values(parent, child)
+
+    if zones_only is not None:
+        zone_ids = set(zones_only)
+        available = {
+            zone["id"] for zone in merged.get("zones", []) if isinstance(zone, Mapping)
+        }
+        unknown = zone_ids - available
+        if unknown:
+            raise ProfileValidationError(
+                f"{profile_path}: 'zones_only' references unknown zones: "
+                f"{', '.join(sorted(unknown))}"
+            )
+        merged["zones"] = [
+            zone for zone in merged.get("zones", []) if zone.get("id") in zone_ids
+        ]
+    elif omit_zones is not None:
+        zone_ids = set(omit_zones)
+        available = {
+            zone["id"] for zone in merged.get("zones", []) if isinstance(zone, Mapping)
+        }
+        unknown = zone_ids - available
+        if unknown:
+            raise ProfileValidationError(
+                f"{profile_path}: 'omit_zones' references unknown zones: "
+                f"{', '.join(sorted(unknown))}"
+            )
+        merged["zones"] = [
+            zone for zone in merged.get("zones", []) if zone.get("id") not in zone_ids
+        ]
+
+    for key in _PROFILE_INHERITANCE_KEYS:
+        merged.pop(key, None)
+
+    return merged
 
 
 # SSRF contact ``kind`` spellings mapped to the neutral form exporters use.
@@ -500,7 +639,7 @@ def _load_and_validate_profile(
     issue at once; the report also carries non-fatal hints and warnings.
     """
 
-    profile = _load_mapping(profile_path)
+    profile = _load_profile_with_inheritance(profile_path)
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     schema_errors = sorted(
         Draft202012Validator(schema).iter_errors(profile),
@@ -663,6 +802,11 @@ def main() -> int:
         help="inspection output format (default: summary)",
     )
     parser.add_argument(
+        "--print-merged-profile",
+        action="store_true",
+        help="print the inheritance-resolved profile as YAML",
+    )
+    parser.add_argument(
         "--artifact-root",
         type=Path,
         default=None,
@@ -671,6 +815,20 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        if args.print_merged_profile:
+            profile, _, _, report = _load_and_validate_profile(
+                args.profile,
+                args.ssrf_root,
+                radio_root=args.radio_root,
+                instance_registry_path=args.instance_registry,
+            )
+            for issue in report.non_critical():
+                print(
+                    f"{issue.severity.name.lower()}: {issue.format()}",
+                    file=sys.stderr,
+                )
+            print(yaml.safe_dump(profile, sort_keys=False), end="")
+            return 0
         if args.output_format == "summary":
             profile, _, _, report = _load_and_validate_profile(
                 args.profile,

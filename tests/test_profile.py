@@ -142,6 +142,237 @@ def test_profile_resolves_ordered_assignment_ids() -> None:
     assert loaded["radio_instance"] == "dm32_green_01"
 
 
+def test_profile_inherits_and_filters_zones() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profiles = root / "profiles"
+        profiles.mkdir()
+        (profiles / "base.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "base_profile",
+                    "name": "Base profile",
+                    "radio": "test_radio",
+                    "radio_instance": "base_instance",
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Base reference",
+                            "assignments": [
+                                {"id": "asg_one", "display_name": "Base one"}
+                            ],
+                        },
+                        {
+                            "id": "secondary",
+                            "name": "Secondary",
+                            "assignments": ["asg_two"],
+                        },
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        child = profiles / "child.yml"
+        child.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "child_profile",
+                    "name": "Child profile",
+                    "radio_instance": "child_instance",
+                    "extends": "base.yml",
+                    "zones_only": ["reference"],
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Child reference",
+                            "assignments": [
+                                {"id": "asg_one", "display_name": "Child one"}
+                            ],
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        radio = root / "radios" / "test_radio"
+        radio.mkdir(parents=True)
+        (radio / "capabilities.json").write_text(
+            json.dumps(
+                {
+                    "id": "test_radio",
+                    "name": "Test radio",
+                    "limits": {
+                        "max_channels": 2,
+                        "max_zones": 2,
+                        "max_channels_per_zone": 2,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        _write_ssrf(root / "ssrf")
+
+        loaded = load_and_validate_profile(
+            child,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["id"] == "child_profile"
+    assert loaded["name"] == "Child profile"
+    assert loaded["radio"] == "test_radio"
+    assert loaded["radio_instance"] == "child_instance"
+    assert "extends" not in loaded
+    assert "zones_only" not in loaded
+    assert [zone["id"] for zone in loaded["zones"]] == ["reference"]
+    assert loaded["zones"][0]["name"] == "Child reference"
+    assert loaded["zones"][0]["assignments"] == [
+        {"id": "asg_one", "display_name": "Child one"}
+    ]
+
+
+def test_profile_inheritance_rejects_radio_mismatch_and_cycles() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        base = root / "base.yml"
+        base.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "base",
+                    "name": "Base",
+                    "radio": "test_radio",
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Reference",
+                            "assignments": ["asg_one"],
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        mismatch = root / "mismatch.yml"
+        mismatch.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "mismatch",
+                    "name": "Mismatch",
+                    "radio": "other_radio",
+                        "radio_instance": "mismatch_instance",
+                    "extends": "base.yml",
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Reference",
+                            "assignments": ["asg_one"],
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ProfileValidationError, match="does not match parent"):
+            load_and_validate_profile(
+                mismatch,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+        first = root / "first.yml"
+        second = root / "second.yml"
+        first.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "first",
+                    "name": "First",
+                    "radio": "test_radio",
+                        "radio_instance": "first_instance",
+                    "extends": "second.yml",
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        second.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "second",
+                    "name": "Second",
+                    "radio": "test_radio",
+                        "radio_instance": "second_instance",
+                    "extends": "first.yml",
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ProfileValidationError, match="inheritance cycle"):
+            load_and_validate_profile(
+                first,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_profile_inheritance_requires_child_instance_and_parent_file() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        profile = root / "child.yml"
+        profile.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "child",
+                    "name": "Child",
+                    "extends": "missing.yml",
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Reference",
+                            "assignments": ["asg_one"],
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ProfileValidationError, match="radio_instance"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+        profile_data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        profile_data["radio_instance"] = "child_instance"
+        profile.write_text(yaml.safe_dump(profile_data, sort_keys=False), encoding="utf-8")
+        with pytest.raises(ProfileValidationError, match="could not load parent"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
 def test_profile_supports_profile_local_assignment_display_names() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

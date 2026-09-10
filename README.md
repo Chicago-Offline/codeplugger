@@ -152,6 +152,32 @@ identities. Display-name or RF changes belong in an SSRF overlay. Version `0.1`
 intentionally excludes selectors, scan lists, contacts, button mappings, and
 exporter settings until the explicit-ID workflow is proven end to end.
 
+Profiles may inherit from another profile in the same directory or a relative
+path. The child must target the same `radio`; its `id` and optional
+`radio_instance` are never inherited. Scalar values in the child replace the
+parent. Lists of objects with an `id` are merged by ID, with child fields
+patching matching objects and new objects appended. Use `zones_only` or
+`omit_zones` for a child variant that keeps only part of the parent's zones:
+
+```yaml
+version: "0.1"
+id: "dm32_lite"
+name: "DM-32 lite"
+radio: "baofeng_dm32"
+radio_instance: "dm32_white_01"
+extends: "dm32_base.yml"
+zones_only: ["reference"]
+```
+
+Inheritance cycles, unknown zones, mismatched radios, and excessively deep
+inheritance chains are rejected. Review the fully merged profile with:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --print-merged-profile
+```
+
 Validate a profile against authoritative data, overlays, and radio limits:
 
 ```bash
