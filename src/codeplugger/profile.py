@@ -12,6 +12,7 @@ from typing import Any, Mapping, Sequence
 from jsonschema import Draft202012Validator
 import yaml
 
+from .emission import bandwidth_khz_from_emission
 from .validation import ValidationReport
 
 
@@ -541,7 +542,14 @@ def _check_radio_support(
                 )
 
             if bandwidths and getattr(chain, "tx", None) is not None:
+                # Validate the bandwidth the exporters will actually use, which
+                # may be derived from the ITU emission designator when the SSRF
+                # data carries no explicit bandwidth_khz.
                 bandwidth_khz = getattr(chain.tx, "bandwidth_khz", None)
+                if bandwidth_khz is None:
+                    bandwidth_khz = bandwidth_khz_from_emission(
+                        getattr(chain.tx, "emission", None)
+                    )
                 if bandwidth_khz is not None and not any(
                     abs(bandwidth_khz - supported) < 1e-6 for supported in bandwidths
                 ):

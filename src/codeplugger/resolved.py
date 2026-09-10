@@ -9,6 +9,7 @@ from typing import Any, Sequence
 
 import yaml
 
+from .emission import bandwidth_khz_from_emission
 from .profile import (
     DEFAULT_RADIO_ROOT,
     DEFAULT_SCHEMA_PATH,
@@ -143,6 +144,22 @@ def _display_name(assignment: Any, fallback: str, override: str | None) -> str:
     return override or assignment.display_name or assignment.channel_name or fallback
 
 
+def _bandwidth_khz(source: Any | None) -> float | None:
+    """Return an explicit bandwidth, else derive one from the emission.
+
+    SSRF-Lite marks ``bandwidth_khz`` optional and much of the public data
+    carries only the ITU emission designator, so an explicit value always wins
+    and the designator is the fallback rather than the source of truth.
+    """
+
+    if source is None:
+        return None
+    explicit = getattr(source, "bandwidth_khz", None)
+    if explicit is not None:
+        return explicit
+    return bandwidth_khz_from_emission(getattr(source, "emission", None))
+
+
 def _tones(mode: Any | None) -> ResolvedTones:
     if mode is None:
         return ResolvedTones()
@@ -203,7 +220,7 @@ def _resolve_assignment(
                 tones=_tones(rf_chain.mode),
                 tx_permitted=tx_frequency is not None,
                 notes=assignment.notes,
-                bandwidth_khz=rf_chain.tx.bandwidth_khz,
+                bandwidth_khz=_bandwidth_khz(rf_chain.tx),
                 power_w=rf_chain.tx.power_w,
                 color_code=rf_chain.mode.color_code,
                 timeslots=tuple(rf_chain.mode.timeslots or ()),
@@ -268,7 +285,7 @@ def _resolve_assignment(
                 or assignment.usage in {"call", "simplex"}
             ),
             notes=assignment.notes or channel.notes,
-            bandwidth_khz=channel.bandwidth_khz,
+            bandwidth_khz=_bandwidth_khz(channel),
             contact_id=contact_id,
             rx_group_id=rx_group_id,
             scan_list_id=scan_list_id,

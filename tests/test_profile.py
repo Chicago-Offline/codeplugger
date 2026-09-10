@@ -609,7 +609,9 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
     assert resolved.channels[1].rx_frequency_mhz == 146.34
     assert resolved.channels[1].tx_frequency_mhz == 146.94
     assert resolved.channels[1].service == "amateur"
-    assert resolved.channels[1].bandwidth_khz is None
+    # chain_one carries no explicit bandwidth_khz, so 25 kHz is derived from
+    # its 16K0F3E emission designator.
+    assert resolved.channels[1].bandwidth_khz == 25.0
     assert resolved.channels[1].power_w is None
     assert resolved.channels[1].tones == ResolvedTones(
         ctcss_tx_hz=100.0,
