@@ -110,14 +110,14 @@ def test_markdown_reference_mirrors_html_structure_as_tables() -> None:
     assert "### Zone 1 - Family" in rendered
     assert (
         "| # | Name | RX | TX | Mode | BW kHz | Power W | Tone RX | Tone TX | "
-        "CC | TS | Service | TX permitted | Notes |"
+        "CC | TS | Scan | Service | TX permitted | Notes |"
     ) in rendered
     assert (
-        "| 1 | FAMILY | 446.000000 | RX only | FM |  |  |  |  |  |  | gmrs | "
+        "| 1 | FAMILY | 446.000000 | RX only | FM |  |  |  |  |  |  |  | gmrs | "
         "No | listen only |"
     ) in rendered
     assert (
-        "| 2 | FAM \\| PIPE | 462.562500 | 467.562500 | DMR |  |  |  |  |  |  | "
+        "| 2 | FAM \\| PIPE | 462.562500 | 467.562500 | DMR |  |  |  |  |  |  |  | "
         "gmrs | Yes |  |"
     ) in rendered
     assert "| 1 | COP4BLUE | 682041 | Private |" in rendered
