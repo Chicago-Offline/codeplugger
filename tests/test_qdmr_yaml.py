@@ -106,6 +106,23 @@ def test_rx_only_channel_reuses_rx_frequency() -> None:
     assert record["txFrequency"] == record["rxFrequency"]
 
 
+def test_am_channel_uses_qdmr_am_variant() -> None:
+    channel = _channel(
+        mode="AM",
+        display_name="ORD APP",
+        rx_frequency_mhz=119.0,
+        tx_frequency_mhz=None,
+        tx_permitted=False,
+    )
+
+    document = yaml.safe_load(qdmr_yaml_from_resolved(_codeplug((channel,))))
+
+    record = document["channels"][0]
+    assert "am" in record
+    assert record["am"]["rxFrequency"] == "119 MHz"
+    assert record["am"]["rxOnly"] is True
+
+
 def test_dcs_tone_normalization() -> None:
     codeplug = _codeplug(
         (

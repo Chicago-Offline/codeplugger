@@ -174,6 +174,16 @@ def _fm_channel(
     return {"fm": record}
 
 
+def _am_channel(channel: ResolvedChannel, channel_id: str) -> dict[str, Any]:
+    record = {
+        "id": channel_id,
+        "name": channel.display_name,
+        **_frequencies(channel),
+        "power": _power(channel.power_w),
+    }
+    return {"am": record}
+
+
 def _dmr_channel(
     channel: ResolvedChannel,
     channel_id: str,
@@ -328,9 +338,12 @@ def qdmr_yaml_from_resolved(
     for index, channel in enumerate(codeplug.channels):
         channel_id = f"ch{index + 1}"
         channel_ids[channel.reference] = channel_id
-        if (channel.mode or "FM").upper() == "DMR":
+        mode = (channel.mode or "FM").upper()
+        if mode == "DMR":
             has_dmr = True
             record = _dmr_channel(channel, channel_id, contact_ids, rx_group_ids)
+        elif mode == "AM":
+            record = _am_channel(channel, channel_id)
         else:
             record = _fm_channel(channel, channel_id, analog_bandwidth_khz)
         if channel.scan_list_id is not None:
