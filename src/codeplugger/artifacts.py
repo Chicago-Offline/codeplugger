@@ -123,8 +123,16 @@ def _timeslot_text(channel: Any) -> str:
     return "/".join(str(slot) for slot in slots)
 
 
-def _channel_row_values(channel: Any, index: int) -> list[str]:
-    """Return one channel's reference cells in table-column order."""
+def _channel_row_values(
+    channel: Any,
+    index: int,
+    scan_list_names: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Return one channel's reference cells in table-column order.
+
+    ``scan_list_names`` maps scan-list id to display name so the channel table
+    can show which list a channel scans under; ids fall through unmapped.
+    """
 
     tx = (
         f"{channel.tx_frequency_mhz:.6f}"
@@ -139,6 +147,8 @@ def _channel_row_values(channel: Any, index: int) -> list[str]:
     color_code = getattr(channel, "color_code", None)
     bandwidth = getattr(channel, "bandwidth_khz", None)
     power = getattr(channel, "power_w", None)
+    scan_list_id = getattr(channel, "scan_list_id", None) or ""
+    scan_list = (scan_list_names or {}).get(scan_list_id, scan_list_id)
     return [
         str(index),
         channel.display_name,
@@ -151,6 +161,7 @@ def _channel_row_values(channel: Any, index: int) -> list[str]:
         tx_tone,
         "" if color_code is None else str(color_code),
         _timeslot_text(channel),
+        scan_list,
         channel.service or "",
         "Yes" if channel.tx_permitted else "No",
         channel.notes or "",
@@ -169,11 +180,72 @@ CHANNEL_COLUMNS = (
     "Tone TX",
     "CC",
     "TS",
+    "Scan",
     "Service",
     "TX permitted",
     "Notes",
 )
 CONTACT_COLUMNS = ("#", "Name", "DMR ID", "Type")
+SCAN_LIST_COLUMNS = ("#", "Scan list", "Channels", "Members")
+RX_GROUP_COLUMNS = ("#", "RX group", "Talkgroups", "Members")
+
+
+def _optional_counts(scan_lists: Sequence[Any], rx_groups: Sequence[Any]) -> str:
+    """Render scan-list and RX-group counts only when the radio defines any.
+
+    Radios with neither keep the original three-field summary line rather than
+    carrying ``Scan lists: 0 | RX groups: 0`` noise.
+    """
+
+    parts = ""
+    if scan_lists:
+        parts += f" | Scan lists: {len(scan_lists)}"
+    if rx_groups:
+        parts += f" | RX groups: {len(rx_groups)}"
+    return parts
+
+
+def _scan_list_names(codeplug: Any) -> dict[str, str]:
+    """Map scan-list id to display name for the channel table's Scan column."""
+
+    return {
+        scan_list.id: scan_list.name
+        for scan_list in getattr(codeplug, "scan_lists", ()) or ()
+    }
+
+
+def _scan_list_row_values(scan_list: Any, index: int, channels: Mapping[str, Any]) -> list[str]:
+    """Return one scan list's reference cells: name, size, and member names."""
+
+    references = tuple(scan_list.channel_references)
+    members = ", ".join(
+        channels[reference].display_name
+        for reference in references
+        if reference in channels
+    )
+    return [str(index), scan_list.name, str(len(references)), members]
+
+
+def _rx_group_row_values(group: Any, index: int, contact_names: Mapping[str, str]) -> list[str]:
+    """Return one RX group's reference cells: name, size, and talkgroup names."""
+
+    contact_ids = tuple(group.contact_ids)
+    members = ", ".join(
+        contact_names.get(contact_id, contact_id) for contact_id in contact_ids
+    )
+    return [str(index), group.name, str(len(contact_ids)), members]
+
+
+def _ssrf_contact_names(codeplug: Any) -> dict[str, str]:
+    """Map SSRF contact id to display name for RX group membership rendering."""
+
+    names: dict[str, str] = {}
+    for contact in getattr(codeplug, "contacts", ()) or ():
+        contact_id = getattr(contact, "id", None)
+        if contact_id is None:
+            continue
+        names[contact_id] = getattr(contact, "name", None) or contact_id
+    return names
 
 
 def _markdown_row(values: Sequence[str]) -> str:
@@ -200,14 +272,20 @@ def markdown_reference_from_resolved(
     )
     contacts = _contact_instances(codeplug, fleet_instances)
     channels = {channel.reference: channel for channel in codeplug.channels}
+    scan_lists = tuple(getattr(codeplug, "scan_lists", ()) or ())
+    rx_groups = tuple(getattr(codeplug, "rx_groups", ()) or ())
+    scan_names = _scan_list_names(codeplug)
+    contact_names = _ssrf_contact_names(codeplug)
 
     lines = [
         f"# {' - '.join(heading_parts)}",
         "",
         f"Programmed: {programmed}",
         "",
-        f"Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)} | "
-        f"Contacts: {len(contacts)}",
+        "Channels: "
+        f"{len(codeplug.channels)} | Zones: {len(codeplug.zones)}"
+        + _optional_counts(scan_lists, rx_groups)
+        + f" | Contacts: {len(contacts)}",
         "",
         "## Zones / Channels",
     ]
@@ -220,7 +298,37 @@ def markdown_reference_from_resolved(
             _markdown_row(["---"] * len(CHANNEL_COLUMNS)),
         ]
         for index, reference in enumerate(zone.channel_references, 1):
-            lines.append(_markdown_row(_channel_row_values(channels[reference], index)))
+            lines.append(
+                _markdown_row(
+                    _channel_row_values(channels[reference], index, scan_names)
+                )
+            )
+
+    if scan_lists:
+        lines += [
+            "",
+            "## Scan Lists",
+            "",
+            _markdown_row(SCAN_LIST_COLUMNS),
+            _markdown_row(["---"] * len(SCAN_LIST_COLUMNS)),
+        ]
+        for index, scan_list in enumerate(scan_lists, 1):
+            lines.append(
+                _markdown_row(_scan_list_row_values(scan_list, index, channels))
+            )
+
+    if rx_groups:
+        lines += [
+            "",
+            "## RX Groups",
+            "",
+            _markdown_row(RX_GROUP_COLUMNS),
+            _markdown_row(["---"] * len(RX_GROUP_COLUMNS)),
+        ]
+        for index, group in enumerate(rx_groups, 1):
+            lines.append(
+                _markdown_row(_rx_group_row_values(group, index, contact_names))
+            )
 
     lines += [
         "",
@@ -268,13 +376,19 @@ def html_reference_from_resolved(
         )
 
     channels = {channel.reference: channel for channel in codeplug.channels}
+    scan_lists = tuple(getattr(codeplug, "scan_lists", ()) or ())
+    rx_groups = tuple(getattr(codeplug, "rx_groups", ()) or ())
+    scan_names = _scan_list_names(codeplug)
+    contact_names = _ssrf_contact_names(codeplug)
     sections: list[str] = []
     for zone_index, zone in enumerate(codeplug.zones, 1):
         rows = []
         for index, reference in enumerate(zone.channel_references, 1):
             cells = "".join(
                 f"<td>{html.escape(value)}</td>"
-                for value in _channel_row_values(channels[reference], index)
+                for value in _channel_row_values(
+                    channels[reference], index, scan_names
+                )
             )
             rows.append(f"<tr>{cells}</tr>")
         header = "".join(f"<th>{html.escape(name)}</th>" for name in CHANNEL_COLUMNS)
@@ -283,6 +397,36 @@ def html_reference_from_resolved(
             f"<table><thead><tr>{header}</tr></thead><tbody>"
             + "".join(rows)
             + "</tbody></table>"
+        )
+
+    def _table(columns: tuple[str, ...], rows: list[list[str]]) -> str:
+        head = "".join(f"<th>{html.escape(name)}</th>" for name in columns)
+        body = "".join(
+            "<tr>"
+            + "".join(f"<td>{html.escape(value)}</td>" for value in row)
+            + "</tr>"
+            for row in rows
+        )
+        return (
+            f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+        )
+
+    list_sections = ""
+    if scan_lists:
+        list_sections += "<h2>Scan Lists</h2>" + _table(
+            SCAN_LIST_COLUMNS,
+            [
+                _scan_list_row_values(scan_list, index, channels)
+                for index, scan_list in enumerate(scan_lists, 1)
+            ],
+        )
+    if rx_groups:
+        list_sections += "<h2>RX Groups</h2>" + _table(
+            RX_GROUP_COLUMNS,
+            [
+                _rx_group_row_values(group, index, contact_names)
+                for index, group in enumerate(rx_groups, 1)
+            ],
         )
     return (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
@@ -297,10 +441,12 @@ def html_reference_from_resolved(
         "</style></head><body>"
         f"<h1>{html.escape(' - '.join(heading_parts))}</h1>"
         f"<h3>Programmed: {programmed}</h3>"
-        f"<h3>Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)} | "
-        f"Contacts: {len(contact_rows)}</h3>"
+        f"<h3>Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)}"
+        + _optional_counts(scan_lists, rx_groups)
+        + f" | Contacts: {len(contact_rows)}</h3>"
         "<h2>Zones / Channels</h2>"
         + "".join(sections)
+        + list_sections
         + "<h2>Contacts</h2>"
         + "<table><thead><tr><th>#</th><th>Name</th><th>DMR ID</th>"
         "<th>Type</th></tr></thead><tbody>"
