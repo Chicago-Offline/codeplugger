@@ -99,6 +99,30 @@ def _contact_instances(
     ]
 
 
+def _tone_text(ctcss_hz: Any, dcs_code: Any) -> str:
+    """Describe one direction's analog squelch tone, or blank when carrier-only.
+
+    CTCSS renders in Hz and DCS as a ``D``-prefixed code so the two encodings
+    stay distinguishable at a glance on a printed card.
+    """
+
+    if ctcss_hz is not None:
+        return f"{float(ctcss_hz):.1f}"
+    if dcs_code is not None:
+        code = str(dcs_code)
+        return code if code.upper().startswith("D") else f"D{code}"
+    return ""
+
+
+def _timeslot_text(channel: Any) -> str:
+    """Render the DMR timeslot, preferring the resolved single-slot choice."""
+
+    if getattr(channel, "timeslot", None) is not None:
+        return str(channel.timeslot)
+    slots = getattr(channel, "timeslots", ()) or ()
+    return "/".join(str(slot) for slot in slots)
+
+
 def _channel_row_values(channel: Any, index: int) -> list[str]:
     """Return one channel's reference cells in table-column order."""
 
@@ -107,12 +131,26 @@ def _channel_row_values(channel: Any, index: int) -> list[str]:
         if channel.tx_frequency_mhz is not None
         else "RX only"
     )
+    tones = getattr(channel, "tones", None)
+    rx_tone = tx_tone = ""
+    if tones is not None:
+        rx_tone = _tone_text(tones.ctcss_rx_hz, tones.dcs_rx_code)
+        tx_tone = _tone_text(tones.ctcss_tx_hz, tones.dcs_tx_code)
+    color_code = getattr(channel, "color_code", None)
+    bandwidth = getattr(channel, "bandwidth_khz", None)
+    power = getattr(channel, "power_w", None)
     return [
         str(index),
         channel.display_name,
         f"{channel.rx_frequency_mhz:.6f}",
         tx,
         channel.mode or "",
+        f"{float(bandwidth):g}" if bandwidth is not None else "",
+        f"{float(power):g}" if power is not None else "",
+        rx_tone,
+        tx_tone,
+        "" if color_code is None else str(color_code),
+        _timeslot_text(channel),
         channel.service or "",
         "Yes" if channel.tx_permitted else "No",
         channel.notes or "",
@@ -125,6 +163,12 @@ CHANNEL_COLUMNS = (
     "RX",
     "TX",
     "Mode",
+    "BW kHz",
+    "Power W",
+    "Tone RX",
+    "Tone TX",
+    "CC",
+    "TS",
     "Service",
     "TX permitted",
     "Notes",
@@ -228,27 +272,15 @@ def html_reference_from_resolved(
     for zone_index, zone in enumerate(codeplug.zones, 1):
         rows = []
         for index, reference in enumerate(zone.channel_references, 1):
-            channel = channels[reference]
-            tx = (
-                f"{channel.tx_frequency_mhz:.6f}"
-                if channel.tx_frequency_mhz is not None
-                else "RX only"
+            cells = "".join(
+                f"<td>{html.escape(value)}</td>"
+                for value in _channel_row_values(channels[reference], index)
             )
-            rows.append(
-                "<tr>"
-                f"<td>{index}</td><td>{html.escape(channel.display_name)}</td>"
-                f"<td>{channel.rx_frequency_mhz:.6f}</td><td>{html.escape(tx)}</td>"
-                f"<td>{html.escape(channel.mode or '')}</td>"
-                f"<td>{html.escape(channel.service or '')}</td>"
-                f"<td>{'Yes' if channel.tx_permitted else 'No'}</td>"
-                f"<td>{html.escape(channel.notes or '')}</td>"
-                "</tr>"
-            )
+            rows.append(f"<tr>{cells}</tr>")
+        header = "".join(f"<th>{html.escape(name)}</th>" for name in CHANNEL_COLUMNS)
         sections.append(
             f"<h3>Zone {zone_index} - {html.escape(zone.name)}</h3>"
-            "<table><thead><tr><th>#</th><th>Name</th><th>RX</th><th>TX</th>"
-            "<th>Mode</th><th>Service</th><th>TX permitted</th><th>Notes</th>"
-            "</tr></thead><tbody>"
+            f"<table><thead><tr>{header}</tr></thead><tbody>"
             + "".join(rows)
             + "</tbody></table>"
         )
@@ -258,7 +290,8 @@ def html_reference_from_resolved(
         "<style>body{font:14px -apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;"
         "color:#17202a;margin:2rem}h1{margin-bottom:.4rem}h1+h3{margin-top:0}"
         "h3{color:#59636e}table{border-collapse:collapse;width:100%;margin-bottom:2rem}"
-        "th,td{border:1px solid #c8ced4;padding:.45rem .55rem;text-align:left}"
+        "th,td{border:1px solid #c8ced4;padding:.35rem .4rem;text-align:left;"
+        "white-space:nowrap}td:last-child,th:last-child{white-space:normal}"
         "th{background:#e9eef2}tr:nth-child(even){background:#f7f9fa}"
         "@media print{body{margin:0}h2,h3{break-after:avoid}table{font-size:10pt}}"
         "</style></head><body>"
