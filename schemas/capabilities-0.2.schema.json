@@ -156,6 +156,7 @@
       "items": {
         "type": "string",
         "enum": [
+          "AM",
           "FM",
           "DMR"
         ]
