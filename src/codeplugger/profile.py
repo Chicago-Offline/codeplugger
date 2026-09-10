@@ -650,7 +650,15 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-format",
-        choices=("summary", "json", "yaml", "chirp-csv", "qdmr-yaml", "html"),
+        choices=(
+            "summary",
+            "json",
+            "yaml",
+            "chirp-csv",
+            "qdmr-yaml",
+            "html",
+            "markdown",
+        ),
         default="summary",
         help="inspection output format (default: summary)",
     )
@@ -688,7 +696,7 @@ def main() -> int:
         parser.exit(1, f"error: {exc}\n")
     render_options: dict[str, Any] = {}
     if args.output_format != "summary" and (
-        args.output_format == "html" or args.artifact_root is not None
+        args.output_format in ("html", "markdown") or args.artifact_root is not None
     ):
         render_options["radio_name"] = _load_capabilities(
             codeplug.radio_id, args.radio_root
@@ -734,6 +742,11 @@ def main() -> int:
         from .artifacts import html_reference_from_resolved
 
         print(html_reference_from_resolved(codeplug, **render_options), end="")
+        return 0
+    if args.output_format == "markdown":
+        from .artifacts import markdown_reference_from_resolved
+
+        print(markdown_reference_from_resolved(codeplug, **render_options), end="")
         return 0
     assignment_count = sum(len(zone["assignments"]) for zone in profile["zones"])
     print(
