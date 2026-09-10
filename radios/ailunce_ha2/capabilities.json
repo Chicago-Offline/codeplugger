@@ -1,0 +1,44 @@
+{
+  "id": "ailunce_ha2",
+  "name": "Ailunce HA2",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 1024,
+    "max_zones": 16,
+    "max_channels_per_zone": 64,
+    "max_channel_name_chars": 12
+  },
+  "bands": [
+    {
+      "name": "FM Broadcast",
+      "min_mhz": 50.0,
+      "max_mhz": 115.0,
+      "rx_only": true
+    },
+    {
+      "name": "Airband",
+      "min_mhz": 108.0,
+      "max_mhz": 136.0,
+      "rx_only": true
+    },
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 480.0
+    },
+    {
+      "name": "UHF RX high",
+      "min_mhz": 480.0,
+      "max_mhz": 520.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["AM", "FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "Figures sourced from Miklor HA2 review (miklor.com/COM/Review_HA2.php) and ailunce.com product page. 1024 channels / 16 zones / 64 ch per zone confirmed on both sources. Channel name length 12 chars confirmed from Miklor: 'The LCD displays up to 12 character channel names.' Official FCC-labeled TX is 144-148 / 420-450 MHz US. Extended TX (VHF 136-174, UHF 400-480) is available via app programming on this HT family and required for GMRS (462-467 MHz) and MURS (151-154 MHz) operation. AM mode declared for airband receive; the HA2 explicitly supports AM reception across the airband. Codeplugger AM channel mode is emitted for airband RX-only assignments. The FM Broadcast and Airband bands overlap (108-115 MHz); validation accepts any matching band so the overlap is harmless."
+}
