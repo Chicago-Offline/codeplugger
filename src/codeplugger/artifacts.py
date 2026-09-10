@@ -58,14 +58,12 @@ class ArtifactStore:
         return self.log_path
 
 
-def html_reference_from_resolved(
+def _reference_header(
     codeplug: Any,
-    *,
-    radio_name: str | None = None,
-    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
-    programmed_at: datetime | None = None,
-) -> str:
-    """Render a self-contained printable reference for any resolved radio."""
+    radio_name: str | None,
+    programmed_at: datetime | None,
+) -> tuple[list[str], str]:
+    """Build the shared heading parts and programmed timestamp for a reference."""
 
     metadata = codeplug.radio_instance or {}
     programmed_at = programmed_at or datetime.now(timezone.utc)
@@ -81,15 +79,142 @@ def html_reference_from_resolved(
     heading_parts = [organization, model, str(identity)]
     if color:
         heading_parts.append(str(color).title())
+    return heading_parts, programmed
 
-    contact_instances = fleet_instances
-    if contact_instances is None and metadata.get("dmr_id") is not None:
-        contact_instances = {codeplug.radio_instance_id: metadata}
+
+def _contact_instances(
+    codeplug: Any,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None,
+) -> list[Mapping[str, Any]]:
+    """Return the contact-bearing instances for a reference, in registry order."""
+
+    metadata = codeplug.radio_instance or {}
+    instances = fleet_instances
+    if instances is None and metadata.get("dmr_id") is not None:
+        instances = {codeplug.radio_instance_id: metadata}
+    return [
+        instance
+        for instance in (instances or {}).values()
+        if instance.get("dmr_id") is not None
+    ]
+
+
+def _channel_row_values(channel: Any, index: int) -> list[str]:
+    """Return one channel's reference cells in table-column order."""
+
+    tx = (
+        f"{channel.tx_frequency_mhz:.6f}"
+        if channel.tx_frequency_mhz is not None
+        else "RX only"
+    )
+    return [
+        str(index),
+        channel.display_name,
+        f"{channel.rx_frequency_mhz:.6f}",
+        tx,
+        channel.mode or "",
+        channel.service or "",
+        "Yes" if channel.tx_permitted else "No",
+        channel.notes or "",
+    ]
+
+
+CHANNEL_COLUMNS = (
+    "#",
+    "Name",
+    "RX",
+    "TX",
+    "Mode",
+    "Service",
+    "TX permitted",
+    "Notes",
+)
+CONTACT_COLUMNS = ("#", "Name", "DMR ID", "Type")
+
+
+def _markdown_row(values: Sequence[str]) -> str:
+    """Render one Markdown table row, escaping cell-breaking pipes."""
+
+    return "| " + " | ".join(str(v).replace("|", "\\|") for v in values) + " |"
+
+
+def markdown_reference_from_resolved(
+    codeplug: Any,
+    *,
+    radio_name: str | None = None,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+    programmed_at: datetime | None = None,
+) -> str:
+    """Render a resolved radio's reference as Markdown for in-repo review.
+
+    Mirrors the HTML reference's structure so the two stay comparable, but
+    renders as GitHub-viewable Markdown tables instead of a styled document.
+    """
+
+    heading_parts, programmed = _reference_header(
+        codeplug, radio_name, programmed_at
+    )
+    contacts = _contact_instances(codeplug, fleet_instances)
+    channels = {channel.reference: channel for channel in codeplug.channels}
+
+    lines = [
+        f"# {' - '.join(heading_parts)}",
+        "",
+        f"Programmed: {programmed}",
+        "",
+        f"Channels: {len(codeplug.channels)} | Zones: {len(codeplug.zones)} | "
+        f"Contacts: {len(contacts)}",
+        "",
+        "## Zones / Channels",
+    ]
+    for zone_index, zone in enumerate(codeplug.zones, 1):
+        lines += [
+            "",
+            f"### Zone {zone_index} - {zone.name}",
+            "",
+            _markdown_row(CHANNEL_COLUMNS),
+            _markdown_row(["---"] * len(CHANNEL_COLUMNS)),
+        ]
+        for index, reference in enumerate(zone.channel_references, 1):
+            lines.append(_markdown_row(_channel_row_values(channels[reference], index)))
+
+    lines += [
+        "",
+        "## Contacts",
+        "",
+        _markdown_row(CONTACT_COLUMNS),
+        _markdown_row(["---"] * len(CONTACT_COLUMNS)),
+    ]
+    for index, instance in enumerate(contacts, 1):
+        dmr_id = instance["dmr_id"]
+        lines.append(
+            _markdown_row(
+                [
+                    str(index),
+                    str(instance.get("dmr_contact_name", dmr_id)),
+                    str(dmr_id),
+                    "Private",
+                ]
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
+def html_reference_from_resolved(
+    codeplug: Any,
+    *,
+    radio_name: str | None = None,
+    fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+    programmed_at: datetime | None = None,
+) -> str:
+    """Render a self-contained printable reference for any resolved radio."""
+
+    heading_parts, programmed = _reference_header(
+        codeplug, radio_name, programmed_at
+    )
     contact_rows = []
-    for instance in (contact_instances or {}).values():
-        dmr_id = instance.get("dmr_id")
-        if dmr_id is None:
-            continue
+    for instance in _contact_instances(codeplug, fleet_instances):
+        dmr_id = instance["dmr_id"]
         contact_rows.append(
             "<tr>"
             f"<td>{len(contact_rows) + 1}</td>"
@@ -165,15 +290,30 @@ def write_html_reference(
     )
 
 
+def write_markdown_reference(
+    path: Path,
+    codeplug: Any,
+    **render_options: Any,
+) -> None:
+    """Write a resolved codeplug's Markdown reference."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        markdown_reference_from_resolved(codeplug, **render_options), encoding="utf-8"
+    )
+
+
 def write_profile_artifacts(
     root: Path,
     codeplug: Any,
     **render_options: Any,
 ) -> tuple[Path, Path]:
-    """Write the HTML reference and generation log for a resolved radio."""
+    """Write the HTML and Markdown references plus the log for a resolved radio."""
 
     store = ArtifactStore(root, codeplug.radio_id, codeplug.radio_instance_id)
     reference_path = store.directory / "reference.html"
     write_html_reference(reference_path, codeplug, **render_options)
-    store.record("generate", "success", artifacts=(reference_path,))
+    markdown_path = store.directory / "reference.md"
+    write_markdown_reference(markdown_path, codeplug, **render_options)
+    store.record("generate", "success", artifacts=(reference_path, markdown_path))
     return reference_path, store.log_path
