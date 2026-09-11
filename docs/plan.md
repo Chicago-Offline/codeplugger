@@ -90,9 +90,18 @@ Sequenced work:
    radio is the acceptance gate before the path is considered safe.
    Compare a post-write `dmrconf read` against the intended codeplug and
    spot-check on-radio behavior (zones, tones, color code, timeslot).
-5. **Profile coverage.** Build out the real DM-32 profile
-   (`profiles/baofeng_dm32_chioff/`) and fleet-registry entries so the
-   fleet dry run covers the radio end to end.
+5. **Synthetic profile coverage.** *(done)* The public
+  [`chioff-codeplugger-profiles-test`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles-test)
+  repository owns the canonical synthetic DM-32 profile. Its integration
+  workflow resolves assignments across `ssrf-lite` and `chioff-ssrf-test`,
+  validates against this repository's DM-32 capabilities, and generates
+  qdmr YAML. Small self-contained fixtures remain here for fast unit tests.
+6. **Operational profile and fleet coverage.** Build the intended DM-32
+  profile and instance-registry entry in
+  `chioff-codeplugger-profiles-shared` or an operator's private profile
+  repository. Synthetic integration coverage does not replace a real fleet
+  configuration, and physical identifiers do not belong in public test
+  fixtures.
 
 ## In flight
 
