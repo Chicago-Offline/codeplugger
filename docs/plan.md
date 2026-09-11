@@ -105,12 +105,20 @@ Sequenced work:
   workflow resolves assignments across `ssrf-lite` and `chioff-ssrf-test`,
   validates against this repository's DM-32 capabilities, and generates
   qdmr YAML. Small self-contained fixtures remain here for fast unit tests.
-6. **Operational profile and fleet coverage.** Build the intended DM-32
-  profile and instance-registry entry in
-  `chioff-codeplugger-profiles-shared` or an operator's private profile
-  repository. Synthetic integration coverage does not replace a real fleet
-  configuration, and physical identifiers do not belong in public test
-  fixtures.
+6. **Operational profile and fleet coverage.** *(in progress)* The shared
+  community profile (`chioff_dm32_shared`, GMRS + MURS) and the
+  `co_dm32_eric` registry entry live in
+  `chioff-codeplugger-profiles-shared`; the profile resolves, validates,
+  and passes `dmrconf verify --radio=dm32uv` (2026-09-10). The operator's
+  private repository carries the full personal DM-32 profile
+  (`muehlstein_dm32_green`, 97 channels / 12 zones) and is fleet-ready.
+  The fleet dry run is intentionally out of scope for the shared
+  repository: its community profiles are instance-agnostic (one profile,
+  many radios), which the 1:1 profile-instance registry join does not
+  model; shared profiles are validated per-profile with
+  `codeplugger-profile` instead. Synthetic integration coverage does not
+  replace a real fleet configuration, and physical identifiers do not
+  belong in public test fixtures.
 
 ## In flight
 

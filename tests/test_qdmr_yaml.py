@@ -90,7 +90,11 @@ def test_fm_channel_fields_and_zone_references() -> None:
     assert second["power"] == "High"
     assert document["zones"][0]["A"] == ["ch1", "ch2"]
     assert document["zones"][0]["B"] == []
-    assert document["radioIDs"] == []
+    # DM32UV structurally requires one radio ID even with no DMR channels.
+    assert document["radioIDs"] == [
+        {"dmr": {"id": "id1", "name": "UNUSED", "number": 1}}
+    ]
+    assert document["settings"]["defaultID"] == "id1"
 
 
 def test_rx_only_channel_reuses_rx_frequency() -> None:
@@ -500,6 +504,23 @@ def test_dmrconf_verify_accepts_generated_codeplug(tmp_path) -> None:
             }
         },
     )
+    output = tmp_path / "codeplug.yaml"
+    write_qdmr_yaml(output, codeplug)
+
+    result = subprocess.run(
+        ["dmrconf", "verify", "--radio=dm32uv", str(output)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(
+    shutil.which("dmrconf") is None, reason="dmrconf is not installed"
+)
+def test_dmrconf_verify_accepts_analog_only_codeplug(tmp_path) -> None:
+    codeplug = _codeplug((_channel(tones=ResolvedTones(ctcss_tx_hz=67.0)),))
     output = tmp_path / "codeplug.yaml"
     write_qdmr_yaml(output, codeplug)
 

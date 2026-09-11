@@ -68,6 +68,14 @@ PLACEHOLDER_TALKGROUP_NAME = "UNUSED TG99"
 PLACEHOLDER_TALKGROUP_NUMBER = 99
 PLACEHOLDER_GROUP_LIST_NAME = "UNUSED"
 
+# The DM-32UV encoder also requires exactly one DMR radio ID, even for an
+# all-analog codeplug (qdmr lib/dm32uv_limits.cc: RadioLimitList
+# {DMRRadioID, 1, 1}). DMR channels still demand a real registry dmr_id;
+# this placeholder only ever appears in codeplugs with no DMR channels,
+# where the ID is never transmitted. 1 is the lowest valid DMR ID.
+PLACEHOLDER_RADIO_ID_NAME = "UNUSED"
+PLACEHOLDER_RADIO_ID_NUMBER = 1
+
 # Resolved contact kinds mapped to qdmr DMR contact types.
 CONTACT_TYPES = {
     "group": "GroupCall",
@@ -536,8 +544,19 @@ def qdmr_yaml_from_resolved(
     elif has_dmr:
         raise ValueError(
             f"instance '{codeplug.radio_instance_id}' has DMR channels but "
-            "no dmr_id in its registry metadata"
+            "no resolved dmr_id"
         )
+    else:
+        document["radioIDs"] = [
+            {
+                "dmr": {
+                    "id": "id1",
+                    "name": PLACEHOLDER_RADIO_ID_NAME,
+                    "number": PLACEHOLDER_RADIO_ID_NUMBER,
+                }
+            }
+        ]
+        document["settings"]["defaultID"] = "id1"
 
     return yaml.safe_dump(document, sort_keys=False, allow_unicode=True)
 
