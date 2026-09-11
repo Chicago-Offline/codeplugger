@@ -135,12 +135,13 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
     writer.writeheader()
 
     for idx, channel in enumerate(codeplug.channels, start=1):
-        mode = (channel.mode or "FM").upper()
-        if mode != "FM":
+        raw_mode = (channel.mode or "FM").upper()
+        if raw_mode not in ("FM", "AM"):
             raise ValueError(
-                f"channel '{channel.display_name}' mode '{mode}' is unsupported "
+                f"channel '{channel.display_name}' mode '{raw_mode}' is unsupported "
                 "for CHIRP CSV export"
             )
+        chirp_mode = raw_mode  # CHIRP CSV accepts FM and AM directly
 
         duplex, offset = _duplex_and_offset(channel)
         row = {
@@ -149,7 +150,7 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
             "Frequency": _format_frequency(channel.rx_frequency_mhz),
             "Duplex": duplex,
             "Offset": offset,
-            "Mode": "FM",
+            "Mode": chirp_mode,
             "TStep": "5.00",
             "Skip": "",
             "Power": "High",
