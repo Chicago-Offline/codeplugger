@@ -202,6 +202,51 @@ TX permission. It intentionally excludes scan lists, contacts, DMR identities,
 button settings, and NeonPlug fields; exporters translate this stable model
 without participating in input resolution.
 
+## DM-32 qdmr settings
+
+The qdmr YAML exporter accepts qdmr-native settings and DMR APRS records under
+the profile's `extensions.qdmr` namespace. Assignment-level qdmr extensions
+add fields to that generated channel. For example:
+
+```yaml
+extensions:
+  qdmr:
+    settings:
+      introLine1: K9ABC
+      boot: {display: Text}
+      audio: {fmMicGain: 2, voxDelay: 500 ms}
+      dmr: {groupCallMatch: false}
+      gnss: {systems: [GPS]}
+    contacts:
+      - dmr:
+          id: aprs_contact
+          name: DMR APRS
+          ring: false
+          type: PrivateCall
+          number: 310999
+    positioning:
+      - dmr:
+          id: aprs1
+          name: DMR APRS
+          period: 5 min
+          contact: aprs_contact
+zones:
+  - id: local
+    name: Local
+    assignments:
+      - id: local_dmr
+        extensions:
+          qdmr: {aprs: aprs1}
+```
+
+Values use qdmr's extensible YAML names and syntax. IDs supplied in
+`contacts` and `positioning` must be unique within the generated document.
+Codeplugger rejects assignment extensions that try to replace generated RF
+fields. qdmr currently maps DM-32 boot, audio/VOX, tone, timeout, GNSS, DMR,
+SMS, password, and DMR APRS settings. It knows the binary locations of the
+DM-32 screen colors, brightness, and backlight duration but does not expose
+them through its YAML configuration model, so codeplugger cannot set them yet.
+
 ## P4 TOML export
 
 The P4 exporter requires a TOML file produced by `p64tool decode` as its

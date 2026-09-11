@@ -76,7 +76,10 @@ Sequenced work:
    minimums the DM-32UV encoder imposes (≥1 group-call contact, ≥1 RX
    group list) are satisfied by an explicit unused placeholder, not by
    inventing talkgroup policy; fleet-registry members become private
-   contacts as on the P4.
+  contacts as on the P4. Profile `extensions.qdmr` can add qdmr-native
+  settings, supporting contacts, DMR APRS systems, and non-generated channel
+  properties. Screen colors remain blocked on upstream qdmr configuration
+  model support.
 2. **Headless validation.** *(done)* `dmrconf verify --radio=dm32uv`
    passes on generated output and `encode`/`decode` round-trips it; a
    skip-if-uninstalled test keeps this checked in CI-like runs.

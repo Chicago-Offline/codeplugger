@@ -277,6 +277,73 @@ def test_contacts_group_lists_and_scan_lists_from_profile() -> None:
     # Real group policy defined: no UNUSED placeholder needed.
     assert all(c["number"] != PLACEHOLDER_TALKGROUP_NUMBER for c in contacts)
 
+def test_qdmr_extensions_add_settings_and_aprs_configuration() -> None:
+    dmr = _channel(
+        mode="DMR",
+        color_code=1,
+        timeslot=1,
+        extensions={"qdmr": {"aprs": "aprs1"}},
+    )
+    codeplug = _codeplug(
+        (dmr,),
+        radio_instance={"dmr_id": 1234567},
+        extensions={
+            "qdmr": {
+                "settings": {
+                    "introLine1": "K9ABC",
+                    "boot": {"display": "Text"},
+                    "audio": {"fmMicGain": 2, "voxDelay": "500 ms"},
+                    "dmr": {"groupCallMatch": False},
+                    "gnss": {"systems": ["GPS"]},
+                },
+                "contacts": [
+                    {
+                        "dmr": {
+                            "id": "aprs_contact",
+                            "name": "DMR APRS",
+                            "ring": False,
+                            "type": "PrivateCall",
+                            "number": 310999,
+                        }
+                    }
+                ],
+                "positioning": [
+                    {
+                        "dmr": {
+                            "id": "aprs1",
+                            "name": "DMR APRS",
+                            "period": "5 min",
+                            "contact": "aprs_contact",
+                        }
+                    }
+                ],
+            }
+        },
+    )
+
+    document = yaml.safe_load(qdmr_yaml_from_resolved(codeplug))
+
+    assert document["settings"]["introLine1"] == "K9ABC"
+    assert document["settings"]["boot"] == {"display": "Text"}
+    assert document["settings"]["audio"] == {
+        "fmMicGain": 2,
+        "voxDelay": "500 ms",
+    }
+    assert document["settings"]["dmr"] == {"groupCallMatch": False}
+    assert document["settings"]["gnss"] == {"systems": ["GPS"]}
+    assert document["contacts"][-1]["dmr"]["id"] == "aprs_contact"
+    assert document["positioning"][0]["dmr"]["id"] == "aprs1"
+    assert document["channels"][0]["dmr"]["aprs"] == "aprs1"
+
+
+def test_qdmr_channel_extension_cannot_override_generated_fields() -> None:
+    channel = _channel(
+        extensions={"qdmr": {"name": "OVERRIDE", "rxOnly": True}}
+    )
+
+    with pytest.raises(ValueError, match="generated channel fields"):
+        qdmr_yaml_from_resolved(_codeplug((channel,)))
+
 
 def test_dmr_channel_without_color_code_fails() -> None:
     dmr = _channel(mode="DMR", timeslot=1)
@@ -348,6 +415,7 @@ def test_dmrconf_verify_accepts_generated_codeplug(tmp_path) -> None:
             contact_id="tg_local",
             rx_group_id="grp_local",
             scan_list_id="city",
+            extensions={"qdmr": {"aprs": "aprs1"}},
         ),
     )
     codeplug = _codeplug(
@@ -356,6 +424,37 @@ def test_dmrconf_verify_accepts_generated_codeplug(tmp_path) -> None:
         contacts=(ResolvedContact("tg_local", "Local", 9, "group"),),
         rx_groups=(ResolvedRxGroup("grp_local", "Local", ("tg_local",)),),
         scan_lists=(ResolvedScanList("city", "City", ("a1", "d1")),),
+        extensions={
+            "qdmr": {
+                "settings": {
+                    "boot": {"display": "Text"},
+                    "audio": {"fmMicGain": 2, "voxDelay": "500 ms"},
+                    "dmr": {"groupCallMatch": False},
+                    "gnss": {"systems": ["GPS"]},
+                },
+                "contacts": [
+                    {
+                        "dmr": {
+                            "id": "aprs_contact",
+                            "name": "DMR APRS",
+                            "ring": False,
+                            "type": "PrivateCall",
+                            "number": 310999,
+                        }
+                    }
+                ],
+                "positioning": [
+                    {
+                        "dmr": {
+                            "id": "aprs1",
+                            "name": "DMR APRS",
+                            "period": "5 min",
+                            "contact": "aprs_contact",
+                        }
+                    }
+                ],
+            }
+        },
     )
     output = tmp_path / "codeplug.yaml"
     write_qdmr_yaml(output, codeplug)

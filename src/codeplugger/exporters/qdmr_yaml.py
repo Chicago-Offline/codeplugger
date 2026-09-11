@@ -19,6 +19,7 @@ blindly from a CPS implementation (see docs/plan.md).
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -73,6 +74,38 @@ CONTACT_TYPES = {
     "private": "PrivateCall",
     "all": "AllCall",
 }
+
+QDMR_ROOT_EXTENSION_KEYS = {"settings", "contacts", "positioning"}
+
+
+def _mapping(value: Any, *, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{label} must be a mapping")
+    return value
+
+
+def _merge_mapping(target: dict[str, Any], source: Mapping[str, Any]) -> None:
+    for key, value in source.items():
+        if isinstance(value, Mapping) and isinstance(target.get(key), dict):
+            _merge_mapping(target[key], value)
+        else:
+            target[key] = deepcopy(value)
+
+
+def _apply_channel_extension(channel: ResolvedChannel, record: dict[str, Any]) -> None:
+    extension = channel.extensions.get("qdmr")
+    if extension is None:
+        return
+    extension = _mapping(
+        extension, label=f"channel '{channel.display_name}' qdmr extension"
+    )
+    conflicts = sorted(record.keys() & extension.keys())
+    if conflicts:
+        raise ValueError(
+            f"channel '{channel.display_name}' qdmr extension cannot override "
+            f"generated channel fields: {', '.join(conflicts)}"
+        )
+    _merge_mapping(record, extension)
 
 
 def _frequency(value_mhz: float) -> str:
@@ -350,6 +383,7 @@ def qdmr_yaml_from_resolved(
             next(iter(record.values()))["scanList"] = scan_list_ids[
                 channel.scan_list_id
             ]
+        _apply_channel_extension(channel, next(iter(record.values())))
         channels.append(record)
 
     zones = [
@@ -371,6 +405,27 @@ def qdmr_yaml_from_resolved(
         "channels": channels,
         "zones": zones,
     }
+    qdmr_extension = codeplug.extensions.get("qdmr")
+    if qdmr_extension is not None:
+        qdmr_extension = _mapping(qdmr_extension, label="qdmr extension")
+        unsupported = sorted(qdmr_extension.keys() - QDMR_ROOT_EXTENSION_KEYS)
+        if unsupported:
+            raise ValueError(
+                "unsupported top-level qdmr extension fields: "
+                + ", ".join(unsupported)
+            )
+        settings = qdmr_extension.get("settings")
+        if settings is not None:
+            _merge_mapping(
+                document["settings"], _mapping(settings, label="qdmr settings")
+            )
+        for collection in ("contacts", "positioning"):
+            values = qdmr_extension.get(collection)
+            if values is None:
+                continue
+            if not isinstance(values, list):
+                raise ValueError(f"qdmr {collection} must be a list")
+            document.setdefault(collection, []).extend(deepcopy(values))
     if codeplug.scan_lists:
         document["scanLists"] = [
             {
