@@ -7,7 +7,11 @@ import tempfile
 import pytest
 import yaml
 
-from codeplugger.profile import ProfileValidationError, load_and_validate_profile
+from codeplugger.profile import (
+    ProfileValidationError,
+    _load_and_validate_profile,
+    load_and_validate_profile,
+)
 from codeplugger.resolved import ResolvedTones, resolve_codeplug
 
 
@@ -1372,6 +1376,216 @@ def test_scan_list_capability_limits_enforced() -> None:
     message = str(excinfo.value)
     assert "expands to 2 channels" in message
     assert "TOO LONG NAME" in message
+
+
+def _write_dmr_ssrf(root: Path) -> None:
+    """A single DMR assignment/rf_chain, for dmr_id-per-zone tests."""
+
+    systems = root / "systems"
+    systems.mkdir(parents=True)
+    (systems / "fixture.yml").write_text(
+        yaml.safe_dump(
+            {
+                "ssrf_lite_version": "0.5.3",
+                "organizations": [{"id": "org_test", "name": "Test"}],
+                "stations": [{"id": "stn_test", "organization_id": "org_test"}],
+                "antennas": [{"id": "ant_test", "station_id": "stn_test"}],
+                "rf_chains": [
+                    {
+                        "id": "chain_dmr",
+                        "station_id": "stn_test",
+                        "antenna_id": "ant_test",
+                        "tx": {"freq_mhz": 446.5, "emission": "7K60FXE"},
+                        "rx": {"freq_mhz": 446.5},
+                        "mode": {
+                            "type": "DMR",
+                            "color_code": 1,
+                            "timeslots": [1],
+                        },
+                    }
+                ],
+                "assignments": [
+                    {
+                        "id": "asg_dmr",
+                        "rf_chain_id": "chain_dmr",
+                        "usage": "simplex",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_dmr_registry(root: Path, **instance_extra: object) -> Path:
+    return _write_instance_registry(
+        root,
+        {
+            "dm32_green_01": {
+                "radio": "test_radio",
+                "dmr_ids": [
+                    {"key": "ham", "id": 1234567, "name": "CALLSIGN"},
+                    {"key": "family", "id": 123, "name": "Family"},
+                ],
+                **instance_extra,
+            }
+        },
+    )
+
+
+def test_assignment_dmr_id_overrides_zone_and_instance_default() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_dmr", "dmr_id": "family"}])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["dmr_id"] = "ham"
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+        )
+
+    assert resolved.channels[0].dmr_id_key == "family"
+    assert resolved.channels[0].dmr_id == 123
+
+
+def test_zone_dmr_id_wins_over_instance_default() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_dmr"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["dmr_id"] = "family"
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+        )
+
+    assert resolved.channels[0].dmr_id_key == "family"
+    assert resolved.channels[0].dmr_id == 123
+
+
+def test_instance_default_dmr_id_used_absent_overrides() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_dmr"])
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+        )
+
+    assert resolved.channels[0].dmr_id_key == "ham"
+    assert resolved.channels[0].dmr_id == 1234567
+
+
+def test_unknown_assignment_dmr_id_key_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_dmr", "dmr_id": "nonexistent"}])
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root)
+
+        with pytest.raises(
+            ProfileValidationError, match="nonexistent.*not a known dmr_ids key"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_unknown_zone_dmr_id_key_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_dmr"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][0]["dmr_id"] = "nonexistent"
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root)
+
+        with pytest.raises(
+            ProfileValidationError, match="nonexistent.*not a known dmr_ids key"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_unknown_instance_default_dmr_id_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_dmr"])
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root, default_dmr_id="nonexistent")
+
+        with pytest.raises(
+            ProfileValidationError, match="nonexistent.*not a known dmr_ids key"
+        ):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+
+def test_digital_channel_with_no_bound_identity_warns_not_fails() -> None:
+    from codeplugger.validation import Severity
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_dmr"])
+        _write_radio(root / "radios")
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root)  # no default_dmr_id declared
+
+        _loaded, _documents, _instance_metadata, report = _load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+        )
+
+    assert not report.has_critical
+    warnings = [
+        issue for issue in report.issues if issue.severity is Severity.WARNING
+    ]
+    assert any("no dmr_id bound" in issue.message for issue in warnings)
 
 
 def test_assignment_referencing_unknown_rx_group_or_scan_list_fails() -> None:

@@ -361,6 +361,50 @@ def test_dmr_channel_without_usable_timeslot_fails() -> None:
         qdmr_yaml_from_resolved(codeplug)
 
 
+def test_multi_identity_profile_emits_one_radio_id_per_used_key() -> None:
+    """Issue #20: dmr_id bound per zone/assignment -> one radioIDs entry each."""
+
+    ham = _channel(
+        reference="a1",
+        assignment_id="a1",
+        mode="DMR",
+        color_code=1,
+        timeslot=1,
+        dmr_id_key="ham",
+        dmr_id=1234567,
+    )
+    family = _channel(
+        reference="a2",
+        assignment_id="a2",
+        mode="DMR",
+        color_code=1,
+        timeslot=2,
+        dmr_id_key="family",
+        dmr_id=123,
+    )
+    codeplug = _codeplug(
+        (ham, family),
+        radio_instance={
+            "dmr_ids": [
+                {"key": "ham", "id": 1234567, "name": "CALLSIGN"},
+                {"key": "family", "id": 123, "name": "Family"},
+            ],
+            "default_dmr_id": "ham",
+        },
+    )
+
+    document = yaml.safe_load(qdmr_yaml_from_resolved(codeplug))
+
+    assert document["radioIDs"] == [
+        {"dmr": {"id": "id1", "name": "CALLSIGN", "number": 1234567}},
+        {"dmr": {"id": "id2", "name": "Family", "number": 123}},
+    ]
+    assert document["channels"][0]["dmr"]["radioId"] == "id1"
+    assert document["channels"][1]["dmr"]["radioId"] == "id2"
+    # instance default_dmr_id ("ham") drives qdmr's defaultID.
+    assert document["settings"]["defaultID"] == "id1"
+
+
 def test_dmr_channel_without_dmr_id_fails() -> None:
     dmr = _channel(mode="DMR", color_code=1, timeslot=1)
 

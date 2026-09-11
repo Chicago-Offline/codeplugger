@@ -83,6 +83,8 @@ class ResolvedChannel:
     contact_id: str | None = None
     rx_group_id: str | None = None
     scan_list_id: str | None = None
+    dmr_id_key: str | None = None
+    dmr_id: int | None = None
     extensions: dict[str, Any] = field(default_factory=dict)
 
 
@@ -179,6 +181,8 @@ def _resolve_assignment(
     contact_id: str | None = None,
     rx_group_id: str | None = None,
     scan_list_id: str | None = None,
+    dmr_id_key: str | None = None,
+    dmr_id: int | None = None,
 ) -> list[ResolvedChannel]:
     reference = document.reference
     extensions = extensions or {}
@@ -232,6 +236,8 @@ def _resolve_assignment(
                 contact_id=contact_id,
                 rx_group_id=rx_group_id,
                 scan_list_id=scan_list_id,
+                dmr_id_key=dmr_id_key,
+                dmr_id=dmr_id,
                 extensions=extensions,
             )
         ]
@@ -289,6 +295,8 @@ def _resolve_assignment(
             contact_id=contact_id,
             rx_group_id=rx_group_id,
             scan_list_id=scan_list_id,
+            dmr_id_key=dmr_id_key,
+            dmr_id=dmr_id,
             extensions=extensions,
         )
         for channel in selected_channels
@@ -324,8 +332,15 @@ def resolve_codeplug(
     zones: list[ResolvedZone] = []
     assignment_channel_refs: dict[str, tuple[str, ...]] = {}
     contact_order: list[str] = []
+    dmr_id_map = {
+        entry["key"]: entry
+        for entry in (instance_metadata or {}).get("dmr_ids", []) or []
+    }
+    default_dmr_id_key = (instance_metadata or {}).get("default_dmr_id")
+    legacy_dmr_id = (instance_metadata or {}).get("dmr_id")
     for zone in profile["zones"]:
         channel_references: list[str] = []
+        zone_dmr_id_key = zone.get("dmr_id")
         for assignment_value in zone["assignments"]:
             assignment_id = (
                 assignment_value["id"]
@@ -344,12 +359,26 @@ def resolve_codeplug(
                 else {}
             )
             contact_id = rx_group_id = scan_list_id = None
+            assignment_dmr_id_key = None
             if isinstance(assignment_value, dict):
                 contact_id = assignment_value.get("contact")
                 rx_group_id = assignment_value.get("rx_group")
                 scan_list_id = assignment_value.get("scan_list")
+                assignment_dmr_id_key = assignment_value.get("dmr_id")
             if contact_id is not None and contact_id not in contact_order:
                 contact_order.append(contact_id)
+            effective_dmr_id_key = (
+                assignment_dmr_id_key or zone_dmr_id_key or default_dmr_id_key
+            )
+            if effective_dmr_id_key is not None and effective_dmr_id_key in dmr_id_map:
+                dmr_id_key = effective_dmr_id_key
+                dmr_id = int(dmr_id_map[effective_dmr_id_key]["id"])
+            else:
+                # Either no key was requested anywhere in the precedence chain,
+                # or (defensively) it points at an unknown key that
+                # _load_and_validate_profile already rejected as critical.
+                dmr_id_key = None
+                dmr_id = int(legacy_dmr_id) if legacy_dmr_id is not None else None
             resolved_channels = _resolve_assignment(
                 document,
                 assignment,
@@ -358,6 +387,8 @@ def resolve_codeplug(
                 contact_id,
                 rx_group_id,
                 scan_list_id,
+                dmr_id_key,
+                dmr_id,
             )
             for resolved_channel in resolved_channels:
                 _check_name_length(

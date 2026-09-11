@@ -79,6 +79,36 @@ def _replace_records(document: Any, key: str, records: Sequence[dict[str, Any]])
     document[key] = array
 
 
+def _check_single_dmr_identity(codeplug: ResolvedCodeplug) -> None:
+    """Reject profiles binding more than one dmr_id across DMR channels.
+
+    p64tool/P4 codeplugs carry exactly one radio identity for the whole
+    radio, unlike qdmr's per-channel ``radioId``. Issue #20 lets a profile
+    bind a different ``dmr_id`` per zone or assignment; if a profile
+    actually uses more than one distinct identity, fail loudly here rather
+    than silently writing only one of them.
+    """
+
+    legacy = (codeplug.radio_instance or {}).get("dmr_id")
+    used: dict[int, str | None] = {}
+    for channel in codeplug.channels:
+        if (channel.mode or "FM").upper() != "DMR":
+            continue
+        number = channel.dmr_id if channel.dmr_id is not None else (
+            int(legacy) if legacy is not None else None
+        )
+        if number is None:
+            continue
+        used.setdefault(number, channel.dmr_id_key)
+    if len(used) > 1:
+        raise ValueError(
+            "p64tool/P4 has no per-channel radio identity, but this profile "
+            f"binds {len(used)} distinct dmr_ids across DMR channels "
+            f"({sorted(used.items())}); P4 exports require every DMR "
+            "channel to share a single instance identity"
+        )
+
+
 def p64_toml_from_resolved(
     codeplug: ResolvedCodeplug,
     baseline_toml: str,
@@ -95,6 +125,7 @@ def p64_toml_from_resolved(
     mutated in place so radio-wide settings and unsupported fields survive.
     """
 
+    _check_single_dmr_identity(codeplug)
     document = parse(baseline_toml)
     if fleet_instances is not None:
         _apply_fleet_identities(document, codeplug, fleet_instances)
