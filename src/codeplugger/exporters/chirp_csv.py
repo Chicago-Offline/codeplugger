@@ -153,7 +153,7 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
             "Mode": chirp_mode,
             "TStep": "5.00",
             "Skip": "",
-            "Power": "",  # omit: power levels are radio-specific strings
+            "Power": str(int(channel.power_w)) if channel.power_w else "5",
             "Comment": channel.notes or "",
         }
         row.update(_tone_fields(channel))
