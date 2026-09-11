@@ -49,6 +49,19 @@ Working today:
 - Retevis MateTalk P4: TOML export against a `p64tool decode` baseline,
   fleet-registry contacts, and a gated `p64tool` write backend with
   read-back verification.
+- Baofeng DM-32: qdmr YAML export (`exporters/qdmr_yaml.py`, every default
+  named and reviewed; DM-32UV structural minimums satisfied by explicit
+  unused placeholders; profile `extensions.qdmr` for qdmr-native settings,
+  contacts, and DMR APRS) and a gated `dmrconf` write backend
+  (`backends/dmrconf.py`) mirroring the `p64tool` safety pattern:
+  read-only `detect`/`read`/`verify`, explicit confirmation, pre-write
+  verify gate, detected-radio identity gate, optional read-back archiving,
+  operation-log auditing. `dmrconf verify --radio=dm32uv` passes on
+  generated output and `encode`/`decode` round-trips it (skip-if-uninstalled
+  tests keep this checked). Transport decision record: qdmr's `dmrconf`
+  CLI (2026-09-08); the earlier NeonPlug import experiment
+  ([neonplug-base-free-experiment.md](neonplug-base-free-experiment.md))
+  is retained as evidence but that exporter path is dropped.
 - Analog radios (UV-5R Mini): CHIRP CSV export; CHIRP remains the upload
   interface (FM only).
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
@@ -59,53 +72,23 @@ Working today:
   for, the `dmrconf` headless write backend below.
 - Artifacts: self-contained HTML radio reference plus a JSON Lines
   operation log for generation and device operations.
-
-## Now: DM-32 headless programming
-
-The near-term priority is programming the Baofeng DM-32 without an
-interactive CPS session, following the safety pattern established by the
-P4 `p64tool` backend.
-
-**Transport decision (resolved 2026-09-08): qdmr's `dmrconf` CLI.**
-Upstream qdmr supports the DM-32UV (`--radio=dm32uv`, still flagged as
-under development), and its extensible YAML codeplug format gives a
-documented, radio-neutral interchange file plus headless `verify`,
-`encode`, `read`, and `write` commands. The earlier NeonPlug import
-experiment ([neonplug-base-free-experiment.md](neonplug-base-free-experiment.md))
-is retained as evidence but the NeonPlug exporter path is dropped.
-
-Sequenced work:
-
-1. **qdmr YAML exporter.** *(done)* `exporters/qdmr_yaml.py` emits the
-   extensible codeplug format from a resolved codeplug, with every default
-   named and reviewed (verified against qdmr `e84d4b3a`). Structural
-   minimums the DM-32UV encoder imposes (≥1 group-call contact, ≥1 RX
-   group list) are satisfied by an explicit unused placeholder, not by
-   inventing talkgroup policy; fleet-registry members become private
-  contacts as on the P4. Profile `extensions.qdmr` can add qdmr-native
-  settings, supporting contacts, DMR APRS systems, and non-generated channel
-  properties. Screen colors remain blocked on upstream qdmr configuration
-  model support.
-2. **Headless validation.** *(done)* `dmrconf verify --radio=dm32uv`
-   passes on generated output and `encode`/`decode` round-trips it; a
-   skip-if-uninstalled test keeps this checked in CI-like runs.
-3. **Gated write backend.** *(done)* `backends/dmrconf.py` mirrors the
-   `p64tool` wrapper: read-only `detect`/`read`/`verify`, explicit
-   `confirm=True` writes, a pre-write `verify` gate (dmrconf's own
-   write-time check logs but does not abort), a detected-radio identity
-   gate, optional post-write read-back archiving, and operation-log
-   auditing.
-4. **Hardware smoke test.** A DM-32UV write and verification on a real
-   radio is the acceptance gate before the path is considered safe.
-   Compare a post-write `dmrconf read` against the intended codeplug and
-   spot-check on-radio behavior (zones, tones, color code, timeslot).
-5. **Synthetic profile coverage.** *(done)* The public
+- Synthetic DM-32 profile coverage: the public
   [`chioff-codeplugger-profiles-test`](https://github.com/Chicago-Offline/chioff-codeplugger-profiles-test)
-  repository owns the canonical synthetic DM-32 profile. Its integration
+  repository owns the canonical synthetic DM-32 profile; its integration
   workflow resolves assignments across `ssrf-lite` and `chioff-ssrf-test`,
   validates against this repository's DM-32 capabilities, and generates
   qdmr YAML. Small self-contained fixtures remain here for fast unit tests.
-6. **Operational profile and fleet coverage.** *(in progress)* The shared
+
+## Now: DM-32 headless programming
+
+The software path is built (see above); what remains before the DM-32
+path is considered safe and operational:
+
+1. **Hardware smoke test.** A DM-32UV write and verification on a real
+   radio is the acceptance gate before the path is considered safe.
+   Compare a post-write `dmrconf read` against the intended codeplug and
+   spot-check on-radio behavior (zones, tones, color code, timeslot).
+2. **Operational profile and fleet coverage.** *(in progress)* The shared
   community profile (`chioff_dm32_shared`, GMRS + MURS) and the
   `co_dm32_eric` registry entry live in
   `chioff-codeplugger-profiles-shared`; the profile resolves, validates,
@@ -119,6 +102,9 @@ Sequenced work:
   `codeplugger-profile` instead. Synthetic integration coverage does not
   replace a real fleet configuration, and physical identifiers do not
   belong in public test fixtures.
+
+Known gap: screen colors remain blocked on upstream qdmr configuration
+model support.
 
 ## In flight
 
