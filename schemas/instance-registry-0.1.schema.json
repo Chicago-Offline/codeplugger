@@ -30,6 +30,30 @@
             "maximum": 16776415
           },
           "dmr_contact_name": { "type": "string", "minLength": 1 },
+          "dmr_ids": {
+            "type": "array",
+            "description": "Multiple selectable DMR identities for this radio (e.g. a licensed ham ID vs. an unregistered family/simplex ID). Zones and assignments select one by 'key'; see profile schema 'dmr_id'.",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key", "id"],
+              "properties": {
+                "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+                "id": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 16776415
+                },
+                "name": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "default_dmr_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "description": "Key from 'dmr_ids' used when a zone or assignment does not override the identity."
+          },
           "owner": { "type": "string" },
           "case_serial": { "type": ["string", "null"] },
           "fcc_id": { "type": ["string", "null"] },

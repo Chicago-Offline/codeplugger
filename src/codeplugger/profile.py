@@ -631,6 +631,97 @@ def _validate_instance_reference(
     return dict(instance)
 
 
+def _check_dmr_id_policy(
+    report: ValidationReport,
+    profile: Mapping[str, Any],
+    instance_metadata: Mapping[str, Any] | None,
+    documents: Sequence[Any],
+    selected: set[str],
+) -> None:
+    """Validate 'dmr_id' key references and flag unbound digital channels.
+
+    Resolution order mirrors ``resolve_codeplug``: assignment ``dmr_id`` ->
+    zone ``dmr_id`` -> instance ``default_dmr_id`` -> legacy single-identity
+    ``dmr_id``. A key that doesn't match a known ``dmr_ids`` entry anywhere in
+    that chain is a critical error. A digital (DMR) channel that still ends up
+    with no identity at all -- no override, no default, and no legacy
+    ``dmr_id`` -- is a warning: it will generate without a radio ID rather than
+    fail outright, but is very likely a mistake.
+    """
+
+    dmr_ids = (instance_metadata or {}).get("dmr_ids") or []
+    dmr_id_map = {entry["key"]: entry for entry in dmr_ids}
+    default_dmr_id_key = (instance_metadata or {}).get("default_dmr_id")
+    legacy_dmr_id = (instance_metadata or {}).get("dmr_id")
+
+    if default_dmr_id_key is not None and default_dmr_id_key not in dmr_id_map:
+        report.critical(
+            (),
+            f"instance default_dmr_id '{default_dmr_id_key}' is not a known "
+            "dmr_ids key",
+        )
+
+    assignment_lookup = {
+        assignment.id: (document, assignment)
+        for document in documents
+        for assignment in document.reference.assignments
+    }
+
+    for zone in profile["zones"]:
+        zone_dmr_id_key = zone.get("dmr_id")
+        if zone_dmr_id_key is not None and zone_dmr_id_key not in dmr_id_map:
+            report.critical(
+                (),
+                f"zone '{zone['name']}' dmr_id '{zone_dmr_id_key}' is not a "
+                "known dmr_ids key",
+            )
+        for assignment_value in zone["assignments"]:
+            assignment_id = _assignment_id(assignment_value)
+            if assignment_id not in selected:
+                continue  # already reported above (unknown/ambiguous/duplicate)
+            assignment_dmr_id_key = (
+                assignment_value.get("dmr_id")
+                if isinstance(assignment_value, dict)
+                else None
+            )
+            if (
+                assignment_dmr_id_key is not None
+                and assignment_dmr_id_key not in dmr_id_map
+            ):
+                report.critical(
+                    (),
+                    f"assignment '{assignment_id}' dmr_id "
+                    f"'{assignment_dmr_id_key}' is not a known dmr_ids key",
+                )
+                continue
+            effective_key = (
+                assignment_dmr_id_key or zone_dmr_id_key or default_dmr_id_key
+            )
+            if effective_key is not None or legacy_dmr_id is not None:
+                continue  # bound, one way or another
+            document, assignment = assignment_lookup[assignment_id]
+            rf_chain = next(
+                (
+                    item
+                    for item in document.reference.rf_chains
+                    if item.id == assignment.rf_chain_id
+                ),
+                None,
+            )
+            is_digital = (
+                rf_chain is not None
+                and rf_chain.mode is not None
+                and str(rf_chain.mode.type).upper() == "DMR"
+            )
+            if is_digital:
+                report.warning(
+                    (),
+                    f"assignment '{assignment_id}' is a digital channel with "
+                    "no dmr_id bound (no assignment, zone, or instance "
+                    "default identity, and no legacy instance dmr_id)",
+                )
+
+
 def _load_and_validate_profile(
     profile_path: Path,
     ssrf_roots: Sequence[Path],
@@ -753,6 +844,7 @@ def _load_and_validate_profile(
         selected,
     )
     _check_radio_support(report, capabilities, documents, selected)
+    _check_dmr_id_policy(report, profile, instance_metadata, documents, selected)
     if report.has_critical:
         raise ProfileValidationError(report.critical_message())
     return profile, documents, instance_metadata, report

@@ -222,6 +222,7 @@ def _dmr_channel(
     channel_id: str,
     contact_ids: Mapping[str, str],
     rx_group_ids: Mapping[str, str],
+    radio_id: str,
 ) -> dict[str, Any]:
     if channel.color_code is None:
         raise ValueError(
@@ -244,6 +245,7 @@ def _dmr_channel(
             "admit": DEFAULT_DMR_ADMIT,
             "colorCode": channel.color_code,
             "timeSlot": f"TS{timeslot}",
+            "radioId": radio_id,
             **(
                 {"groupList": rx_group_ids[channel.rx_group_id]}
                 if channel.rx_group_id is not None
@@ -346,6 +348,76 @@ def _contacts(
     return contacts, group_lists, contact_ids, rx_group_ids
 
 
+def _effective_dmr_id(
+    channel: ResolvedChannel, codeplug: ResolvedCodeplug
+) -> int | None:
+    """A DMR channel's resolved dmr_id, falling back to legacy metadata.
+
+    ``resolve_codeplug`` already applies the legacy single-instance
+    ``dmr_id`` fallback when building ``ResolvedChannel``, but callers that
+    construct a ``ResolvedCodeplug`` directly (tests, or future non-profile
+    callers) may not have; this keeps the exporter correct either way.
+    """
+
+    if channel.dmr_id is not None:
+        return channel.dmr_id
+    legacy = (codeplug.radio_instance or {}).get("dmr_id")
+    return int(legacy) if legacy is not None else None
+
+
+def _collect_radio_ids(
+    codeplug: ResolvedCodeplug,
+) -> tuple[list[dict[str, Any]], dict[str | None, str]]:
+    """Collect one ``radioIDs`` entry per distinct dmr_id used by a channel.
+
+    Keyed by ``dmr_id_key`` so multi-identity profiles (issue #20: dmr_id
+    bound per zone or per assignment) get one qdmr radio ID per identity,
+    with each digital channel's ``radioId`` pointed at the right one. A
+    channel resolved via the legacy single-instance ``dmr_id`` (no key) is
+    grouped under ``None``.
+    """
+
+    dmr_ids = {
+        entry["key"]: entry
+        for entry in (codeplug.radio_instance or {}).get("dmr_ids", []) or []
+    }
+    numbers: dict[str | None, int] = {}
+    order: list[str | None] = []
+    for channel in codeplug.channels:
+        if (channel.mode or "FM").upper() != "DMR":
+            continue
+        number = _effective_dmr_id(channel, codeplug)
+        if number is None:
+            continue
+        key = channel.dmr_id_key
+        if key not in numbers:
+            order.append(key)
+            numbers[key] = number
+        elif numbers[key] != number:
+            raise ValueError(
+                f"dmr_id key '{key}' resolved to conflicting radio IDs "
+                f"{numbers[key]} and {number}"
+            )
+
+    radio_ids: list[dict[str, Any]] = []
+    id_by_key: dict[str | None, str] = {}
+    for index, key in enumerate(order):
+        yaml_id = f"id{index + 1}"
+        id_by_key[key] = yaml_id
+        if key is not None and key in dmr_ids:
+            name = str(dmr_ids[key].get("name", key))
+        else:
+            name = str(
+                (codeplug.radio_instance or {}).get(
+                    "dmr_contact_name", codeplug.radio_instance_id
+                )
+            )
+        radio_ids.append(
+            {"dmr": {"id": yaml_id, "name": name, "number": numbers[key]}}
+        )
+    return radio_ids, id_by_key
+
+
 def qdmr_yaml_from_resolved(
     codeplug: ResolvedCodeplug,
     *,
@@ -354,10 +426,13 @@ def qdmr_yaml_from_resolved(
 ) -> str:
     """Return a qdmr extensible-codeplug YAML document.
 
-    DMR channels require a radio identity: the resolved instance metadata
-    must carry ``dmr_id`` (from the instance registry).
+    DMR channels require a radio identity: each digital channel's resolved
+    ``dmr_id`` (assignment -> zone -> instance default -> legacy single
+    ``dmr_id``; see ``resolve_codeplug``) becomes its own qdmr ``radioIDs``
+    entry, referenced by that channel's ``radioId``.
     """
 
+    radio_ids, id_by_key = _collect_radio_ids(codeplug)
     channels: list[dict[str, Any]] = []
     channel_ids: dict[str, str] = {}
     contacts, group_lists, contact_ids, rx_group_ids = _contacts(
@@ -374,7 +449,19 @@ def qdmr_yaml_from_resolved(
         mode = (channel.mode or "FM").upper()
         if mode == "DMR":
             has_dmr = True
-            record = _dmr_channel(channel, channel_id, contact_ids, rx_group_ids)
+            if _effective_dmr_id(channel, codeplug) is None:
+                raise ValueError(
+                    f"DMR channel '{channel.display_name}' has no dmr_id "
+                    "bound (no assignment, zone, or instance default "
+                    "identity, and no legacy instance dmr_id)"
+                )
+            record = _dmr_channel(
+                channel,
+                channel_id,
+                contact_ids,
+                rx_group_ids,
+                id_by_key[channel.dmr_id_key],
+            )
         elif mode == "AM":
             record = _am_channel(channel, channel_id)
         else:
@@ -399,7 +486,7 @@ def qdmr_yaml_from_resolved(
     document: dict[str, Any] = {
         "version": QDMR_CONFIG_VERSION,
         "settings": dict(DEFAULT_SETTINGS),
-        "radioIDs": [],
+        "radioIDs": radio_ids,
         "contacts": contacts,
         "groupLists": group_lists,
         "channels": channels,
@@ -438,14 +525,14 @@ def qdmr_yaml_from_resolved(
             for scan_list in codeplug.scan_lists
         ]
 
-    metadata = codeplug.radio_instance or {}
-    dmr_id = metadata.get("dmr_id")
-    if dmr_id is not None:
-        name = str(metadata.get("dmr_contact_name", codeplug.radio_instance_id))
-        document["radioIDs"] = [
-            {"dmr": {"id": "id1", "name": name, "number": int(dmr_id)}}
-        ]
-        document["settings"]["defaultID"] = "id1"
+    if radio_ids:
+        default_key = (codeplug.radio_instance or {}).get("default_dmr_id")
+        if default_key in id_by_key:
+            document["settings"]["defaultID"] = id_by_key[default_key]
+        elif None in id_by_key:
+            document["settings"]["defaultID"] = id_by_key[None]
+        else:
+            document["settings"]["defaultID"] = radio_ids[0]["dmr"]["id"]
     elif has_dmr:
         raise ValueError(
             f"instance '{codeplug.radio_instance_id}' has DMR channels but "

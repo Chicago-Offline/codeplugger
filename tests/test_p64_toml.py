@@ -120,6 +120,52 @@ channels = [1]
     assert result["contact"][0]["name"] == "COP4BLUE"
 
 
+def test_p64_toml_rejects_multiple_distinct_dmr_ids() -> None:
+    """Issue #20: P4 has no per-channel radio identity; must reject profiles
+    that bind more than one distinct dmr_id across DMR channels."""
+
+    ham = ResolvedChannel(
+        reference="asg1",
+        assignment_id="asg1",
+        display_name="HAM",
+        rx_frequency_mhz=446.5,
+        tx_frequency_mhz=446.5,
+        mode="DMR",
+        service="amateur",
+        tones=ResolvedTones(),
+        tx_permitted=True,
+        color_code=1,
+        timeslot=1,
+        dmr_id_key="ham",
+        dmr_id=1234567,
+    )
+    family = ResolvedChannel(
+        reference="asg2",
+        assignment_id="asg2",
+        display_name="FAMILY",
+        rx_frequency_mhz=462.575,
+        tx_frequency_mhz=462.575,
+        mode="DMR",
+        service="gmrs",
+        tones=ResolvedTones(),
+        tx_permitted=True,
+        color_code=1,
+        timeslot=1,
+        dmr_id_key="family",
+        dmr_id=123,
+    )
+    codeplug = ResolvedCodeplug(
+        radio_id="retevis_matetalk_p4",
+        radio_instance_id="p4_01",
+        radio_instance=None,
+        channels=(ham, family),
+        zones=(ResolvedZone("z1", "Zone", ("asg1", "asg2")),),
+    )
+
+    with pytest.raises(ValueError, match=r"binds 2 distinct dmr_ids"):
+        p64_toml_from_resolved(codeplug, "[radio]\nname = 'P4'\n")
+
+
 def test_p64_toml_rejects_insufficient_baseline_capacity() -> None:
     channel = ResolvedChannel(
         "asg1", "asg1", "ONE", 446.0, 446.0, "FM", "pmr", ResolvedTones(), True
