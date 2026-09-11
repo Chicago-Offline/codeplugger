@@ -51,6 +51,12 @@ Working today:
   read-back verification.
 - Analog radios (UV-5R Mini): CHIRP CSV export; CHIRP remains the upload
   interface (FM only).
+- DM-32 analog channels/zones: NeonPlug `.neonplug` export
+  (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
+  NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's
+  real import path and DM-32UV byte codec. This is a manual-review interchange
+  path, like CHIRP for the UV-5R Mini — separate from, and not a replacement
+  for, the `dmrconf` headless write backend below.
 - Artifacts: self-contained HTML radio reference plus a JSON Lines
   operation log for generation and device operations.
 
