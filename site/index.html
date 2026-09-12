@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Ailunce HA2." />
+  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Ailunce HA2, Retevis C64." />
   <link rel="canonical" href="https://chicago-offline.github.io/codeplugger/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="codeplugger — a codeplug compiler for radio fleets" />
@@ -159,6 +159,22 @@
               <dt>Channels</dt><dd>1024 · 16 zones × 64 · 12-char names</dd>
             </dl>
             <p class="path"><strong>CHIRP CSV.</strong> Generic analog path; GMRS and MURS require the extended TX unlock available through app programming.</p>
+          </article>
+
+          <article class="radio">
+            <header>
+              <h3>Retevis C64</h3>
+              <span class="vendor">Dual-band analog</span>
+            </header>
+            <div class="badges">
+              <span class="badge warn">CHIRP import</span>
+              <span class="badge">FM</span>
+            </div>
+            <dl>
+              <dt>Bands</dt><dd>136–174 · 400–480 MHz</dd>
+              <dt>Channels</dt><dd>64 · 12-char names · no zones</dd>
+            </dl>
+            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path. Limits are measured from a physical radio (ident block, NAK boundary, RF calibration table) and match the CHIRP C64 driver, a Retevis C2 protocol variant.</p>
           </article>
         </div>
         <div class="planned">

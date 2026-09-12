@@ -1,0 +1,26 @@
+{
+  "id": "retevis_c64",
+  "name": "Retevis C64",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 64,
+    "max_zones": 1,
+    "max_channels_per_zone": 64,
+    "max_channel_name_chars": 12
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 480.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "Figures come from the Retevis C64 reverse-engineering work in the Chicago-Offline retevis-c64-info repo (CODEPLUG.md, PROGRAMMING-TOOLS.md), measured against a physical radio, plus the CHIRP C64 driver derived from it. The C64 speaks the same wire protocol and codeplug layout as the Retevis C2 (chirp/drivers/retevis_c2.py); the driver is a C2 variant, not a new decode. max_channels 64 is confirmed three ways: the 28-byte ident block reports 64 in field 4, the radio NAKs channel record index 0x40, and the driver sets NUM_CHANNELS = 64 with memory_bounds (1, 64). Bands are the driver's VALID_BANDS, themselves derived from the 20-record RF calibration table read off the radio: records 0-9 cover 404.125-476.125 MHz and records 10-19 cover 137.125-173.125 MHz, which is why the dual-band C64 has 20 cal records where the UHF-only C2 has 10. Do not reuse the C2's catch-all 100-520 MHz band or its GMRS band plan; the C64 is a commercial VHF/UHF radio, and the driver deliberately disables the C2's GMRS validation and forced NFM/low-power rules. max_channel_name_chars 12 is the 12-byte char[] name field at channel record offset 0x28 and the driver's valid_name_length = 12; note the OEM CPS exposes no channel-name control even though the field exists, so names set through CHIRP are the only way to populate it. modes is [\"FM\"]: the driver declares valid_modes [\"FM\", \"NFM\"] and has no AM, and codeplugger emits analog FM only. bandwidths_khz 12.5/25 is the ul16 bandwidth field at channel record offset 0x01 (25000 = Wide, 12500 = Narrow), matching CHIRP's FM/NFM. max_zones is 1 as a profile-0.1 compatibility shim, the same treatment as the UV-5R Mini: the radio has no zone concept in the codeplug or the driver, and the product page's '16 pr' wording refers to the 16-entry channel list in the settings record, not zones."
+}

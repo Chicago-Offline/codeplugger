@@ -93,10 +93,13 @@ Working today:
   (one profile, many radios), which the 1:1 profile-instance registry join
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
-- Analog radios (UV-5R Mini, Ailunce HA2): CHIRP CSV export; CHIRP remains
-  the upload interface (FM only). The HA2 has capabilities (1024 channels /
-  16 zones, AM airband RX) but no HA2-specific exporter yet; it uses the
-  generic CHIRP path.
+- Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64): CHIRP CSV export;
+  CHIRP remains the upload interface (FM only). The HA2 has capabilities
+  (1024 channels / 16 zones, AM airband RX) but no HA2-specific exporter yet;
+  it uses the generic CHIRP path. The C64 (64 channels, 136-174 / 400-480 MHz,
+  no zone concept) likewise uses the generic CHIRP path; its capabilities are
+  measured from a physical radio in `retevis-c64-info` and match the CHIRP C64
+  driver, which is a Retevis C2 protocol variant.
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
   (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
   NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's
