@@ -164,6 +164,64 @@ def test_chirp_csv_wide_split_offset_is_the_true_difference() -> None:
     assert row["Offset"] == "295.000000"
 
 
+def test_chirp_csv_mode_follows_bandwidth() -> None:
+    """12.5 kHz channels must import as NFM, not wide FM."""
+
+    channels = [
+        ResolvedChannel(
+            reference="narrow",
+            assignment_id="narrow",
+            display_name="MURS",
+            rx_frequency_mhz=154.600,
+            tx_frequency_mhz=154.600,
+            mode="FM",
+            service="murs",
+            tones=ResolvedTones(),
+            tx_permitted=True,
+            notes=None,
+            bandwidth_khz=12.5,
+        ),
+        ResolvedChannel(
+            reference="wide",
+            assignment_id="wide",
+            display_name="GMRS",
+            rx_frequency_mhz=462.550,
+            tx_frequency_mhz=462.550,
+            mode="FM",
+            service="gmrs",
+            tones=ResolvedTones(),
+            tx_permitted=True,
+            notes=None,
+            bandwidth_khz=25.0,
+        ),
+        ResolvedChannel(
+            reference="unknown",
+            assignment_id="unknown",
+            display_name="UNKNOWN BW",
+            rx_frequency_mhz=146.520,
+            tx_frequency_mhz=146.520,
+            mode="FM",
+            service="amateur",
+            tones=ResolvedTones(),
+            tx_permitted=True,
+            notes=None,
+        ),
+    ]
+
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))
+
+    assert [row["Mode"] for row in rows] == ["NFM", "FM", "FM"]
+
+
+def test_chirp_csv_omits_power_column() -> None:
+    """``chirp_common.parse_power`` takes watts only and fails the whole row
+    on ``""`` or a level name, so the column is left out entirely."""
+
+    text = chirp_csv_from_resolved(_codeplug([_receive_only_channel()]))
+
+    assert "Power" not in text.splitlines()[0].split(",")
+
+
 def test_chirp_csv_rejects_non_fm_modes() -> None:
     channels = [
         ResolvedChannel(

@@ -1,11 +1,19 @@
 """Export resolved analog channels as CHIRP-compatible CSV.
 
-Two constraints shape this exporter:
+Three constraints shape this exporter:
 
 ``Duplex`` is limited to ``+``, ``-`` or empty. CHIRP's in-memory model also
 allows ``split`` and ``off``, but its CSV *parser* does not
 (``chirp_common.really_from_csv``, verified against ``kk7ds/chirp`` @
 ``a229fae``), so emitting either produces a file CHIRP cannot import.
+
+There is no ``Power`` column. ``chirp_common.parse_power`` accepts only watts
+(``"5"``, ``"5.0W"``) and rejects both ``""`` and level names like ``"High"``,
+failing the whole row. SSRF ``power_w`` describes the *other* station (a
+repeater's ERP), not what the handheld should transmit, so there is nothing
+honest to put there. Omitting the column makes CHIRP's import pick the
+destination radio's highest level, which is what a level name of ``High`` meant
+anyway.
 
 Receive-only channels are exported as ordinary simplex channels. That mirrors
 existing practice in our own reference codeplugs: in
@@ -40,9 +48,11 @@ CHIRP_HEADERS = [
     "Mode",
     "TStep",
     "Skip",
-    "Power",
     "Comment",
 ]
+
+# CHIRP splits analog FM by bandwidth: NFM is 12.5 kHz, FM is 25 kHz.
+NARROW_BANDWIDTH_KHZ = 12.5
 
 
 def _format_frequency(value_mhz: float) -> str:
@@ -143,16 +153,19 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
             )
 
         duplex, offset = _duplex_and_offset(channel)
+        narrow = (
+            channel.bandwidth_khz is not None
+            and channel.bandwidth_khz <= NARROW_BANDWIDTH_KHZ
+        )
         row = {
             "Location": str(idx),
             "Name": channel.display_name,
             "Frequency": _format_frequency(channel.rx_frequency_mhz),
             "Duplex": duplex,
             "Offset": offset,
-            "Mode": "FM",
+            "Mode": "NFM" if narrow else "FM",
             "TStep": "5.00",
             "Skip": "",
-            "Power": "High",
             "Comment": channel.notes or "",
         }
         row.update(_tone_fields(channel))
