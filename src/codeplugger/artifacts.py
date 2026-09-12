@@ -248,10 +248,16 @@ def _ssrf_contact_names(codeplug: Any) -> dict[str, str]:
     return names
 
 
+def _markdown_cell(value: Any) -> str:
+    """Flatten a cell to one line: Markdown tables cannot span newlines."""
+
+    return " ".join(str(value).split()).replace("|", "\\|")
+
+
 def _markdown_row(values: Sequence[str]) -> str:
     """Render one Markdown table row, escaping cell-breaking pipes."""
 
-    return "| " + " | ".join(str(v).replace("|", "\\|") for v in values) + " |"
+    return "| " + " | ".join(_markdown_cell(v) for v in values) + " |"
 
 
 def markdown_reference_from_resolved(
