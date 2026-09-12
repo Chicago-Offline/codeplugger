@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Ailunce HA2." />
+  <link rel="canonical" href="https://chicago-offline.github.io/codeplugger/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="codeplugger — a codeplug compiler for radio fleets" />
+  <meta property="og:description" content="SSRF data plus a profile compiles deterministically into a validated, radio-neutral codeplug. Vendor CPS tools become replaceable backends." />
+  <meta property="og:url" content="https://chicago-offline.github.io/codeplugger/" />
+  <meta property="og:image" content="https://chicago-offline.github.io/codeplugger/logo.svg" />
+  <meta name="twitter:card" content="summary" />
+  <title>codeplugger — a codeplug compiler for radio fleets</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="logo.svg" alt="" /> codeplugger</a>
+      <nav>
+        <a href="#how">How it works</a>
+        <a href="#radios">Radios</a>
+        <a href="#features">Features</a>
+        <a href="#ecosystem">Ecosystem</a>
+        <a href="#start">Quick start</a>
+      </nav>
+      <a class="repo-link" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Open source · Chicago Offline</p>
+          <h1>Programming a radio should be a build, not a CPS session.</h1>
+          <p class="lead">
+            codeplugger compiles shared RF facts and your own version-controlled
+            profile into a validated, radio-neutral codeplug, then exports it or
+            writes it straight to the radio. Vendor CPS tools become replaceable
+            backends instead of the workflow.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">View on GitHub</a>
+            <a class="button" href="https://github.com/Chicago-Offline/codeplugger/blob/main/docs/plan.md" target="_blank" rel="noopener">Read the plan</a>
+            <a class="button" href="#radios">Supported radios</a>
+          </div>
+        </div>
+        <img src="logo.svg" alt="codeplugger logo: a handheld radio with a code glyph on its screen and plug prongs at its base" />
+      </div>
+    </div>
+
+    <section id="how">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="sub">
+          Facts and preferences stay separate. RF data describes what exists;
+          a profile describes what you want in a particular radio. Everything
+          in between is deterministic and reviewable.
+        </p>
+        <div class="pipeline">
+          <article>
+            <h3>SSRF data</h3>
+            <p>Public channel plans, repeaters, and talkgroups from <a href="https://chicago-offline.github.io/ssrf-lite/" target="_blank" rel="noopener">SSRF-Lite</a>, merged with shared or private overlays by stable record ID.</p>
+          </article>
+          <article>
+            <h3>Profile</h3>
+            <p>Your policy in YAML: which assignments, in what order, in which zones, with scan lists, RX groups, contacts, and radio settings. Profiles can inherit from one another.</p>
+          </article>
+          <article>
+            <h3>Resolve &amp; validate</h3>
+            <p>codeplugger joins the inputs and checks every channel against the target radio's capabilities: bands, modes, name lengths, zone and list limits, firmware-dependent capacity.</p>
+          </article>
+          <article>
+            <h3>Export or program</h3>
+            <p>Emit CHIRP CSV, qdmr YAML, or P4 TOML; or let a gated backend write the radio directly, verify by read-back, and log the operation.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="radios">
+      <div class="wrap">
+        <h2>Supported radios</h2>
+        <p class="sub">
+          Each radio is a capabilities definition plus an exporter or programming
+          backend. Limits below come straight from the checked-in
+          <code>radios/*/capabilities.json</code>.
+        </p>
+        <div class="radios">
+          <article class="radio">
+            <header>
+              <h3>Baofeng DM-32</h3>
+              <span class="vendor">DM-32UV</span>
+            </header>
+            <div class="badges">
+              <span class="badge ok">Headless write</span>
+              <span class="badge ok">Hardware verified</span>
+              <span class="badge">DMR</span>
+              <span class="badge">FM</span>
+              <span class="badge">AM airband RX</span>
+            </div>
+            <dl>
+              <dt>Bands</dt><dd>136–174 · 400–480 MHz; 108–136 MHz receive</dd>
+              <dt>Channels</dt><dd>4000 · 250 zones × 64</dd>
+              <dt>Lists</dt><dd>32 scan lists · 32 RX group lists</dd>
+            </dl>
+            <p class="path"><strong>qdmr YAML → dmrconf.</strong> Read-only detect/read/verify, explicit confirmation, pre-write verify gate, detected-radio identity gate, read-back archive, operation log. Display colors and button functions pass through <code>extensions.qdmr</code>.</p>
+          </article>
+
+          <article class="radio">
+            <header>
+              <h3>Retevis MateTalk P4</h3>
+              <span class="vendor">UHF DMR</span>
+            </header>
+            <div class="badges">
+              <span class="badge ok">Headless write</span>
+              <span class="badge">DMR</span>
+              <span class="badge">FM</span>
+            </div>
+            <dl>
+              <dt>Bands</dt><dd>400–470 MHz</dd>
+              <dt>Channels</dt><dd>256 · 16 zones × 16</dd>
+              <dt>Contacts</dt><dd>Fleet-registry private contacts</dd>
+            </dl>
+            <p class="path"><strong>P4 TOML → p64tool.</strong> Merges into a <code>p64tool decode</code> baseline; write requires <code>confirm=True</code>, a known-firmware gate, and read-back verification.</p>
+          </article>
+
+          <article class="radio">
+            <header>
+              <h3>Baofeng UV-5R Mini</h3>
+              <span class="vendor">UV-17Pro family</span>
+            </header>
+            <div class="badges">
+              <span class="badge warn">CHIRP import</span>
+              <span class="badge">FM</span>
+            </div>
+            <dl>
+              <dt>Bands</dt><dd>136–174 · 400–480 MHz; airband and 350–390 / 480–520 receive</dd>
+              <dt>Channels</dt><dd>999 · 12-char names</dd>
+            </dl>
+            <p class="path"><strong>CHIRP CSV.</strong> Analog FM channels in profile order; import in CHIRP and upload from there. Limits are sourced from the CHIRP driver, not the classic UV-5R.</p>
+          </article>
+
+          <article class="radio">
+            <header>
+              <h3>Ailunce HA2</h3>
+              <span class="vendor">Dual-band analog</span>
+            </header>
+            <div class="badges">
+              <span class="badge warn">CHIRP import</span>
+              <span class="badge">FM</span>
+              <span class="badge">AM airband RX</span>
+            </div>
+            <dl>
+              <dt>Bands</dt><dd>136–174 · 400–480 MHz; FM broadcast, airband, 480–520 receive</dd>
+              <dt>Channels</dt><dd>1024 · 16 zones × 64 · 12-char names</dd>
+            </dl>
+            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path; GMRS and MURS require the extended TX unlock available through app programming.</p>
+          </article>
+        </div>
+        <div class="planned">
+          <strong>Next up:</strong> more qdmr-supported radios through capabilities definitions alone
+          (AnyTone AT-D868UV / 878UV / 578UV, TYT MD-UV380 / UV390, Retevis RT3S, Radioddity GD-77, Baofeng DM-1701),
+          then OpenGD77 via <code>dmrconf</code>. Adding a radio never touches input resolution.
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>Features</h2>
+        <p class="sub">Built for people who keep more than one radio consistent, and want to know exactly what went into each one.</p>
+        <div class="features">
+          <article>
+            <h3>Deterministic builds</h3>
+            <p>The same inputs always produce the same codeplug, down to a stable SHA-256. Generated files are disposable artifacts, never a data source.</p>
+          </article>
+          <article>
+            <h3>Capability validation</h3>
+            <p>Bands, TX-vs-RX-only ranges, modes, bandwidth, name lengths, zone and list limits, and firmware-dependent contact capacity, graded hint / warning / critical with every critical reported in one run.</p>
+          </article>
+          <article>
+            <h3>Gated radio writes</h3>
+            <p>Explicit confirmation, known-firmware and detected-radio identity checks, pre-write verify, read-back verification, and an append-only operation log for every write.</p>
+          </article>
+          <article>
+            <h3>Zones, scan lists, RX groups, contacts</h3>
+            <p>Talkgroups are SSRF facts; membership and per-assignment TX contact, RX group, and scan list are profile policy, all enforced against radio limits.</p>
+          </article>
+          <article>
+            <h3>Profile inheritance</h3>
+            <p>Share a base profile and derive variants with <code>extends</code>, <code>zones_only</code>, and <code>omit_zones</code>. Review the merged result with <code>--print-merged-profile</code>.</p>
+          </article>
+          <article>
+            <h3>Multi-identity DMR IDs</h3>
+            <p>A radio instance can carry several DMR IDs; profiles bind one per zone or per assignment and exporters emit only the identities actually used.</p>
+          </article>
+          <article>
+            <h3>Fleet registry &amp; dry run</h3>
+            <p>An instance registry maps physical radios to profiles. <code>codeplugger-fleet</code> resolves and validates every radio and reports readiness before anything is written.</p>
+          </article>
+          <article>
+            <h3>Derived channel facts</h3>
+            <p>Bandwidth from the ITU emission designator, AM mode for airband receive-only assignments, display-name overrides from overlays.</p>
+          </article>
+          <article>
+            <h3>Reference artifacts</h3>
+            <p>HTML and Markdown channel references plus operation logs per radio instance, so what is in the radio is always documented.</p>
+          </article>
+          <article>
+            <h3>Namespaced extensions</h3>
+            <p>Exporter-native settings live under <code>extensions.&lt;backend&gt;</code> at profile or assignment level, keeping the core schema radio-neutral.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="ecosystem">
+      <div class="wrap">
+        <h2>Ecosystem</h2>
+        <p class="sub">codeplugger sits between open RF data and the tools that already talk to radios.</p>
+        <div class="eco">
+          <a class="card" href="https://chicago-offline.github.io/ssrf-lite/" target="_blank" rel="noopener">
+            <h3>SSRF-Lite</h3>
+            <p>Authoritative, human-readable YAML for channel plans, repeaters, stations, and talkgroups. Browse it online.</p>
+          </a>
+          <a class="card" href="https://github.com/Chicago-Offline/chioff-ssrf-shared" target="_blank" rel="noopener">
+            <h3>chioff-ssrf-shared</h3>
+            <p>Real Chicago Offline community-net GMRS and MURS channels, layered on top of SSRF-Lite.</p>
+          </a>
+          <a class="card" href="https://github.com/Chicago-Offline/chioff-codeplugger-profiles-shared" target="_blank" rel="noopener">
+            <h3>chioff-codeplugger-profiles-shared</h3>
+            <p>Ready-made profiles selecting the shared community net for each supported radio.</p>
+          </a>
+          <a class="card" href="https://dm3mat.darc.de/qdmr/" target="_blank" rel="noopener">
+            <h3>qdmr / dmrconf</h3>
+            <p>Open source DMR programming. codeplugger emits its extensible YAML and drives <code>dmrconf</code> for the DM-32.</p>
+          </a>
+          <a class="card" href="https://chirpmyradio.com/" target="_blank" rel="noopener">
+            <h3>CHIRP</h3>
+            <p>The upload interface for analog radios. codeplugger produces CHIRP-compatible CSV.</p>
+          </a>
+          <a class="card" href="https://chicagooffline.com" target="_blank" rel="noopener">
+            <h3>Chicago Offline</h3>
+            <p>Resilient, community-owned communications for Chicagoland: amateur radio, GMRS/MURS, DMR, and LoRa mesh.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section id="start">
+      <div class="wrap">
+        <h2>Quick start</h2>
+        <p class="sub">Clone codeplugger next to <code>ssrf-lite</code> and a profile repository, then use <code>uv</code>.</p>
+        <div class="start">
+          <div>
+            <h3>Validate a profile</h3>
+<pre><code>uv run codeplugger-profile path/to/profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-shared/ssrf</code></pre>
+          </div>
+          <div>
+            <h3>Export for a radio</h3>
+<pre><code><span class="c"># analog radios: import in CHIRP</span>
+uv run codeplugger-profile profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --output-format chirp-csv &gt; output.csv
+
+<span class="c"># DM-32: qdmr YAML, then dmrconf write</span>
+uv run codeplugger-profile profile.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --output-format qdmr-yaml &gt; codeplug.yaml</code></pre>
+          </div>
+          <div>
+            <h3>Check the whole fleet</h3>
+<pre><code>uv run codeplugger-fleet \
+  --instance-registry ../my-profiles/instances.yml \
+  --profiles-root ../my-profiles/profiles \
+  --ssrf-root ../ssrf-lite/ssrf</code></pre>
+          </div>
+          <div>
+            <h3>A minimal profile</h3>
+<pre><code>version: "0.1"
+id: "dm32_reference"
+name: "DM-32 reference"
+radio: "baofeng_dm32"
+radio_instance: "dm32_green_01"
+zones:
+  - id: "community"
+    name: "Community"
+    assignments:
+      - "asg_chio_all"
+      - "asg_chio_road"
+      - "asg_chio_repeater"</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Eric Muehlstein · Apache-2.0 · a <a href="https://chicagooffline.com">Chicago Offline</a> project</span>
+      <span><a href="https://github.com/Chicago-Offline/codeplugger">Source</a> · <a href="https://github.com/Chicago-Offline/codeplugger/blob/main/docs/plan.md">Plan</a> · <a href="https://github.com/Chicago-Offline/codeplugger/issues">Issues</a></span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 112" width="96" height="112" role="img" aria-label="codeplugger logo">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2833"/>
+      <stop offset="1" stop-color="#171e26"/>
+    </linearGradient>
+  </defs>
+  <!-- signal arcs -->
+  <path d="M40 14 A16 16 0 0 1 56 30" fill="none" stroke="#4fb3ff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M44 4 A26 26 0 0 1 66 26" fill="none" stroke="#4fb3ff" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+  <!-- antenna -->
+  <line x1="30" y1="10" x2="30" y2="34" stroke="#4fb3ff" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="30" cy="8" r="3.5" fill="#4fb3ff"/>
+  <!-- radio body -->
+  <rect x="18" y="32" width="52" height="60" rx="9" fill="url(#body)" stroke="#4fb3ff" stroke-width="3"/>
+  <!-- screen with code glyph -->
+  <rect x="26" y="41" width="36" height="22" rx="4" fill="#1a4a6e"/>
+  <polyline points="36,46 31,52 36,58" fill="none" stroke="#4fb3ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="46" y1="45" x2="42" y2="59" stroke="#d6dee6" stroke-width="2.6" stroke-linecap="round"/>
+  <polyline points="52,46 57,52 52,58" fill="none" stroke="#4fb3ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- keypad -->
+  <circle cx="32" cy="74" r="3" fill="#8296a8"/>
+  <circle cx="44" cy="74" r="3" fill="#8296a8"/>
+  <circle cx="56" cy="74" r="3" fill="#8296a8"/>
+  <rect x="29" y="82" width="30" height="4" rx="2" fill="#2a3743"/>
+  <!-- plug prongs -->
+  <rect x="34" y="92" width="6" height="16" rx="1.5" fill="#4fb3ff"/>
+  <rect x="48" y="92" width="6" height="16" rx="1.5" fill="#4fb3ff"/>
+</svg>

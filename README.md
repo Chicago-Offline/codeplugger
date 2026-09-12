@@ -8,7 +8,10 @@ backends rather than the workflow. Current targets are the Baofeng DM-32,
 Retevis MateTalk P4, and Baofeng UV-5R Mini.
 
 Intent, guiding principles, current state, and the roadmap live in
-[docs/plan.md](docs/plan.md).
+[docs/plan.md](docs/plan.md). A project overview with supported radios and
+features is published at
+[chicago-offline.github.io/codeplugger](https://chicago-offline.github.io/codeplugger/)
+(source in `site/`).
 
 ## Workflow
 
