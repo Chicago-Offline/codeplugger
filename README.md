@@ -112,9 +112,12 @@ cross-repository contract and end-to-end tests.
 ## Scope and status
 
 Profile resolution and validation, the fleet dry run, P4 TOML export with a
-gated `p64tool` write backend, CHIRP CSV export for analog radios, and
-HTML/operation-log artifacts are working today. The near-term priority is
-headless DM-32 programming; see [docs/plan.md](docs/plan.md) for the
+gated `p64tool` write backend, DM-32 qdmr YAML export with a gated,
+hardware-verified `dmrconf` write backend, CHIRP CSV export for analog
+radios, and HTML/Markdown/operation-log artifacts are working today. The
+near-term priority is deepening DM-32 support by contributing missing
+settings (display colors, button functions) upstream to qdmr, then widening
+the qdmr backend to more radios; see [docs/plan.md](docs/plan.md) for the
 sequenced plan and what is deliberately deferred.
 
 Repository directories:

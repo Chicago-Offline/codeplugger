@@ -340,6 +340,47 @@ def test_qdmr_extensions_add_settings_and_aprs_configuration() -> None:
     assert document["channels"][0]["dmr"]["aprs"] == "aprs1"
 
 
+def test_qdmr_dm32uv_button_settings_are_preserved() -> None:
+    codeplug = _codeplug(
+        (_channel(),),
+        extensions={
+            "qdmr": {
+                "settings": {
+                    "dm32uv": {
+                        "buttons": {
+                            "longPressDuration": "1 s",
+                            "sk1Short": "Monitor",
+                            "sk1Long": "ZoneUp",
+                            "sk2Short": "Scan",
+                            "sk2Long": "ZoneDown",
+                            "p1Short": "PowerSelect",
+                            "p1Long": "ChannelType",
+                            "p2Short": "VOX",
+                            "p2Long": "Flashlight",
+                            "sideKeyLock": False,
+                        }
+                    }
+                }
+            }
+        },
+    )
+
+    document = yaml.safe_load(qdmr_yaml_from_resolved(codeplug))
+
+    assert document["settings"]["dm32uv"]["buttons"] == {
+        "longPressDuration": "1 s",
+        "sk1Short": "Monitor",
+        "sk1Long": "ZoneUp",
+        "sk2Short": "Scan",
+        "sk2Long": "ZoneDown",
+        "p1Short": "PowerSelect",
+        "p1Long": "ChannelType",
+        "p2Short": "VOX",
+        "p2Long": "Flashlight",
+        "sideKeyLock": False,
+    }
+
+
 def test_qdmr_channel_extension_cannot_override_generated_fields() -> None:
     channel = _channel(
         extensions={"qdmr": {"name": "OVERRIDE", "rxOnly": True}}
