@@ -1,0 +1,27 @@
+{
+  "id": "yaesu_ft277",
+  "name": "Yaesu FT-277R",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "70 cm ham",
+      "min_mhz": 430.0,
+      "max_mhz": 450.0
+    },
+    {
+      "name": "UHF receive",
+      "min_mhz": 420.0,
+      "max_mhz": 470.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "70 cm sibling of the FT-270R: same chassis, keypad, menu tree and clone protocol, different RF deck. Figures come from the Chicago-Offline ft270-277-info repo (SPECS.md, PROGRAMMING-TOOLS.md) and from CHIRP's VX-177 driver, which is the transport: the FT-277R is the amateur-branded sibling of the Vertex VX-177, and chirp/drivers/vx170.py VX177Radio subclasses VX170Radio, changing only the model ID ('AH022U') and valid_bands. All channel-storage limits are therefore inherited from the VX-170: memory_bounds (1, 200) and char name[6] display names. modes is [\"FM\"] (driver MODES [\"FM\", \"NFM\"], no AM) and bandwidths_khz 12.5/25 follows that split. The TX band is the US amateur 70 cm allocation 430-450 MHz; the wider 420-470 MHz span is the driver's valid_bands and is marked rx_only because stock firmware will not transmit outside the ham band and no MARS/CAP procedure has been verified. Note this rules out GMRS/FRS (462-467 MHz) on a stock radio even though the receiver tunes there. max_zones is 1 as a profile-0.1 compatibility shim; the driver sets has_bank = False. NOT HARDWARE VERIFIED: the driver hard-checks the clone image model ID, so a stock CHIRP may reject an FT-277R image; the pending CHIRP patch adds the real model string. Never write a VX-170/FT-270R image into this radio — VHF band data in a 70 cm PA is at best useless."
+}

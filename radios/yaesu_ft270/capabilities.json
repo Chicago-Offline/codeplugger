@@ -1,0 +1,27 @@
+{
+  "id": "yaesu_ft270",
+  "name": "Yaesu FT-270R",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "2 m ham",
+      "min_mhz": 144.0,
+      "max_mhz": 148.0
+    },
+    {
+      "name": "VHF receive",
+      "min_mhz": 137.0,
+      "max_mhz": 174.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "2 m submersible handheld (~2007). Not to be confused with the unrelated 1980s FT-270R/FT-270RH 25 W mobile; if a spec sheet says 25 W or 13.8 VDC it is the mobile. Figures come from the Chicago-Offline ft270-277-info repo (SPECS.md, PROGRAMMING-TOOLS.md) and from CHIRP's VX-170 driver, which is the transport: the FT-270R is the amateur-branded sibling of the Vertex VX-170 and shares the FT-7800-family clone format (chirp/drivers/vx170.py inherits ft7800.FTx800Radio). max_channels 200 is the driver's memory_bounds (1, 200) and its memory[200] struct, and matches the published 200-memory figure. max_channel_name_chars 6 is the driver's names[200] struct with char name[6] — these are six-character alphanumeric tags, far shorter than any of our Chinese radios, so display names need aggressive shortening. modes is [\"FM\"]: the driver declares MODES [\"FM\", \"NFM\"] and has no AM. bandwidths_khz 12.5/25 follows that FM/NFM split. The TX band is the US amateur 2 m allocation 144-148 MHz; the wider 137-174 MHz span is the driver's valid_bands and is marked rx_only because stock firmware will not transmit outside the ham band and no MARS/CAP procedure has been verified for this model. max_zones is 1 as a profile-0.1 compatibility shim: the VX-170 driver sets has_bank = False, so memory banks are not reachable through the CHIRP path even though the chassis has them. NOT HARDWARE VERIFIED: the driver hard-checks the clone image model ID ('AH022$'), so a stock CHIRP may reject an FT-270R image; the pending CHIRP patch adds the real model string. Verify against a physical radio before trusting a write."
+}
