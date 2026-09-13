@@ -1,0 +1,27 @@
+{
+  "id": "yaesu_ft277",
+  "name": "Yaesu FT-277R",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "70 cm ham",
+      "min_mhz": 430.0,
+      "max_mhz": 450.0
+    },
+    {
+      "name": "UHF receive",
+      "min_mhz": 420.0,
+      "max_mhz": 470.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "Stock, unmodified FT-277R. A MARS/CAP-modded radio transmits outside the amateur allocation and is a separate target: use yaesu_ft277_mars. 70 cm sibling of the FT-270R: same chassis, keypad, menu tree and clone protocol, different RF deck. Bench-verified 2026-09-13 against a physical radio (Chicago-Offline ft270-277-info, dumps/ft277r-2026-09-13-read.md): the radio reports model ID 'AH022U', so stock CHIRP programs it as a Yaesu VX-177 with no patch, and the clone image is the FT-7800-family format at 6057 bytes with valid checksums. Channel storage limits are the VX-177 driver's, inherited from VX170Radio (chirp/drivers/vx170.py): memory_bounds (1, 200) and names[200] with char name[6], so display names are six characters. modes is [\"FM\"] (driver MODES [\"FM\", \"NFM\"], no AM) and bandwidths_khz 12.5/25 follows that split. The TX band is the US amateur 70 cm allocation 430-450 MHz; the wider 420-470 MHz span is the driver's valid_bands and is rx_only here because stock firmware will not transmit outside the ham band. That rules out GMRS/FRS (462-467 MHz) on a stock radio even though the receiver tunes there. max_zones is 1 as a profile-0.1 compatibility shim; the driver sets has_bank = False, so memory banks are unreachable through CHIRP. Write path: CHIRP.app GUI upload, verified 2026-09-13 on a physical radio; cable is the RT Systems CT57B at 9600 baud. Never write an FT-270R image into this radio: the two images are the same size and differ by one byte in the model ID, and CHIRP's model check is the only guard against putting 2 m data in front of a 70 cm PA."
+}

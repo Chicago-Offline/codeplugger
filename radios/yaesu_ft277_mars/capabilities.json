@@ -1,0 +1,21 @@
+{
+  "id": "yaesu_ft277_mars",
+  "name": "Yaesu FT-277R (MARS/CAP)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "UHF extended TX",
+      "min_mhz": 420.0,
+      "max_mhz": 470.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "MARS/CAP-modified FT-277R. Identical to yaesu_ft277 in every storage limit, mode and bandwidth — the mod changes only what the radio will transmit on, so the single difference is that the 420-470 MHz span is a TX band here instead of rx_only. This is a separate radio id rather than a flag because transmit permission is the one capability that must never be assumed: a profile built for this target will happily place TX outside the amateur allocation, and running it on a stock radio would produce channels that key up nothing. Record which physical radio is modded in the instance registry, which already binds one instance to one radio id. The mod is the operator's responsibility: transmitting outside the amateur allocation needs the appropriate authorization, and on a non-type-accepted radio GMRS/FRS use is not authorized at all. UNVERIFIED: the exact post-mod transmit span has not been measured on the bench. 420-470 MHz is the CHIRP VX-177 driver's valid_bands, which is the upper bound the programming path will accept, not a measured PA limit; a real mod may open less. What is bench-verified (2026-09-13, Chicago-Offline ft270-277-info) is that a modded radio accepted and stored 462.5500 MHz channels through the normal clone path. Everything else — model ID 'AH022U', 6057-byte FT-7800-family image, 200 channels, 6-character names, FM only, no reachable banks, CT57B cable at 9600 baud — is the same as yaesu_ft277; see that file for provenance."
+}
