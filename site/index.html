@@ -190,7 +190,7 @@
               <dt>Bands</dt><dd>144–148 MHz transmit; 137–174 MHz receive</dd>
               <dt>Channels</dt><dd>200 · 6-char names · no banks</dd>
             </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path. Limits come from CHIRP's VX-170 driver, the FT-7800-family clone format the FT-270R shares with its Vertex sibling. Not hardware verified yet.</p>
+            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path, uploaded through stock CHIRP as a <code>Yaesu VX-170</code>: the model ID <code>AH022$</code> and the 6057-byte FT-7800-family clone image are bench-verified against a physical radio, so no driver patch is needed.</p>
           </article>
 
           <article class="radio">
@@ -199,14 +199,14 @@
               <span class="vendor">70 cm submersible</span>
             </header>
             <div class="badges">
-              <span class="badge warn">CHIRP import</span>
+              <span class="badge ok">Hardware verified</span>
               <span class="badge">FM</span>
             </div>
             <dl>
               <dt>Bands</dt><dd>430–450 MHz transmit; 420–470 MHz receive</dd>
               <dt>Channels</dt><dd>200 · 6-char names · no banks</dd>
             </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Same chassis and clone format as the FT-270R, UHF RF deck; limits come from CHIRP's VX-177 driver. Not hardware verified yet.</p>
+            <p class="path"><strong>CHIRP CSV.</strong> Same chassis and clone format as the FT-270R, UHF RF deck; uploaded through stock CHIRP as a <code>Yaesu VX-177</code> and confirmed on the radio. A MARS/CAP-modded radio is a separate target, <code>yaesu_ft277_mars</code>, which turns the whole 420–470 MHz span into a transmit band.</p>
           </article>
         </div>
         <div class="planned">

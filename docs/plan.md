@@ -103,10 +103,14 @@ Working today:
   driver, which is a Retevis C2 protocol variant. The FT-270R / FT-277R are
   the same submersible chassis in 2 m and 70 cm; their capabilities (200
   channels, 6-character names, ham-band TX inside a wider receive span, no
-  reachable banks) come from CHIRP's VX-170 / VX-177 drivers and the
-  `ft270-277-info` repository. They are not hardware verified: those drivers
-  hard-check the clone-image model ID, so the CHIRP side needs a patch
-  carrying the real FT-27x model string before a write can be trusted.
+  reachable banks) come from CHIRP's VX-170 / VX-177 drivers and are
+  bench-verified against both physical radios in `ft270-277-info`. The radios
+  report the stock model IDs `AH022$` / `AH022U`, so stock CHIRP programs
+  them with no patch, and a CHIRP upload to a physical FT-277R is confirmed.
+  A MARS/CAP-modded radio gets its own radio id (`yaesu_ft277_mars`) rather
+  than a flag or an override: transmit permission is the one capability that
+  must never be inferred, and the instance registry already binds one
+  physical radio to one radio id, so the mod is recorded where the radio is.
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
   (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
   NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's
