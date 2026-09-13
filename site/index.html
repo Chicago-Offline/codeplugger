@@ -85,134 +85,128 @@
       <div class="wrap">
         <h2>Supported radios</h2>
         <p class="sub">
-          Each radio is a capabilities definition plus an exporter or programming
-          backend. Limits below come straight from the checked-in
+          Each radio is a capabilities definition plus one or more transports: a
+          file another program imports, or a gated backend that writes the radio
+          directly. Rows come from the checked-in
           <code>radios/*/capabilities.json</code>.
         </p>
-        <div class="radios">
-          <article class="radio">
-            <header>
-              <h3>Baofeng DM-32</h3>
-              <span class="vendor">DM-32UV</span>
-            </header>
-            <div class="badges">
-              <span class="badge ok">Headless write</span>
-              <span class="badge ok">Hardware verified</span>
-              <span class="badge">DMR</span>
-              <span class="badge">FM</span>
-              <span class="badge">AM airband RX</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>136–174 · 400–480 MHz; 108–136 MHz receive</dd>
-              <dt>Channels</dt><dd>4000 · 250 zones × 64</dd>
-              <dt>Lists</dt><dd>32 scan lists · 32 RX group lists</dd>
-            </dl>
-            <p class="path"><strong>qdmr YAML → dmrconf.</strong> Read-only detect/read/verify, explicit confirmation, pre-write verify gate, detected-radio identity gate, read-back archive, operation log. Display colors and button functions pass through <code>extensions.qdmr</code>.</p>
+        <div class="matrix-scroll">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th scope="col">Radio</th>
+                <th scope="col">Modes</th>
+                <th scope="col">CHIRP import <span>CSV</span></th>
+                <th scope="col">qdmr import <span>YAML</span></th>
+                <th scope="col">p64tool import <span>TOML</span></th>
+                <th scope="col">OEM CPS import <span>vendor files</span></th>
+                <th scope="col">Headless write <span>direct to radio</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Baofeng DM-32 <span class="vendor">DM-32UV</span></th>
+                <td class="modes">DMR · FM · AM RX</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> dmrconf<span class="hw" title="Verified on a physical radio">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Retevis MateTalk P4 <span class="vendor">UHF DMR</span></th>
+                <td class="modes">DMR · FM</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> p64tool<span class="hw" title="Verified on a physical radio">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng UV-5R Mini <span class="vendor">UV-17Pro family</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Ailunce HA2 <span class="vendor">Dual-band analog</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Retevis C64 <span class="vendor">Dual-band analog</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="hw" title="Verified on a physical radio">hw</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-270R <span class="vendor">2 m submersible</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-170</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-277R <span class="vendor">70 cm submersible</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-177<span class="hw" title="Verified on a physical radio">hw</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-277R MARS <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-177</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="legend">
+          <span class="hw">hw</span> verified against a physical radio ·
+          <span aria-hidden="true">✓</span> supported today ·
+          <span aria-hidden="true">—</span> not applicable or not implemented
+        </p>
+        <div class="transports">
+          <article>
+            <h3>CHIRP CSV</h3>
+            <p>Analog FM channels in profile order, validated against the radio's own limits (bands, name length, bandwidth). Import in CHIRP and upload from there.</p>
           </article>
-
-          <article class="radio">
-            <header>
-              <h3>Retevis MateTalk P4</h3>
-              <span class="vendor">UHF DMR</span>
-            </header>
-            <div class="badges">
-              <span class="badge ok">Headless write</span>
-              <span class="badge">DMR</span>
-              <span class="badge">FM</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>400–470 MHz</dd>
-              <dt>Channels</dt><dd>256 · 16 zones × 16</dd>
-              <dt>Contacts</dt><dd>Fleet-registry private contacts</dd>
-            </dl>
-            <p class="path"><strong>P4 TOML → p64tool.</strong> Merges into a <code>p64tool decode</code> baseline; write requires <code>confirm=True</code>, a known-firmware gate, and read-back verification.</p>
+          <article>
+            <h3>qdmr YAML</h3>
+            <p>Extensible qdmr codeplug with zones, scan lists, RX group lists, contacts, and multiple DMR IDs. Radio-native settings pass through <code>extensions.qdmr</code>.</p>
           </article>
-
-          <article class="radio">
-            <header>
-              <h3>Baofeng UV-5R Mini</h3>
-              <span class="vendor">UV-17Pro family</span>
-            </header>
-            <div class="badges">
-              <span class="badge warn">CHIRP import</span>
-              <span class="badge">FM</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>136–174 · 400–480 MHz; airband and 350–390 / 480–520 receive</dd>
-              <dt>Channels</dt><dd>999 · 12-char names</dd>
-            </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Analog FM channels in profile order; import in CHIRP and upload from there. Limits are sourced from the CHIRP driver, not the classic UV-5R.</p>
+          <article>
+            <h3>p64tool TOML</h3>
+            <p>Merged into a <code>p64tool decode</code> baseline so untouched settings survive, then re-encoded for the P4.</p>
           </article>
-
-          <article class="radio">
-            <header>
-              <h3>Ailunce HA2</h3>
-              <span class="vendor">Dual-band analog</span>
-            </header>
-            <div class="badges">
-              <span class="badge warn">CHIRP import</span>
-              <span class="badge">FM</span>
-              <span class="badge">AM airband RX</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>136–174 · 400–480 MHz; FM broadcast, airband, 480–520 receive</dd>
-              <dt>Channels</dt><dd>1024 · 16 zones × 64 · 12-char names</dd>
-            </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path; GMRS and MURS require the extended TX unlock available through app programming.</p>
-          </article>
-
-          <article class="radio">
-            <header>
-              <h3>Retevis C64</h3>
-              <span class="vendor">Dual-band analog</span>
-            </header>
-            <div class="badges">
-              <span class="badge warn">CHIRP import</span>
-              <span class="badge">FM</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>136–174 · 400–480 MHz</dd>
-              <dt>Channels</dt><dd>64 · 12-char names · no zones</dd>
-            </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path. Limits are measured from a physical radio (ident block, NAK boundary, RF calibration table) and match the CHIRP C64 driver, a Retevis C2 protocol variant.</p>
-          </article>
-
-          <article class="radio">
-            <header>
-              <h3>Yaesu FT-270R</h3>
-              <span class="vendor">2 m submersible</span>
-            </header>
-            <div class="badges">
-              <span class="badge warn">CHIRP import</span>
-              <span class="badge">FM</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>144–148 MHz transmit; 137–174 MHz receive</dd>
-              <dt>Channels</dt><dd>200 · 6-char names · no banks</dd>
-            </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Generic analog path, uploaded through stock CHIRP as a <code>Yaesu VX-170</code>: the model ID <code>AH022$</code> and the 6057-byte FT-7800-family clone image are bench-verified against a physical radio, so no driver patch is needed.</p>
-          </article>
-
-          <article class="radio">
-            <header>
-              <h3>Yaesu FT-277R</h3>
-              <span class="vendor">70 cm submersible</span>
-            </header>
-            <div class="badges">
-              <span class="badge ok">Hardware verified</span>
-              <span class="badge">FM</span>
-            </div>
-            <dl>
-              <dt>Bands</dt><dd>430–450 MHz transmit; 420–470 MHz receive</dd>
-              <dt>Channels</dt><dd>200 · 6-char names · no banks</dd>
-            </dl>
-            <p class="path"><strong>CHIRP CSV.</strong> Same chassis and clone format as the FT-270R, UHF RF deck; uploaded through stock CHIRP as a <code>Yaesu VX-177</code> and confirmed on the radio. A MARS/CAP-modded radio is a separate target, <code>yaesu_ft277_mars</code>, which turns the whole 420–470 MHz span into a transmit band.</p>
+          <article>
+            <h3>Headless write</h3>
+            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log.</p>
           </article>
         </div>
         <div class="planned">
           <strong>Next up:</strong> more qdmr-supported radios through capabilities definitions alone
           (AnyTone AT-D868UV / 878UV / 578UV, TYT MD-UV380 / UV390, Retevis RT3S, Radioddity GD-77, Baofeng DM-1701),
-          then OpenGD77 via <code>dmrconf</code>. Adding a radio never touches input resolution.
+          then OpenGD77 via <code>dmrconf</code>, then export-only OEM CPS files starting with AnyTone CPS CSV.
+          Adding a radio never touches input resolution.
         </div>
       </div>
     </section>
