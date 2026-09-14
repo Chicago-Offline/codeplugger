@@ -94,8 +94,9 @@ Working today:
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
 - Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Baofeng W31E, Yaesu
-  FT-270R / FT-277R): CHIRP CSV export (FM only), either imported in the CHIRP
-  GUI or written headlessly by the `chirp-writer` backend described below.
+  FT-270R / FT-277R / FT-2800M): CHIRP CSV export (FM only), either imported in
+  the CHIRP GUI or written headlessly by the `chirp-writer` backend described
+  below.
   The HA2 has capabilities
   (1024 channels / 16 zones, AM airband RX) but no HA2-specific exporter yet;
   it uses the generic CHIRP path. The C64 (64 channels, 136-174 / 400-480 MHz,
@@ -112,6 +113,14 @@ Working today:
   than a flag or an override: transmit permission is the one capability that
   must never be inferred, and the instance registry already binds one
   physical radio to one radio id, so the mod is recorded where the radio is.
+  The FT-2800M is a 2 m mobile on the same generic CHIRP path, with the same
+  200 channels and 6-character names but its own driver
+  (`chirp/drivers/ft2800.py`), which reports the name on the case instead of a
+  VX alias. It ships as a stock/modded pair too, `yaesu_ft2800m` and
+  `yaesu_ft2800m_mars`, and here the distinction is machine-readable: the
+  clone ID block ends `02 00 b8` on a stock US radio and `03 00 b9` on one
+  with the extended-TX mod, so the right radio id can be confirmed from a
+  read rather than taken on trust.
 - Baofeng BF-C50 (`baofeng_bf_c50`): validation and CSV / markdown reference
   output only, with no programming path. CHIRP has no BF-C50 driver
   (chirpmyradio.com issue #10176 is still open, and the fork opened to build

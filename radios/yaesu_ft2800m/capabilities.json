@@ -1,0 +1,32 @@
+{
+  "id": "yaesu_ft2800m",
+  "name": "Yaesu FT-2800M",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "2 m ham",
+      "min_mhz": 144.0,
+      "max_mhz": 148.0
+    },
+    {
+      "name": "VHF receive",
+      "min_mhz": 137.0,
+      "max_mhz": 174.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "chirp": {
+    "driver": "Yaesu_FT-2800M",
+    "model": "Yaesu FT-2800M",
+    "clone_mode": "manual"
+  },
+  "notes": "Stock, unmodified US FT-2800M: a single-band 2 m FM mobile (~2003), 65/25/10/5 W. Unlike the FT-270R/FT-277R handhelds, this one reports its own name, so the CHIRP driver is chirp/drivers/ft2800.py (VENDOR 'Yaesu', MODEL 'FT-2800M') and no VX-model aliasing is involved. Storage limits are the driver's: max_channels 200 is memory_bounds (0, 199) and the memory[200] struct, matching the published 200-memory figure; max_channel_name_chars 6 is names[200] with char name[6]. Those six-character tags are as tight as the FT-270R's, so display names need aggressive shortening, and CHARSET is upper-case alphanumeric plus ()+-=*/|_ only. modes is [\"FM\"]: valid_modes is [\"FM\", \"NFM\"] with no AM, and bandwidths_khz 12.5/25 follows that split. The TX band is the US amateur 2 m allocation 144-148 MHz; the driver's single valid_bands entry 137-174 MHz is the programming path's span, recorded here as rx_only because stock firmware will not transmit outside the ham band. A radio with the extended-TX mod is a separate id, yaesu_ft2800m_mars, following the yaesu_ft277_mars precedent. max_zones is 1 as a profile-0.1 compatibility shim: the driver sets has_bank = False. Clone protocol is the 7680-byte FT-2800 format at 9600 baud with even parity, transferred in 32-byte blocks; clone mode is manual on every transfer (hold MHz + Low + D/MR while powering on, then MHz to send / Low to receive)."
+}
