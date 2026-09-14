@@ -40,5 +40,10 @@
   ],
   "modes": ["AM", "FM"],
   "bandwidths_khz": [12.5, 25.0],
-  "notes": "Figures sourced from Miklor HA2 review (miklor.com/COM/Review_HA2.php) and ailunce.com product page. 1024 channels / 16 zones / 64 ch per zone confirmed on both sources. Channel name length 12 chars confirmed from Miklor: 'The LCD displays up to 12 character channel names.' Official FCC-labeled TX is 144-148 / 420-450 MHz US. Extended TX (VHF 136-174, UHF 400-480) is available via app programming on this HT family and required for GMRS (462-467 MHz) and MURS (151-154 MHz) operation. AM mode declared for airband receive; the HA2 explicitly supports AM reception across the airband. Codeplugger AM channel mode is emitted for airband RX-only assignments. The FM Broadcast and Airband bands overlap (108-115 MHz); validation accepts any matching band so the overlap is harmless."
+  "chirp": {
+    "driver": "Retevis_HA2",
+    "model": "Retevis HA2",
+    "clone_mode": "on_demand"
+  },
+  "notes": "Figures sourced from Miklor HA2 review (miklor.com/COM/Review_HA2.php) and ailunce.com product page. 1024 channels / 16 zones / 64 ch per zone confirmed on both sources. Channel name length 12 chars confirmed from Miklor: 'The LCD displays up to 12 character channel names.' Official FCC-labeled TX is 144-148 / 420-450 MHz US. Extended TX (VHF 136-174, UHF 400-480) is available via app programming on this HT family and required for GMRS (462-467 MHz) and MURS (151-154 MHz) operation. AM mode declared for airband receive; the HA2 explicitly supports AM reception across the airband. Codeplugger AM channel mode is emitted for airband RX-only assignments. The FM Broadcast and Airband bands overlap (108-115 MHz); validation accepts any matching band so the overlap is harmless. The CHIRP driver is Retevis_HA2 and reports 'Retevis HA2', not Ailunce: Ailunce is Retevis's brand, and the backend gates on the string the driver reports, not on the name printed on the case. UNVERIFIED: no HA2 has been programmed through the chirp-writer path yet, so the clone_mode on_demand classification is inferred from the driver being a CloneModeRadio at 115200 baud with no clone-mode prompts, not measured."
 }

@@ -23,8 +23,8 @@ flowchart LR
     registry["Instance registry<br/>fleet radios, optional"]
     resolve["codeplugger<br/>Resolve and validate against radio capabilities"]
     resolved["Resolved codeplug<br/>radio-neutral, deterministic"]
-    backend["Programming backend<br/>gated write: p64tool today, DM-32 planned"]
-    exporter["Exporter<br/>CHIRP CSV / P4 TOML"]
+    backend["Programming backend<br/>gated write: dmrconf, p64tool, chirp-writer"]
+    exporter["Exporter<br/>CHIRP CSV / qdmr YAML / P4 TOML"]
     cps["CPS tool<br/>CHIRP / vendor CPS"]
     artifacts["Artifacts<br/>HTML reference + operation log"]
     radio["Radio"]
@@ -116,12 +116,14 @@ cross-repository contract and end-to-end tests.
 
 Profile resolution and validation, the fleet dry run, P4 TOML export with a
 gated `p64tool` write backend, DM-32 qdmr YAML export with a gated,
-hardware-verified `dmrconf` write backend, CHIRP CSV export for analog
-radios, and HTML/Markdown/operation-log artifacts are working today. The
-near-term priority is deepening DM-32 support by contributing missing
-settings (display colors, button functions) upstream to qdmr, then widening
-the qdmr backend to more radios; see [docs/plan.md](docs/plan.md) for the
-sequenced plan and what is deliberately deferred.
+hardware-verified `dmrconf` write backend, CHIRP CSV export for analog radios
+with a gated `chirp-writer` write backend, and HTML/Markdown/operation-log
+artifacts are working today. The `chirp-writer` path has not yet been accepted
+against a physical radio. The near-term priority is deepening DM-32 support by
+contributing missing settings (display colors, button functions) upstream to
+qdmr, then widening the qdmr backend to more radios; see
+[docs/plan.md](docs/plan.md) for the sequenced plan and what is deliberately
+deferred.
 
 Repository directories:
 
@@ -332,8 +334,10 @@ is the planning gate before a programming adapter is invoked.
 
 ## CHIRP workflow for analog radios
 
-For analog radios such as the UV-5R Mini, codeplugger can emit CHIRP-compatible
-CSV and CHIRP remains the upload interface to the radio.
+For analog radios such as the UV-5R Mini, codeplugger emits CHIRP-compatible
+CSV. That CSV can either be imported in the CHIRP GUI and uploaded from there,
+or handed to the gated `chirp-writer` backend, which programs the radio without
+a GUI step.
 
 Generate CHIRP CSV from a validated profile:
 
@@ -352,6 +356,65 @@ Notes:
 - Any non-FM channel selected by the profile fails export with an explicit
   error.
 - Channel order in the CSV matches resolved profile order.
+
+### Headless CHIRP writes
+
+CHIRP is GPL-3 and codeplugger is Apache-2.0, so CHIRP is reached the same way
+`dmrconf` and `p64tool` are: as a separate process, never an import. The
+[`chirp-writer`](https://github.com/Chicago-Offline/chirp-writer) helper does
+the CHIRP-linked work and must be installed separately, in an environment where
+`chirp` is importable. CHIRP's own `chirpc` cannot substitute for it: `chirpc`
+never applies the driver's baud rate when opening the port, and it has no
+CSV-import path at all.
+
+Which driver addresses a radio lives in that radio's `capabilities.json`:
+
+```json
+"chirp": {
+  "driver": "Yaesu_VX-177",
+  "model": "Yaesu VX-177",
+  "clone_mode": "manual"
+}
+```
+
+`model` is the identity the connected radio must report, which is often not the
+name on the case: an FT-277R reports as a Yaesu VX-177. `clone_mode` is
+`manual` when an operator must put the radio into clone mode for every
+transfer, and `on_demand` when the radio answers whenever the cable is
+connected.
+
+```python
+from pathlib import Path
+import json
+
+from codeplugger.artifacts import ArtifactStore
+from codeplugger.backends.chirp import ChirpTarget, ChirpWriter
+
+capabilities = json.loads(Path("radios/retevis_c64/capabilities.json").read_text())
+target = ChirpTarget.from_capabilities(capabilities)
+store = ArtifactStore(Path("path/to/profiles"), "retevis_c64", "jhm_c64_01")
+
+ChirpWriter(artifact_store=store).write(
+    Path("output.csv"),
+    "/dev/cu.usbserial-110",
+    target=target,
+    backup=Path("before.img"),
+    read_back=Path("after.img"),
+    confirm=True,
+)
+```
+
+The gates, in order: `confirm=True`; a `read_back` path unless `verify=False`
+is passed explicitly; and, inside the helper, a mandatory pre-write backup
+whose reported model must match `target.model`. Because the backup download
+happens before the upload, a wrong radio is rejected before anything is
+written. Afterwards the helper re-reads the radio and diffs it per channel
+against what was sent; any mismatch raises rather than returning quietly.
+Unlisted memories are erased, since the generated codeplug is the whole truth
+for that radio.
+
+A radio whose capabilities carry no `chirp` block is refused rather than
+addressed with a guessed driver.
 
 ## Optional instance registry
 

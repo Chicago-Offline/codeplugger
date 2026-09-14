@@ -94,7 +94,8 @@ Working today:
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
 - Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Yaesu FT-270R /
-  FT-277R): CHIRP CSV export; CHIRP remains the upload interface (FM only).
+  FT-277R): CHIRP CSV export (FM only), either imported in the CHIRP GUI or
+  written headlessly by the `chirp-writer` backend described below.
   The HA2 has capabilities
   (1024 channels / 16 zones, AM airband RX) but no HA2-specific exporter yet;
   it uses the generic CHIRP path. The C64 (64 channels, 136-174 / 400-480 MHz,
@@ -111,6 +112,41 @@ Working today:
   than a flag or an override: transmit permission is the one capability that
   must never be inferred, and the instance registry already binds one
   physical radio to one radio id, so the mod is recorded where the radio is.
+- Baofeng BF-C50 (`baofeng_bf_c50`): validation and CSV / markdown reference
+  output only, with no programming path. CHIRP has no BF-C50 driver
+  (chirpmyradio.com issue #10176 is still open, and the fork opened to build
+  one, `emuehlstein/chirpnewfangs`, never got a driver committed), and the
+  Retevis RB618 workaround circulating there transfers frequencies but not
+  CTCSS/DCS, so its `capabilities.json` deliberately omits the `chirp` block
+  and the backend refuses the radio rather than swapping in a model id that
+  would silently write wrong tones. The entry gets the FT-270R band
+  treatment: the advertised 400-470 MHz span is receive-only either side of a
+  430-440 MHz transmit block, which is what the unit's CMIIT type approval
+  (2020FP6711, FM handheld, amateur service) actually covers. That keeps the
+  uncertified GMRS/FRS 462-467 MHz block rejected. 16 channels, operator-
+  confirmed; with no screen a channel is only ever identified by its knob
+  position, so channel names are operator documentation rather than data the
+  radio stores. Other BF-C50 builds ship with different transmit permissions
+  — the EU PMR446 one is programmed as an RB618 — and each would be a
+  separate radio id.
+- Headless analog writes: a gated `chirp-writer` backend
+  (`backends/chirp.py`) mirroring the `dmrconf` / `p64tool` safety pattern —
+  explicit confirmation, a mandatory pre-write backup that doubles as the
+  detected-radio identity gate, a required read-back diff, and operation-log
+  auditing. CHIRP is GPL-3 and codeplugger is Apache-2.0, so CHIRP is reached
+  as a subprocess, never an import: the helper lives in the separate GPL-3
+  [`chirp-writer`](https://github.com/Chicago-Offline/chirp-writer) repository
+  and writes a JSON result the backend gates on. CHIRP's own `chirpc` cannot
+  do this job — it opens the port without applying the driver's `BAUD_RATE`
+  (only the GUI does, which is why a 115200-baud C64 never answers it) and
+  has no CSV-import path at all. Each radio's `capabilities.json` carries a
+  `chirp` block binding it to a driver, the `Vendor Model` string that driver
+  reports, and whether the radio needs an operator to put it into clone mode
+  for every transfer; `clone_mode: manual` (the Yaesu ft7800 family) makes the
+  backend run the helper with the terminal attached instead of capturing it.
+  **Not hardware-verified through this path yet:** the two C64 writes went
+  through a one-off script and the FT-277R through the CHIRP GUI, so
+  re-running those two through the backend is the acceptance test.
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
   (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
   NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's
@@ -127,7 +163,7 @@ Working today:
   validates against this repository's DM-32 capabilities, and generates
   qdmr YAML. Small self-contained fixtures remain here for fast unit tests.
 
-## Now: operate the DM-32 path, deepen it upstream, then widen the qdmr backend
+## Now: operate the DM-32 path, deepen it upstream, get analog off the GUI
 
 The DM-32 headless path is complete and hardware-verified. The current
 focus is keeping it operational, closing the feature gap against the OEM
@@ -165,7 +201,15 @@ tooling by contributing to qdmr, and reusing the `dmrconf` investment:
    reference for field meanings, not as a delivery path. Until a PR is
    released, pin the exporter's `QDMR_CONFIG_VERSION` and tests to the
    qdmr revision that carries it and document the required build.
-3. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
+3. **Take the analog path off the CHIRP GUI.** The `chirp-writer` backend
+   exists but has never driven a radio. Accept it on two radios that
+   exercise both halves of the design: the Retevis C64, which answers on
+   demand, and the FT-277R, whose clone mode needs an operator for every
+   transfer. A pass is a real write with a clean read-back diff plus the
+   backup and operation log kept as the audit trail. Until then the GUI
+   remains the write path for analog radios, and the one-off C64 script
+   stays where it is rather than being deleted.
+4. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
    YAML exporter and `dmrconf` backend are already radio-neutral; adding a
    radio qdmr supports should mostly be a capabilities file plus a
    `dmrconf verify --radio=<key>` skip-if-uninstalled test. Candidates in
@@ -174,7 +218,7 @@ tooling by contributing to qdmr, and reusing the `dmrconf` investment:
    Baofeng DM-1701. Each needs a named, reviewed set of exporter defaults
    where qdmr's limits differ from the DM-32UV (placeholders, name lengths,
    list minimums).
-4. **OpenGD77 via `dmrconf`.** `radios/opengd77/` exists and is empty.
+5. **OpenGD77 via `dmrconf`.** `radios/opengd77/` exists and is empty.
    Capabilities plus the qdmr path first; an OpenGD77 CPS CSV exporter only
    if the `dmrconf` path leaves gaps.
 
@@ -183,6 +227,11 @@ Known gaps:
 - DM-32 display colors, button functions, and most general settings are
   not reachable through `dmrconf` YAML today; tracked by item 2 above.
 - Scan lists are membership-only (no priority channels) across exporters.
+- The `chirp-writer` backend has never driven a physical radio. Both an
+  on-demand radio (C64) and a clone-mode radio (FT-277R) need a real
+  write plus read-back before the analog path counts as operational, and
+  the FT-27x clone sequence is the risky half: the manual clone dance has
+  only ever been done through the CHIRP GUI.
 
 ## Later
 

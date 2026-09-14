@@ -175,6 +175,42 @@
     "notes": {
       "type": "string",
       "description": "Free-form provenance or caveats, e.g. where the figures were sourced."
+    },
+    "chirp": {
+      "type": "object",
+      "description": "How the `chirp-writer` backend addresses this radio. Omit for radios CHIRP cannot program; the backend then refuses rather than guessing a driver.",
+      "required": [
+        "driver",
+        "model"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "driver": {
+          "type": "string",
+          "description": "CHIRP driver name, as printed by `chirp-writer --list-drivers`.",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "The 'Vendor Model' string that driver reports. The backend refuses to write when the connected radio reports anything else. This is often not the name on the case: an FT-270R reports as a Yaesu VX-170.",
+          "minLength": 1
+        },
+        "clone_mode": {
+          "type": "string",
+          "enum": [
+            "on_demand",
+            "manual"
+          ],
+          "default": "on_demand",
+          "description": "`on_demand` means the radio answers whenever the cable is connected. `manual` means an operator must put it into clone mode by hand for every read and write, so the backend runs the helper interactively instead of capturing its output.",
+          "$comment": "This decides whether a write can be scripted unattended, which is why it lives in capabilities rather than in a profile."
+        },
+        "driver_upstream": {
+          "type": "boolean",
+          "default": true,
+          "description": "False when the driver is not in released CHIRP yet and must come from a checkout or patch."
+        }
+      }
     }
   },
   "$defs": {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Ailunce HA2, Retevis C64, Yaesu FT-270R / FT-277R." />
+  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Baofeng BF-C50, Ailunce HA2, Retevis C64, Yaesu FT-270R / FT-277R." />
   <link rel="canonical" href="https://chicago-offline.github.io/codeplugger/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="codeplugger — a codeplug compiler for radio fleets" />
@@ -129,7 +129,16 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng BF-C50 <span class="vendor">70 cm, no display</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span> no CHIRP driver</td>
               </tr>
               <tr>
                 <th scope="row">Ailunce HA2 <span class="vendor">Dual-band analog</span></th>
@@ -138,7 +147,7 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
-                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
               <tr>
                 <th scope="row">Retevis C64 <span class="vendor">Dual-band analog</span></th>
@@ -147,7 +156,7 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
-                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
               <tr>
                 <th scope="row">Yaesu FT-270R <span class="vendor">2 m submersible</span></th>
@@ -156,7 +165,16 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-270R MARS <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-170</td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
               <tr>
                 <th scope="row">Yaesu FT-277R <span class="vendor">70 cm submersible</span></th>
@@ -165,7 +183,7 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
-                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
               <tr>
                 <th scope="row">Yaesu FT-277R MARS <span class="vendor">TX-modded variant</span></th>
@@ -174,7 +192,7 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
-                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
             </tbody>
           </table>
@@ -187,7 +205,7 @@
         <div class="transports">
           <article>
             <h3>CHIRP CSV</h3>
-            <p>Analog FM channels in profile order, validated against the radio's own limits (bands, name length, bandwidth). Import in CHIRP and upload from there.</p>
+            <p>Analog FM channels in profile order, validated against the radio's own limits (bands, name length, bandwidth). Import in CHIRP and upload from there, or let <code>chirp-writer</code> program the radio directly.</p>
           </article>
           <article>
             <h3>qdmr YAML</h3>
@@ -199,7 +217,7 @@
           </article>
           <article>
             <h3>Headless write</h3>
-            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log.</p>
+            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log. Three backends: <code>dmrconf</code>, <code>p64tool</code>, and <code>chirp-writer</code> for CHIRP-supported analog radios.</p>
           </article>
         </div>
         <div class="planned">

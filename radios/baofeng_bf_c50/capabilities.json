@@ -1,0 +1,32 @@
+{
+  "id": "baofeng_bf_c50",
+  "name": "Baofeng BF-C50",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 16,
+    "max_zones": 1,
+    "max_channels_per_zone": 16
+  },
+  "bands": [
+    {
+      "name": "UHF RX low",
+      "min_mhz": 400.0,
+      "max_mhz": 430.0,
+      "rx_only": true
+    },
+    {
+      "name": "70 cm",
+      "min_mhz": 430.0,
+      "max_mhz": 440.0
+    },
+    {
+      "name": "UHF RX high",
+      "min_mhz": 440.0,
+      "max_mhz": 470.0,
+      "rx_only": true
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "The band split here is deliberate and is the FT-270R treatment: the radio tunes wider than it is approved to transmit on, so the advertised span is modelled as receive-only either side of the transmit block. 400-470 MHz is the advertised tuning range, published by the official EU store (baofengradio.de, 'Model No. BF-C50', C-50 Mini) and consistent with the Radtel T18 family's VALID_BANDS of 400-470 MHz in chirp/drivers/radtel_t18.py. The 430-440 MHz transmit block is the type approval: the unit these figures describe carries CMIIT ID 2020FP6711, and that record (cmiitid.cn/2020FP6711) lists the equipment type as 调频手持台（业余业务） -- FM handheld station, amateur service -- model BF-C50, applicant 福建宝锋电子有限公司 (Fujian Baofeng Electronics). 430-440 MHz is the amateur 70 cm allocation in China, and the reseller listings for this same variant quote 430-440 MHz, 5 W. DO NOT PROMOTE THE RX-ONLY SPANS TO TX because a spec sheet says 400-470: that number describes what the synthesiser covers, not what the radio is licensed to key up on, and transmit permission is the one capability this project never infers. Note that 440-470 MHz contains the US GMRS/FRS 462-467 MHz block, which this radio is not certified for and which must stay rejected. Other BF-C50 builds exist with genuinely different transmit permissions -- the UK/EU PMR446 build is programmed as a Retevis RB618 -- and per the FT-277R MARS precedent each would be a separate radio id, never a widened band here. The unit these figures were confirmed against has no display: front panel is CH+, CH-, VOL+, VOL-, power and PTT, with a second PTT and a side key on the side. max_channels 16 is confirmed by the operator against the physical radio, and agrees with both the official EU spec sheet (storage channel: 16) and CHIRP's RB618 driver (radtel_t18.py, RB618Radio(RB18Radio) with _upper = 16). Reseller listings quoting 99 memory channels describe some other build and do not apply here. max_channel_name_chars is omitted because there is nothing to size and nothing to display: the Radtel T18 family sets rf.has_name = False, and this radio has no screen, so a channel is only ever identified by its knob position. Names in a profile for this radio are documentation for the operator, not data the radio stores. bandwidths_khz 12.5/25 comes from the published modulation designators 11K0F3E and 16K0F3E, matching CHIRP's NFM/FM. max_zones is 1 as a profile-0.1 compatibility shim, the same treatment as the UV-5R Mini and the C64; the radio has no zone concept. There is deliberately no chirp block. CHIRP has no BF-C50 driver: chirpmyradio.com/issues/10176 is open and marked Incomplete, and the fork opened to work on one (emuehlstein/chirpnewfangs, 'a fork of chirp for building and testing drivers for the Baofeng BF-C50, BF-5R, and WP-31') has only a master branch sitting at an unmodified upstream commit, so no driver was ever committed there. The RB618 workaround reported in that issue is NOT good enough to program from: users confirmed frequencies transfer but CTCSS/DCS tones do not, i.e. the memory map differs, and the RB618 driver additionally forces PMR446 rules (_pmr = True) that would reject 430-440 MHz outright. A chirp block pointing at RB618 would therefore be a model-id swap that silently writes wrong tones. Without the block the chirp-writer backend refuses this radio instead of guessing a driver and pushing an image at whatever answers the cable. Codeplugger can still validate a profile against these limits and emit a CHIRP CSV or markdown reference for hand entry in the OEM CPS."
+}
