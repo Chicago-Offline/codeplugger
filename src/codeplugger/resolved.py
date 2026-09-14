@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 import yaml
 
@@ -310,17 +310,51 @@ def resolve_codeplug(
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
+    report: ValidationReport | None = None,
 ) -> ResolvedCodeplug:
-    """Validate and normalize a profile plus precedence-ordered SSRF roots."""
+    """Validate and normalize a profile plus precedence-ordered SSRF roots.
 
-    profile, documents, instance_metadata, _ = _load_and_validate_profile(
+    Pass `report` to receive load-time and resolve-time issues in one place;
+    otherwise non-critical findings are discarded.
+    """
+
+    profile, documents, instance_metadata, load_report = _load_and_validate_profile(
         profile_path,
         ssrf_roots,
         schema_path=schema_path,
         radio_root=radio_root,
         instance_registry_path=instance_registry_path,
     )
-    report = ValidationReport()
+    if report is None:
+        report = ValidationReport()
+    report.extend(load_report)
+    return build_codeplug(
+        profile,
+        documents,
+        instance_metadata,
+        radio_root=radio_root,
+        report=report,
+    )
+
+
+def build_codeplug(
+    profile: Mapping[str, Any],
+    documents: Sequence[Any],
+    instance_metadata: Mapping[str, Any] | None,
+    *,
+    radio_root: Path = DEFAULT_RADIO_ROOT,
+    report: ValidationReport | None = None,
+) -> ResolvedCodeplug:
+    """Build a codeplug from an already-loaded profile.
+
+    Split out of `resolve_codeplug` so callers that have already loaded a
+    profile can resolve it without parsing twice. Channel display names do not
+    exist until assignments resolve, so the channel-name length check lives
+    here and is only reached by resolving.
+    """
+
+    if report is None:
+        report = ValidationReport()
     limits = _load_capabilities(profile["radio"], radio_root)["limits"]
     assignments = {
         assignment.id: (document, assignment)

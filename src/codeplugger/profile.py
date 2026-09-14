@@ -915,13 +915,13 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        profile, documents, instance_metadata, report = _load_and_validate_profile(
+            args.profile,
+            args.ssrf_root,
+            radio_root=args.radio_root,
+            instance_registry_path=args.instance_registry,
+        )
         if args.print_merged_profile:
-            profile, _, _, report = _load_and_validate_profile(
-                args.profile,
-                args.ssrf_root,
-                radio_root=args.radio_root,
-                instance_registry_path=args.instance_registry,
-            )
             for issue in report.non_critical():
                 print(
                     f"{issue.severity.name.lower()}: {issue.format()}",
@@ -929,26 +929,22 @@ def main() -> int:
                 )
             print(yaml.safe_dump(profile, sort_keys=False), end="")
             return 0
-        if args.output_format == "summary":
-            profile, _, _, report = _load_and_validate_profile(
-                args.profile,
-                args.ssrf_root,
-                radio_root=args.radio_root,
-                instance_registry_path=args.instance_registry,
-            )
-            for issue in report.non_critical():
-                print(
-                    f"{issue.severity.name.lower()}: {issue.format()}",
-                    file=sys.stderr,
-                )
-        else:
-            from .resolved import resolve_codeplug
+        from .resolved import build_codeplug
 
-            codeplug = resolve_codeplug(
-                args.profile,
-                args.ssrf_root,
-                radio_root=args.radio_root,
-                instance_registry_path=args.instance_registry,
+        # Every format resolves, including summary: channel names and other
+        # per-channel limits do not exist until assignments expand, so a
+        # load-only check reports success on profiles that cannot be built.
+        codeplug = build_codeplug(
+            profile,
+            documents,
+            instance_metadata,
+            radio_root=args.radio_root,
+            report=report,
+        )
+        for issue in report.non_critical():
+            print(
+                f"{issue.severity.name.lower()}: {issue.format()}",
+                file=sys.stderr,
             )
     except (OSError, ProfileValidationError, ValueError) as exc:
         parser.exit(1, f"error: {exc}\n")

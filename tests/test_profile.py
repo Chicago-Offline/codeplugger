@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
 import tempfile
 
 import pytest
@@ -746,6 +747,47 @@ def test_resolver_enforces_channel_name_length() -> None:
                 [root / "ssrf"],
                 radio_root=root / "radios",
             )
+
+
+def test_summary_format_enforces_channel_name_length(monkeypatch, capsys) -> None:
+    """The default CLI format must resolve, not just load.
+
+    Regression: summary reported "Validated" for profiles whose channel names
+    exceeded the radio limit, because names only exist once assignments expand
+    and summary never expanded them. Renderers caught it; the documented
+    validation loop did not.
+    """
+
+    from codeplugger.profile import main
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio_with_limits(root / "radios", {"max_channel_name_chars": 8})
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["assignments"][0]["display_name"] = "WAY TOO LONG NAME"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "codeplugger-profile",
+                str(profile),
+                "--ssrf-root",
+                str(root / "ssrf"),
+                "--radio-root",
+                str(root / "radios"),
+            ],
+        )
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+
+    assert excinfo.value.code == 1
+    assert "channel name" in capsys.readouterr().err
 
 
 def test_dm32_capabilities_declare_name_limits() -> None:

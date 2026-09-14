@@ -57,6 +57,11 @@ class ValidationReport:
     def critical(self, path: tuple[str, ...], message: str) -> None:
         self.add(Severity.CRITICAL, path, message)
 
+    def extend(self, other: "ValidationReport") -> None:
+        """Absorb another report's issues, preserving order."""
+
+        self.issues.extend(other.issues)
+
     @property
     def has_critical(self) -> bool:
         return any(issue.severity is Severity.CRITICAL for issue in self.issues)
