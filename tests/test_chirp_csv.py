@@ -222,6 +222,92 @@ def test_chirp_csv_omits_power_column() -> None:
     assert "Power" not in text.splitlines()[0].split(",")
 
 
+def test_chirp_csv_skip_defaults_to_empty() -> None:
+    text = chirp_csv_from_resolved(_codeplug([_receive_only_channel()]))
+    row = list(csv.DictReader(io.StringIO(text)))[0]
+
+    assert row["Skip"] == ""
+
+
+def test_chirp_csv_skip_comes_from_the_chirp_extension() -> None:
+    """``extensions.chirp.skip`` is how a channel leaves the scan."""
+
+    channels = [
+        ResolvedChannel(
+            reference="wx1",
+            assignment_id="wx1",
+            display_name="WX 1",
+            rx_frequency_mhz=162.550,
+            tx_frequency_mhz=None,
+            mode="FM",
+            service="weather",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            notes=None,
+            extensions={"chirp": {"skip": "S"}},
+        ),
+        ResolvedChannel(
+            reference="call",
+            assignment_id="call",
+            display_name="2MCALL",
+            rx_frequency_mhz=146.520,
+            tx_frequency_mhz=146.520,
+            mode="FM",
+            service="amateur",
+            tones=ResolvedTones(),
+            tx_permitted=True,
+            notes=None,
+            extensions={"chirp": {"skip": "p"}},
+        ),
+    ]
+
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))
+
+    assert [row["Skip"] for row in rows] == ["S", "P"]
+
+
+def test_chirp_csv_rejects_unknown_skip_values() -> None:
+    channels = [
+        ResolvedChannel(
+            reference="wx1",
+            assignment_id="wx1",
+            display_name="WX 1",
+            rx_frequency_mhz=162.550,
+            tx_frequency_mhz=None,
+            mode="FM",
+            service="weather",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            notes=None,
+            extensions={"chirp": {"skip": "skip"}},
+        )
+    ]
+
+    with pytest.raises(ValueError, match="skip"):
+        chirp_csv_from_resolved(_codeplug(channels))
+
+
+def test_chirp_csv_ignores_extensions_for_other_backends() -> None:
+    channels = [
+        ResolvedChannel(
+            reference="wx1",
+            assignment_id="wx1",
+            display_name="WX 1",
+            rx_frequency_mhz=162.550,
+            tx_frequency_mhz=None,
+            mode="FM",
+            service="weather",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            notes=None,
+            extensions={"qdmr": {"skip": "nonsense"}},
+        )
+    ]
+    row = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))[0]
+
+    assert row["Skip"] == ""
+
+
 def test_chirp_csv_rejects_non_fm_modes() -> None:
     channels = [
         ResolvedChannel(

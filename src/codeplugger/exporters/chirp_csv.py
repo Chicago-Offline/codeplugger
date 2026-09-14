@@ -21,6 +21,15 @@ existing practice in our own reference codeplugs: in
 (``BF-888_CPDCFD.img`` ch11-16, ``TYT_TH-9800``) are stored with ``tx == rx``
 and no transmit inhibit, with the intent carried in the channel name. Callers
 that need transmit actually blocked must enforce it outside the CSV.
+
+``Skip`` comes from a per-assignment ``extensions.chirp.skip`` and defaults to
+empty. It is an extension rather than a core profile field because scan
+membership is modelled positively elsewhere (``scan_lists``), while CHIRP and
+the radios behind it express only per-memory exclusion from the single global
+scan. ``chirp_common`` defines exactly three values -- ``""`` (scan normally),
+``"S"`` (skip) and ``"P"`` (priority) -- and drivers narrow that further via
+``valid_skips``, which this exporter cannot see. Anything outside the three is
+rejected here rather than passed through to fail at import.
 """
 
 from __future__ import annotations
@@ -53,6 +62,25 @@ CHIRP_HEADERS = [
 
 # CHIRP splits analog FM by bandwidth: NFM is 12.5 kHz, FM is 25 kHz.
 NARROW_BANDWIDTH_KHZ = 12.5
+
+# chirp_common.SKIP_VALUES: scan normally, skip, priority.
+CHIRP_SKIP_VALUES = ("", "S", "P")
+
+
+def _skip(channel: ResolvedChannel) -> str:
+    extension = channel.extensions.get("chirp")
+    if not isinstance(extension, dict):
+        return ""
+
+    value = extension.get("skip", "")
+    if value is None:
+        return ""
+    if not isinstance(value, str) or value.upper() not in CHIRP_SKIP_VALUES:
+        raise ValueError(
+            f"channel '{channel.display_name}' has chirp skip {value!r}; "
+            f"CHIRP accepts only {CHIRP_SKIP_VALUES}"
+        )
+    return value.upper()
 
 
 def _format_frequency(value_mhz: float) -> str:
@@ -165,7 +193,7 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
             "Offset": offset,
             "Mode": "NFM" if narrow else "FM",
             "TStep": "5.00",
-            "Skip": "",
+            "Skip": _skip(channel),
             "Comment": channel.notes or "",
         }
         row.update(_tone_fields(channel))

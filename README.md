@@ -357,6 +357,27 @@ Notes:
   error.
 - Channel order in the CSV matches resolved profile order.
 
+### Excluding channels from scan
+
+Analog radios have a single global scan and express membership negatively, per
+memory, so there is no scan list to join. Set CHIRP's `Skip` value through an
+assignment's `extensions.chirp` namespace:
+
+```yaml
+zones:
+  - id: main
+    name: Main
+    assignments:
+      - {id: asg_wx1, display_name: "WX 1", extensions: {chirp: {skip: "S"}}}
+      - {id: us_ham_vhf_call, display_name: "2MCALL", extensions: {chirp: {skip: "P"}}}
+```
+
+`skip` accepts only `""` (scan normally), `"S"` (skip) and `"P"` (priority) —
+`chirp_common`'s three values. Individual drivers narrow that set further in
+`valid_skips`, which the CSV exporter cannot see, so a value a radio does not
+support is caught at import rather than at export. `extensions.chirp` is
+ignored by every other exporter.
+
 ### Headless CHIRP writes
 
 CHIRP is GPL-3 and codeplugger is Apache-2.0, so CHIRP is reached the same way
