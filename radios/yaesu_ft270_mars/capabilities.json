@@ -1,0 +1,21 @@
+{
+  "id": "yaesu_ft270_mars",
+  "name": "Yaesu FT-270R (MARS/CAP)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "VHF extended TX",
+      "min_mhz": 137.0,
+      "max_mhz": 174.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "notes": "MARS/CAP-modified FT-270R. Identical to yaesu_ft270 in every storage limit, mode and bandwidth — the mod changes only what the radio will transmit on, so the single difference is that the 137-174 MHz span is a TX band here instead of rx_only. This is the separate radio id that yaesu_ft270's notes call for, and it follows yaesu_ft277_mars exactly: transmit permission is the one capability that must never be assumed, because a profile built for this target will happily place TX outside the amateur allocation and running it on a stock radio would produce channels that key up nothing. Record which physical radio is modded in the instance registry, which already binds one instance to one radio id. The mod is the operator's responsibility: transmitting outside the amateur allocation needs the appropriate authorization, and on a non-type-accepted radio MURS use is not authorized at all. UNVERIFIED: the exact post-mod transmit span has not been measured on the bench. 137-174 MHz is the CHIRP VX-170 driver's valid_bands, which is the upper bound the programming path will accept, not a measured PA limit; a real mod may open less, and a 2 m PA and duplexer-free front end will be well off tune at the top of the range. Everything else — model ID 'AH022$', 6057-byte FT-7800-family image, 200 channels, 6-character names, FM only, no reachable banks, CT57B cable at 9600 baud — is the same as yaesu_ft270; see that file for provenance."
+}
