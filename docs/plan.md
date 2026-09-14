@@ -120,7 +120,12 @@ Working today:
   `yaesu_ft2800m_mars`, and here the distinction is machine-readable: the
   clone ID block ends `02 00 b8` on a stock US radio and `03 00 b9` on one
   with the extended-TX mod, so the right radio id can be confirmed from a
-  read rather than taken on trust.
+  read rather than taken on trust. A bench radio read on 2026-09-14 sent the
+  stock block and a 7680-byte codeplug, which is what `yaesu_ft2800m`
+  records; the modded id has no physical instance yet. That read also made
+  the point the `rx_only` span exists for: 47 of its 177 memories were public
+  safety and marine VHF up to 161 MHz, which a stock radio stores and
+  receives perfectly well and still cannot transmit on.
 - Baofeng BF-C50 (`baofeng_bf_c50`): validation and CSV / markdown reference
   output only, with no programming path. CHIRP has no BF-C50 driver
   (chirpmyradio.com issue #10176 is still open, and the fork opened to build
