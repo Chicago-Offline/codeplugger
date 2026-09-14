@@ -173,9 +173,14 @@ Working today:
   reports, and whether the radio needs an operator to put it into clone mode
   for every transfer; `clone_mode: manual` (the Yaesu ft7800 family) makes the
   backend run the helper with the terminal attached instead of capturing it.
-  **Not hardware-verified through this path yet:** the two C64 writes went
-  through a one-off script and the FT-277R through the CHIRP GUI, so
-  re-running those two through the backend is the acceptance test.
+  **First hardware verification landed 2026-09-14 on the FT-2800M**, a
+  `clone_mode: manual` radio: a headless write was confirmed in both
+  directions with a deliberately distinguishable payload each way, checked on
+  the radio's own display and corroborated by each run's pre-write backup
+  capturing exactly what the previous run left. A headless read separately
+  reproduced an intended codeplug with zero mismatches. Remaining acceptance
+  work is the on-demand path — re-running the two C64 writes through the
+  backend rather than the one-off script.
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
   (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
   NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's
