@@ -1,0 +1,26 @@
+{
+  "id": "baofeng_w31e",
+  "name": "Baofeng W31E",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 16,
+    "max_zones": 1,
+    "max_channels_per_zone": 16
+  },
+  "bands": [
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 470.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "chirp": {
+    "driver": "Baofeng_W31E",
+    "model": "Baofeng W31E",
+    "clone_mode": "on_demand",
+    "driver_upstream": true
+  },
+  "notes": "The identity here was measured, not read off the case. The unit these figures describe is sold as a W31 (bought as a WP31) and carries no model suffix on the label, but a `chirp-writer detect` clone against it returned \"Baofeng W31E\", which is why that is the id, the name, and the write gate. The distinction matters because CHIRP carries two unrelated W31 drivers: this one, W31E in chirp/drivers/retevis_rt22.py, is analog and a Retevis RT22 protocol variant (_memsize 0x200, _block_size 0x40, and the only RT22 sibling with no embedded-message block); the other, BaofengW31D in chirp/drivers/baofeng_digital.py, is a 30-channel radio with a proprietary digital mode and a different codeplug entirely. A W31D must never be addressed with these figures, which is what the reported-model gate prevents. max_channels 16 is the driver's memory[16] struct and memory_bounds (1, 16), and agrees with the operator's count on the physical radio. max_channel_name_chars is omitted because the radio has no channel-name field at all: the RT22 family sets rf.has_name = False, and the unit has no display -- volume knob, PTT and two side keys, nothing else -- so a channel is only ever identified by its position in the list. Channel names in a profile are operator documentation here, not data the radio stores. modes is [\"FM\"]: the driver's valid_modes are FM/NFM with no AM. bandwidths_khz 12.5/25 is the `wide` bit in the channel record, matching CHIRP's NFM/FM. The band needs explaining, because it is deliberately NOT the FT-270R / BF-C50 treatment. Those two model a narrow transmit block inside a wider receive span because each has an equipment approval record saying what the radio itself is approved to transmit on -- the BF-C50's CMIIT ID 2020FP6711 is an amateur-service approval, the Yaesus are type-accepted ham radios. This unit's label carries no FCC ID, no CMIIT ID and no rated power, only \"400-470MHz\", so there is no equipment-side approval to constrain it and nothing to model as receive-only. 400-470 is therefore recorded as what the hardware transmits on, which is the fact a capabilities file exists to state. It is not a claim that any given operator may key up across all of it: 462-467 MHz is US GMRS/FRS and 450-470 MHz is Part 90 land mobile, both of which require certified equipment this radio does not have, and 400-420 MHz is not an amateur allocation anywhere. Which slice of a radio's tuning range an operator is licensed to use is jurisdiction and licence policy, and in this project policy lives in profiles, not in radio facts -- codeplugger is not a ham-only tool and a capabilities file should not encode one service's band plan. Note the driver's own valid_bands is a catch-all 400-520 MHz inherited from the RT22 base class; the 470 MHz ceiling here comes from this unit's label and is the tighter, better-evidenced figure. max_zones is 1 as a profile-0.1 compatibility shim, the same treatment as the UV-5R Mini and the C64: neither the radio nor the driver has any zone concept."
+}

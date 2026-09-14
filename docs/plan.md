@@ -93,9 +93,9 @@ Working today:
   (one profile, many radios), which the 1:1 profile-instance registry join
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
-- Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Yaesu FT-270R /
-  FT-277R): CHIRP CSV export (FM only), either imported in the CHIRP GUI or
-  written headlessly by the `chirp-writer` backend described below.
+- Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Baofeng W31E, Yaesu
+  FT-270R / FT-277R): CHIRP CSV export (FM only), either imported in the CHIRP
+  GUI or written headlessly by the `chirp-writer` backend described below.
   The HA2 has capabilities
   (1024 channels / 16 zones, AM airband RX) but no HA2-specific exporter yet;
   it uses the generic CHIRP path. The C64 (64 channels, 136-174 / 400-480 MHz,
@@ -129,6 +129,21 @@ Working today:
   radio stores. Other BF-C50 builds ship with different transmit permissions
   — the EU PMR446 one is programmed as an RB618 — and each would be a
   separate radio id.
+- Baofeng W31E (`baofeng_w31e`): 16 channels, no display and no channel-name
+  field, generic CHIRP path plus headless `chirp-writer` programming. The id
+  comes from a `chirp-writer detect` clone rather than from the case, which
+  says only `W31`: the radio reports `Baofeng W31E`, and CHIRP carries two
+  unrelated W31 drivers — this analog Retevis RT22 variant, and a 30-channel
+  `W31D` with a proprietary digital mode and a different codeplug. The
+  reported-model gate is what keeps one from being written as the other.
+  Unlike the BF-C50 and the Yaesus, its band is a single 400-470 MHz transmit
+  span with nothing receive-only: those radios are narrowed by an equipment
+  approval record (a CMIIT amateur-service approval, type acceptance), and
+  this unit's label carries no FCC ID, no CMIIT ID and no rated power, so
+  there is no equipment-side fact to narrow it with. Which slice of that span
+  an operator may key up on is licence and jurisdiction policy, and policy
+  belongs in profiles — codeplugger is not a ham-only tool, and a
+  `capabilities.json` should not encode one radio service's band plan.
 - Headless analog writes: a gated `chirp-writer` backend
   (`backends/chirp.py`) mirroring the `dmrconf` / `p64tool` safety pattern —
   explicit confirmation, a mandatory pre-write backup that doubles as the
