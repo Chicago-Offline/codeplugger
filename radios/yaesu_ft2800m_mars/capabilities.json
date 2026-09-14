@@ -1,0 +1,26 @@
+{
+  "id": "yaesu_ft2800m_mars",
+  "name": "Yaesu FT-2800M (extended TX)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "VHF extended TX",
+      "min_mhz": 137.0,
+      "max_mhz": 174.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "chirp": {
+    "driver": "Yaesu_FT-2800M",
+    "model": "Yaesu FT-2800M",
+    "clone_mode": "manual"
+  },
+  "notes": "FT-2800M with the extended-TX (MARS/CAP) modification. Identical to yaesu_ft2800m in every storage limit, mode and bandwidth — the mod changes only what the radio will transmit on, so the single difference is that the 137-174 MHz span is a TX band here instead of rx_only. Separate radio id rather than a flag, following yaesu_ft277_mars: transmit permission must never be inferred, and the instance registry already binds one physical radio to one radio id. Unlike the FT-277R case this variant is machine-detectable — chirp/drivers/ft2800.py accepts two clone ID blocks, 0c 01 41 33 35 02 00 b8 for a USA unmodified radio and 0c 01 41 33 35 03 00 b9 for one with the extended TX mod, and stashes the one it saw as metadata 'subtype_idblock' so an upload replays the matching header. A radio that sends the 03 block belongs to this id; one that sends 02 belongs to yaesu_ft2800m. Note that CHIRP's reported model string is 'Yaesu FT-2800M' either way, so the chirp block cannot tell them apart and the ID block must be read from the clone image. Also note that out-of-ham memories are not evidence of a mod: a stock radio stores and receives them happily. The bench radio read on 2026-09-14 sent the 02 block and separately refused to transmit outside 144-148 MHz when keyed, so it is recorded as stock yaesu_ft2800m on two independent grounds; this id currently has no known physical instance and is therefore UNVERIFIED against hardware. 137-174 MHz is the driver's valid_bands, i.e. the upper bound the programming path will accept, not a measured PA limit; a real mod may open less and out-of-ham performance is not guaranteed. The mod is the operator's responsibility: transmitting outside the amateur allocation needs the appropriate authorization, and on a non-type-accepted radio MURS/commercial VHF use is not authorized at all. Everything else — 200 channels, 6-character names, FM only, no reachable banks, 7680-byte clone image at 9600 baud even parity, manual clone mode per transfer — is the same as yaesu_ft2800m; see that file for provenance."
+}
