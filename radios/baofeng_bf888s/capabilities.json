@@ -1,0 +1,26 @@
+{
+  "id": "baofeng_bf888s",
+  "name": "Baofeng BF-888S",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 16,
+    "max_zones": 1,
+    "max_channels_per_zone": 16
+  },
+  "bands": [
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 470.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "chirp": {
+    "driver": "Baofeng_BF-888",
+    "model": "Baofeng BF-888",
+    "clone_mode": "on_demand",
+    "driver_upstream": true
+  },
+  "notes": "The case says BF-888S and CHIRP says BF-888, and the write gate has to use CHIRP's spelling. The driver is H777Radio in chirp/drivers/h777.py -- nominally the Heng Shun Tong H-777, registered as VENDOR Baofeng / MODEL BF-888 -- which is the BF-888S driver in every practical sense: its own source comments describe timing quirks measured on \"the Baofeng BF-888S model\", and the whole H-777 clone family (Arcshell AR-5/AR-6, Greaval GV-8S/GV-9S, Ansoko A-8S, Tenway TW-325) is carried as aliases of it. So `chirp.driver` is Baofeng_BF-888 and `chirp.model` is \"Baofeng BF-888\", because that is the Vendor Model string the driver reports and the backend refuses anything else; the radio id and name keep the name on the case, the way yaesu_ft277 does while reporting as a Yaesu VX-177. The identity gate matters here more than usual, because the H-777 family has a dozen registered variants sharing one protocol and several share the P3107 ident prefix; H777Radio is the base class with IDENT [b\"P3107\"] and is the one to address, while the MP31, BF-1901/1904/1909 and ROG A-2S siblings carry their own idents and, in the BF-1901 case, a wider 400-520 MHz band. max_channels 16 is the driver's memory_bounds (1, 16) and the radio's 16-position channel knob. max_channel_name_chars is omitted because there is no channel-name field at all: the driver sets rf.has_name = False and the radio has no display, so a channel is identified only by its knob position and channel names in a profile are operator documentation, not data the radio stores. max_zones 1 is the usual shim for a radio with no zone concept (rf.has_bank = False). modes is [\"FM\"]: valid_modes are NFM/FM with no AM. bandwidths_khz 12.5/25 is the `narrow` bit in the channel record, matching CHIRP's NFM/FM. The band follows the W31E treatment, not the BF-C50 one: a single 400-470 MHz transmit span with nothing receive-only. 400-470 MHz is the transmit range Baofeng publishes for this model, and the operator read the same 400-470 MHz marking off this unit's case on 2026-09-14, so the published figure and the physical radio agree. It is deliberately tighter than the driver's VALID_BANDS of 400-490 MHz, which is a catch-all covering the wider H-777 family rather than a fact about this radio. It is not narrowed further, because no approval record has been read off this unit: the case marking is a manufacturer's statement of the tuning range, not a grant, and the BF-888S has shipped under more than one FCC ID depending on batch (2AJGM-BF888S and 2AJGMBF-888S have both been observed). If an FCC ID is read off the label and its grant covers a narrower span, this band should be tightened to match -- an approval record may only narrow the transmit range here, never widen it. Which slice of 400-470 MHz an operator may actually key up on, including the US GMRS/FRS 462-467 MHz block that sits inside it, is licence and jurisdiction policy and belongs in a profile: capabilities states what the hardware transmits on. BENCH CONFIRMED 2026-09-14 against the physical radio (co_888s_01) with a read-only `chirp-writer detect` and `read` over a CH340 cable: the radio answered the P3107 handshake, cloned to 100%, and reported exactly \"Baofeng BF-888\", so the write gate is correct as written. The 1145-byte image it returned (0x03E0 of codeplug plus CHIRP's metadata trailer) decodes to 16 memory slots with no name field and no banks, which is where max_channels 16, the omitted max_channel_name_chars and the max_zones 1 shim come from -- driver figures and hardware agree. That image is not, however, evidence about the band, and an earlier draft of this note wrongly said it was. The radio came back holding slots 1-7 on 462.550-462.700 MHz with slots 8-16 empty, which looked like a factory GMRS codeplug and is not one: slots 1-6 match the chioff_bf888s_shared profile field for field, including CTCSS 141.3 on ChiO ROAD and only ChiO ROAD, and the +5 MHz repeater offset on slot 6. This radio had already been programmed with an earlier revision of the shared ChiOff codeplug, so what it was carrying records what its operator chose, not what the manufacturer shipped or what the hardware is approved for. The single 400-470 MHz transmit span therefore rests on the W31E reasoning alone, which does not need it: with no approval record read off this unit there is nothing to narrow the band with, and which slice of it an operator may key up on is profile policy. Driver power levels are 1 W low / 5 W high."
+}
