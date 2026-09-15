@@ -93,8 +93,8 @@ Working today:
   (one profile, many radios), which the 1:1 profile-instance registry join
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
-- Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Baofeng W31E, Yaesu
-  FT-270R / FT-277R / FT-2800M): CHIRP CSV export (FM only), either imported in
+- Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Baofeng BF-888S, Baofeng
+  W31E, Yaesu FT-270R / FT-277R / FT-2800M): CHIRP CSV export (FM only), either imported in
   the CHIRP GUI or written headlessly by the `chirp-writer` backend described
   below.
   The HA2 has capabilities
@@ -143,6 +143,29 @@ Working today:
   radio stores. Other BF-C50 builds ship with different transmit permissions
   — the EU PMR446 one is programmed as an RB618 — and each would be a
   separate radio id.
+- Baofeng BF-888S (`baofeng_bf888s`): 16 channels, no display and no
+  channel-name field, generic CHIRP path plus headless `chirp-writer`
+  programming. The case and CHIRP disagree on the name, and the write gate has
+  to use CHIRP's: the driver is `H777Radio` in `chirp/drivers/h777.py`,
+  nominally the Heng Shun Tong H-777 but registered as `Baofeng BF-888` and
+  written around this radio — its own comments cite timing measured on "the
+  Baofeng BF-888S model", and the rest of the clone family (Arcshell, Greaval,
+  Ansoko, Tenway) rides on it as aliases. So the radio id keeps the name on the
+  case and `chirp.model` records what the driver reports, the same split as
+  `yaesu_ft277` reporting as a VX-177. That gate earns its keep here: the H-777
+  family has a dozen registered variants on one protocol, and the BF-1901
+  siblings tune to 520 MHz. The band is the W31E treatment — a single
+  400-470 MHz transmit span, which is the published figure and is tighter than
+  the driver's 400-490 MHz catch-all — because the FCC grant that applies has
+  not been read off this unit; the BF-888S has shipped under more than one FCC
+  ID by batch, and reading the label can only narrow this band, never widen it.
+  Bench-confirmed on 2026-09-14 by a read-only detect and read: the radio
+  reports `Baofeng BF-888` and clones 16 nameless slots. It came back holding
+  seven GMRS channels, which is not the factory codeplug it first looked like
+  — slots 1-6 match `chioff_bf888s_shared` field for field, down to CTCSS
+  141.3 on ChiO ROAD alone — so the radio had already been programmed with an
+  earlier revision of the shared profile, and what it holds is operator choice
+  rather than evidence about the band.
 - Baofeng W31E (`baofeng_w31e`): 16 channels, no display and no channel-name
   field, generic CHIRP path plus headless `chirp-writer` programming. The id
   comes from a `chirp-writer detect` clone rather than from the case, which
