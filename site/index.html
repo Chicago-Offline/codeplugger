@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Baofeng BF-C50, Baofeng BF-888S, Baofeng W31E, Ailunce HA2, Retevis C64, Yaesu FT-270R / FT-277R / FT-2800M." />
+  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Baofeng BF-C50, Baofeng BF-888S, Baofeng W31E, Ailunce HA2, Retevis C64, Vero VR-N76, Yaesu FT-270R / FT-277R / FT-2800M." />
   <link rel="canonical" href="https://chicago-offline.github.io/codeplugger/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="codeplugger — a codeplug compiler for radio fleets" />
@@ -177,6 +177,15 @@
                 <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
               </tr>
               <tr>
+                <th scope="row">Vero VR-N76 <span class="vendor">Dual-band, Bluetooth</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> benlink<span class="hw" title="Verified on a physical radio">hw</span></td>
+              </tr>
+              <tr>
                 <th scope="row">Yaesu FT-270R <span class="vendor">2 m submersible</span></th>
                 <td class="modes">FM</td>
                 <td class="yes"><span aria-hidden="true">✓</span> as VX-170</td>
@@ -252,8 +261,12 @@
             <p>Merged into a <code>p64tool decode</code> baseline so untouched settings survive, then re-encoded for the P4.</p>
           </article>
           <article>
+            <h3>benlink plan</h3>
+            <p>A declarative channel plan for Benshi-protocol handhelds, which have no desktop CPS and no CHIRP driver — the only path in is over Bluetooth. Zones map onto the radio's regions, and regions the plan omits are never written.</p>
+          </article>
+          <article>
             <h3>Headless write</h3>
-            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log. Three backends: <code>dmrconf</code>, <code>p64tool</code>, and <code>chirp-writer</code> for CHIRP-supported analog radios.</p>
+            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log. Four backends: <code>dmrconf</code>, <code>p64tool</code>, <code>chirp-writer</code> for CHIRP-supported analog radios, and <code>benlink</code> for Bluetooth-programmed Benshi handhelds.</p>
           </article>
         </div>
         <div class="planned">
