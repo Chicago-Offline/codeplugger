@@ -895,6 +895,7 @@ def main() -> int:
             "yaml",
             "chirp-csv",
             "qdmr-yaml",
+            "benlink-plan",
             "html",
             "markdown",
         ),
@@ -978,6 +979,18 @@ def main() -> int:
         from .exporters.chirp_csv import chirp_csv_from_resolved
 
         print(chirp_csv_from_resolved(codeplug), end="")
+        return 0
+    if args.output_format == "benlink-plan":
+        from .exporters.benlink_plan import benlink_plan_json_from_resolved
+
+        print(
+            benlink_plan_json_from_resolved(
+                codeplug,
+                capabilities=_load_capabilities(codeplug.radio_id, args.radio_root),
+                generated_by="codeplugger",
+            ),
+            end="",
+        )
         return 0
     if args.output_format == "qdmr-yaml":
         from .exporters.qdmr_yaml import qdmr_yaml_from_resolved
