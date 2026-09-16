@@ -211,6 +211,48 @@
           "description": "False when the driver is not in released CHIRP yet and must come from a checkout or patch."
         }
       }
+    },
+    "benlink": {
+      "type": "object",
+      "description": "How the `benlink` backend addresses this radio over the Benshi BLE/RFCOMM protocol. Omit for radios benlink cannot program; the backend then refuses rather than guessing a transport.",
+      "required": [
+        "product_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "vendor_id": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "`vendor_id` from the device's own GetDeviceInfo reply. Read it from the radio; do not copy it from a spec sheet."
+        },
+        "product_id": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "`product_id` from GetDeviceInfo. The backend refuses to write when the connected radio reports anything else, which is the only protection against programming the wrong Benshi-family HT."
+        },
+        "transport": {
+          "type": "string",
+          "enum": [
+            "rfcomm",
+            "ble"
+          ],
+          "default": "rfcomm",
+          "description": "`rfcomm` is Linux-only (CPython on macOS has no AF_BLUETOOTH) but survives long write sessions. `ble` works on macOS but needs a bonded link created by a foreground GUI process, so it cannot be driven from a daemon or an SSH session."
+        },
+        "zone_model": {
+          "type": "string",
+          "enum": [
+            "region"
+          ],
+          "default": "region",
+          "description": "Benshi radios partition channels into regions: channel IDs restart at 0 inside each region, so a codeplugger zone is a region and there is no shared global channel pool."
+        },
+        "verified_firmware_version": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Firmware version of the unit these limits were actually read from, as reported by GetDeviceInfo. Limits are per-unit on this family, so this records what was measured rather than what is claimed."
+        }
+      }
     }
   },
   "$defs": {

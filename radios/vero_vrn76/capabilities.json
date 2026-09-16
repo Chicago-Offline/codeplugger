@@ -1,0 +1,33 @@
+{
+  "id": "vero_vrn76",
+  "name": "Vero VR-N76",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 192,
+    "max_zones": 6,
+    "max_channels_per_zone": 32,
+    "max_channel_name_chars": 10
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 480.0
+    }
+  ],
+  "modes": ["FM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "benlink": {
+    "vendor_id": 1,
+    "product_id": 259,
+    "transport": "rfcomm",
+    "zone_model": "region",
+    "verified_firmware_version": 147
+  },
+  "notes": "Vero Telecom VR-N76, programmed over the Benshi BLE/RFCOMM protocol via the emuehlstein/benlink fork (branch n76-support), not CHIRP. There is no CHIRP driver, so no chirp section is declared. Limits are device-reported, not spec-sheet: a live GetDeviceInfo on Eric's unit (2026-09-15, firmware 147) returned region_count 6, channel_count 32, frequency_range_count 5, supports_dmr false, supports_gmrs false, supports_noaa false, supports_vfo false. max_channels 192 is therefore 6 regions x 32 channels, and it is a per-unit figure: the Vero phone app exposes more regions on some units, so a different VR-N76 may legitimately report a larger region_count. Re-read device_info before trusting 192 on a second radio. A region is this radio's zone: channel IDs restart at 0 in every region and a channel only exists inside one region, so codeplugger zones map 1:1 onto regions with no shared global channel pool. max_channel_name_chars 10 is exact, from the wire format: RfCh.name_str is bf_str(10) in benlink protocol/command/rf_ch.py. Bandwidth is a single bit (NARROW/WIDE) mapping to 12.5/25 kHz. Sub-audio is CTCSS 67.0-254.1 Hz or DCS, per RfCh SubAudioMap. UNVERIFIED: the 136-174 / 400-480 band edges are the published dual-band figures, not measured. The device reports 5 frequency ranges but the Benshi protocol exposes only the count, never the edges (there is no freq-range read in benlink, only a use_freq_range_2 settings flag), so the real limits cannot be confirmed over the air and must be checked against the radio display. The protocol ModulationType also includes AM, but AM is not declared here: this unit reports no airband support and no AM channel has been written to it, so airband assignments should fail validation rather than emit a channel the radio may refuse. DMR is protocol-supported (RfChDMR) but supports_dmr is false on this hardware."
+}
