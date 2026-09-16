@@ -252,11 +252,55 @@ def test_channel_outside_every_zone_is_rejected() -> None:
         benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)
 
 
-def test_non_fm_mode_is_rejected() -> None:
-    codeplug = _codeplug([("Air", [_channel("a", "AIR", mode="AM")])])
+def test_dmr_mode_is_rejected() -> None:
+    codeplug = _codeplug([("Digital", [_channel("a", "DMR1", mode="DMR")])])
 
     with pytest.raises(ValueError, match="unsupported"):
         benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)
+
+
+def test_am_airband_receive_only_is_accepted() -> None:
+    codeplug = _codeplug([
+        ("Air", [
+            _channel(
+                "a", "ORD Twr",
+                rx_frequency_mhz=126.9,
+                tx_frequency_mhz=None,
+                mode="AM",
+                tx_permitted=False,
+            )
+        ]),
+    ])
+
+    entry = benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)["regions"][0]["channels"][0]
+
+    assert entry["modulation"] == "AM"
+    assert entry["tx_disable"] is True
+    assert entry["rx_mhz"] == 126.9
+    # Hardware-confirmed: this radio stores tx_freq as 0.0 for every AM
+    # channel regardless of what is written, so the plan reflects that
+    # rather than parking tx on rx like other receive-only channels do.
+    assert entry["tx_mhz"] == 0.0
+
+
+def test_am_with_transmit_permitted_is_rejected() -> None:
+    # No Part 97 authority to transmit on aviation frequencies from an
+    # amateur station; this is a legal constraint enforced regardless of
+    # what the radio itself would accept.
+    codeplug = _codeplug([
+        ("Air", [_channel("a", "ORD Twr", rx_frequency_mhz=126.9, mode="AM", tx_permitted=True)]),
+    ])
+
+    with pytest.raises(ValueError, match="receive-only"):
+        benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)
+
+
+def test_fm_mode_omits_modulation_field() -> None:
+    codeplug = _codeplug([("Ham", [_channel("a", "2m Call")])])
+
+    entry = benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)["regions"][0]["channels"][0]
+
+    assert "modulation" not in entry
 
 
 def test_mixed_ctcss_and_dcs_on_one_direction_is_rejected() -> None:

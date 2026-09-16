@@ -28,6 +28,15 @@ in the name. The Benshi wire format has a ``tx_disable`` bit, so
 ``tx_permitted: false`` is honoured properly and weather/airband/public-safety
 channels come out genuinely unable to transmit.
 
+**AM airband is receive-only, and that is enforced here, not just documented.**
+The unit reports no AM/airband feature flag over GetDeviceInfo, but it does
+tune and receive 108-137 MHz AM (confirmed on hardware 2026-09-16) -- the
+feature flags describe app-level gating, not the RfCh modulation enum, which
+has always carried an AM value. There is no Part 97 authority to transmit on
+aviation frequencies from an amateur station, so a ``mode: AM`` channel with
+``tx_permitted: true`` is a hard export error, independent of what the radio
+itself would do with it.
+
 Radio-specific switches live under a per-assignment ``extensions.benlink``
 key: ``scan``, ``mute``, ``talk_around``, ``power``. Scan is an extension
 because this radio has a single per-channel scan bit rather than the named
@@ -103,11 +112,21 @@ def _tone(tx_hz: float | None, rx_hz: float | None,
 
 def _channel_entry(slot: int, channel: ResolvedChannel) -> dict[str, Any]:
     mode = (channel.mode or "FM").upper()
-    if mode != "FM":
+    if mode not in ("FM", "AM"):
         raise ValueError(
             f"channel '{channel.display_name}' mode '{mode}' is unsupported: "
-            "the VR-N76 reports no DMR support and no AM channel has been "
-            "verified on it"
+            "the VR-N76 reports no DMR support"
+        )
+    if mode == "AM" and channel.tx_permitted:
+        # Confirmed 2026-09-16: this unit receives AM airband. There is no
+        # amateur (Part 97) authority to transmit on 108-137 MHz, so AM is
+        # only ever accepted receive-only -- this is a legal constraint,
+        # not a hardware one, and it is enforced here rather than trusted
+        # to the profile author.
+        raise ValueError(
+            f"channel '{channel.display_name}' is AM with tx_permitted true: "
+            "AM channels must be receive-only (no transmit authority on "
+            "airband from an amateur station)"
         )
 
     name = channel.display_name
@@ -137,8 +156,18 @@ def _channel_entry(slot: int, channel: ResolvedChannel) -> dict[str, Any]:
     # the radio simply refuses to key. Parking tx on rx keeps the plan
     # readable and means an accidental tx_disable flip transmits simplex on
     # a frequency the operator is already listening to, not somewhere else.
+    #
+    # AM is the one exception: hardware-confirmed 2026-09-16 that this radio
+    # stores tx_freq as 0.0 for every AM channel regardless of what is
+    # written -- there is no transmit path for AM on this hardware at all.
+    # Emitting 0 here means a hand-inspected plan already matches what the
+    # radio will report back, instead of showing a frequency the write will
+    # silently discard.
     tx_permitted = channel.tx_permitted and channel.tx_frequency_mhz is not None
-    tx_mhz = channel.tx_frequency_mhz if tx_permitted else channel.rx_frequency_mhz
+    if mode == "AM":
+        tx_mhz = 0.0
+    else:
+        tx_mhz = channel.tx_frequency_mhz if tx_permitted else channel.rx_frequency_mhz
 
     entry: dict[str, Any] = {
         "slot": slot,
@@ -163,6 +192,8 @@ def _channel_entry(slot: int, channel: ResolvedChannel) -> dict[str, Any]:
         entry["mute"] = True
     if extension.get("talk_around"):
         entry["talk_around"] = True
+    if mode != "FM":
+        entry["modulation"] = mode
     if channel.notes:
         entry["comment"] = channel.notes
     return entry
