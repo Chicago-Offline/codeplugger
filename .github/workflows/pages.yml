@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "radios/**"
+      - "tools/gen_radio_table.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -25,6 +27,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Build the radio table from radios/*/capabilities.json. Fails the deploy
+      # if a radio is missing its site row, rather than shipping a short table.
+      - name: Generate radio table
+        run: python3 tools/gen_radio_table.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
