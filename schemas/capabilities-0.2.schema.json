@@ -214,12 +214,17 @@
     },
     "benlink": {
       "type": "object",
-      "description": "How the `benlink` backend addresses this radio over the Benshi BLE/RFCOMM protocol. Omit for radios benlink cannot program; the backend then refuses rather than guessing a transport.",
+      "description": "How the `benlink` backend reaches and identifies this radio over the Benshi BLE/RFCOMM protocol. Present only for Benshi-protocol radios (Vero VR-N76, BTECH UV-Pro and relatives), which have no programming cable and no CHIRP driver. Omit for every other radio; the backend then refuses rather than guessing a transport.",
       "required": [
-        "product_id"
+        "device_name"
       ],
       "additionalProperties": false,
       "properties": {
+        "device_name": {
+          "type": "string",
+          "description": "Substring of the name the radio advertises over Bluetooth, used to find it during discovery. Case-insensitive.",
+          "minLength": 1
+        },
         "vendor_id": {
           "type": "integer",
           "minimum": 0,
@@ -228,7 +233,8 @@
         "product_id": {
           "type": "integer",
           "minimum": 0,
-          "description": "`product_id` from GetDeviceInfo. The backend refuses to write when the connected radio reports anything else, which is the only protection against programming the wrong Benshi-family HT."
+          "description": "`product_id` from GetDeviceInfo. The backend refuses to write when the connected radio reports anything else, which is the strongest protection available against programming the wrong Benshi-family HT. Absent means never read from hardware, and the backend falls back to the weaker region and channel count check.",
+          "$comment": "Optional rather than required because a radio entry can legitimately exist before anyone has connected one; the count check still gates those."
         },
         "transport": {
           "type": "string",
@@ -237,7 +243,8 @@
             "ble"
           ],
           "default": "rfcomm",
-          "description": "`rfcomm` is Linux-only (CPython on macOS has no AF_BLUETOOTH) but survives long write sessions. `ble` works on macOS but needs a bonded link created by a foreground GUI process, so it cannot be driven from a daemon or an SSH session."
+          "description": "`rfcomm` is Linux-only (CPython on macOS has no AF_BLUETOOTH) but survives long write sessions. `ble` works on macOS but needs a bonded link created by a foreground GUI process, so it cannot be driven from a daemon or an SSH session.",
+          "$comment": "This is a property of how the host must reach the radio, not a user preference, which is why it lives in capabilities."
         },
         "zone_model": {
           "type": "string",
@@ -246,6 +253,12 @@
           ],
           "default": "region",
           "description": "Benshi radios partition channels into regions: channel IDs restart at 0 inside each region, so a codeplugger zone is a region and there is no shared global channel pool."
+        },
+        "hardware_verified": {
+          "type": "boolean",
+          "default": false,
+          "description": "True only once a codeplug has actually been written to this model and read back clean. The backend refuses to program a radio marked false unless the caller explicitly opts in, because the identity gate over Bluetooth is weak: a self-reported product_id at best, and region and channel counts otherwise.",
+          "$comment": "Benshi family members share one protocol, so an untested model will appear to work right up until a field means something else on it."
         },
         "verified_firmware_version": {
           "type": "integer",

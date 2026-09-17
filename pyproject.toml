@@ -18,6 +18,16 @@ dependencies = [
 codeplugger-profile = "codeplugger.profile:main"
 codeplugger-fleet = "codeplugger.fleet:main"
 
+[project.optional-dependencies]
+# Benshi radios (Vero VR-N76, BTECH UV-Pro and relatives) are programmed over
+# Bluetooth; benlink is Apache-2.0 like codeplugger, so the backend imports it
+# rather than shelling out the way the GPL-3 CHIRP path has to. Pinned to the
+# Chicago Offline fork because region (channel bank) read/write is not in an
+# upstream release yet; see khusmann/benlink#28.
+benlink = [
+  "benlink @ git+https://github.com/emuehlstein/benlink.git@n76-support",
+]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 

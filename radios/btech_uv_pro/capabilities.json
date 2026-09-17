@@ -1,0 +1,21 @@
+{
+  "id": "btech_uv_pro",
+  "name": "BTECH UV-Pro",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 180,
+    "max_zones": 6,
+    "max_channels_per_zone": 30,
+    "max_channel_name_chars": 10,
+    "max_zone_name_chars": 10
+  },
+  "modes": ["FM", "AM"],
+  "bandwidths_khz": [12.5, 25.0],
+  "benlink": {
+    "device_name": "UV-PRO",
+    "transport": "ble",
+    "zone_model": "region",
+    "hardware_verified": false
+  },
+  "notes": "UNVERIFIED -- no physical radio has been connected. This entry exists so that the benlink backend has a second family member to exercise, and every write path through it is gated: hardware_verified is false, so the backend refuses to program it without an explicit opt-in, and it re-checks the connected radio's self-reported region and channel counts before writing anything. The UV-Pro is the best-documented Benshi handheld and benlink's primary target, sharing the BLE/RFCOMM protocol with the VR-N76; the per-radio figures below are the parts that do not transfer. limits come from BTECH's product page, which states 'Build 180 channels in six banks': six regions of thirty slots, the same region-scoped layout as the VR-N76 but with a different slot count, which is exactly why the backend trusts DevInfo over this file. The name-length figures are the protocol's, not the radio's, and are carried over from the shared RfCh struct. `bands` is deliberately ABSENT rather than guessed. BTECH documents the 108-136 MHz AM airband receiver as receive-only and states the radio is not certified for GMRS/Part 95E transmission, but publishes no transmit span on the product page, and the FCC grant behind the phrase 'the radio's FCC equipment authorization' has not been read. Listing only the airband would reject every channel the radio can actually use, and inventing a VHF/UHF transmit span would be exactly the inference this repository forbids, so the band check is skipped until someone reads the label. device_name is the assumed advertised Bluetooth name and has not been confirmed against a radio; it only affects discovery, not the write gate."
+}

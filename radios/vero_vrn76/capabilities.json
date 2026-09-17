@@ -6,7 +6,8 @@
     "max_channels": 192,
     "max_zones": 6,
     "max_channels_per_zone": 32,
-    "max_channel_name_chars": 10
+    "max_channel_name_chars": 10,
+    "max_zone_name_chars": 10
   },
   "bands": [
     {
@@ -17,23 +18,25 @@
     {
       "name": "UHF",
       "min_mhz": 400.0,
-      "max_mhz": 480.0
+      "max_mhz": 470.0
     },
     {
       "name": "Airband",
       "min_mhz": 108.0,
-      "max_mhz": 137.0,
+      "max_mhz": 136.0,
       "rx_only": true
     }
   ],
   "modes": ["FM", "AM"],
   "bandwidths_khz": [12.5, 25.0],
   "benlink": {
+    "device_name": "VR-N76",
     "vendor_id": 1,
     "product_id": 259,
     "transport": "rfcomm",
     "zone_model": "region",
+    "hardware_verified": false,
     "verified_firmware_version": 147
   },
-  "notes": "Vero Telecom VR-N76, programmed over the Benshi BLE/RFCOMM protocol via the emuehlstein/benlink fork (branch n76-support), not CHIRP. There is no CHIRP driver, so no chirp section is declared. Limits are device-reported, not spec-sheet: a live GetDeviceInfo on Eric's unit (2026-09-15, firmware 147) returned region_count 6, channel_count 32, frequency_range_count 5, supports_dmr false, supports_gmrs false, supports_noaa false, supports_vfo false. max_channels 192 is therefore 6 regions x 32 channels, and it is a per-unit figure: the Vero phone app exposes more regions on some units, so a different VR-N76 may legitimately report a larger region_count. Re-read device_info before trusting 192 on a second radio. A region is this radio's zone: channel IDs restart at 0 in every region and a channel only exists inside one region, so codeplugger zones map 1:1 onto regions with no shared global channel pool. max_channel_name_chars 10 is exact, from the wire format: RfCh.name_str is bf_str(10) in benlink protocol/command/rf_ch.py. Bandwidth is a single bit (NARROW/WIDE) mapping to 12.5/25 kHz. Sub-audio is CTCSS 67.0-254.1 Hz or DCS, per RfCh SubAudioMap. UNVERIFIED: the 136-174 / 400-480 band edges are the published dual-band figures, not measured. The device reports 5 frequency ranges but the Benshi protocol exposes only the count, never the edges (there is no freq-range read in benlink, only a use_freq_range_2 settings flag), so the real limits cannot be confirmed over the air and must be checked against the radio display. AM is declared as a valid mode: Eric confirmed 2026-09-16 that this unit receives AM airband (108-137 MHz) despite GetDeviceInfo's supports_gmrs/supports_noaa/etc bits saying nothing about it directly -- those flags describe app-level feature gating, not the RfCh modulation enum, which has always included AM (ModulationType.AM = 1, tx_mod/rx_mod independent fields) per benlink protocol/command/rf_ch.py. The 'Airband' band entry is rx_only: true and every exporter must refuse tx_permitted: true on an AM channel -- there is no FCC/Part 97 authority to transmit on 108-137 MHz from an amateur station, so this is a legal constraint enforced in software, not a hardware one. Untested: AM transmit itself (deliberately never attempted), and the 25 kHz airband channel spacing assumption -- the bandwidth field is a single NARROW/WIDE bit meant for FM deviation and its effect (if any) on AM channels is unverified. DMR is protocol-supported (RfChDMR) but supports_dmr is false on this hardware."
+  "notes": "Vero Telecom VR-N76, programmed over the Benshi BLE/RFCOMM protocol via the emuehlstein/benlink fork (branch n76-support), not CHIRP. There is no CHIRP driver, so no chirp section is declared. Limits are device-reported, not spec-sheet: a live GetDeviceInfo on Eric's unit (2026-09-15, firmware 147) returned region_count 6, channel_count 32, frequency_range_count 5, supports_dmr false, supports_gmrs false, supports_noaa false, supports_vfo false. max_channels 192 is therefore 6 regions x 32 channels, and it is a per-unit figure: the Vero phone app exposes more regions on some units, so a different VR-N76 may legitimately report a larger region_count. Re-read device_info before trusting 192 on a second radio. A region is this radio's zone: channel IDs restart at 0 in every region and a channel only exists inside one region, so codeplugger zones map 1:1 onto regions with no shared global channel pool. max_channel_name_chars 10 is exact, from the wire format: RfCh.name_str is bf_str(10) in benlink protocol/command/rf_ch.py. max_zone_name_chars 10 is the fixed-width region-name field, confirmed by write round-trip. Bandwidth is a single bit (NARROW/WIDE) mapping to 12.5/25 kHz. Sub-audio is CTCSS 67.0-254.1 Hz or DCS, per RfCh SubAudioMap. UNVERIFIED: the band edges are the vendor's published figures (transmit 136-174 and 400-470 MHz, 'Aviation AM RX (108-136MHz)'), which match the case marking on the bench unit, but they are not measured. VGC advertises CE 30086, CE 301783 and conformity with US FCC Part 97, and Part 97 is not an equipment-certification regime, so no grant exists to narrow them with; per the W31E precedent, capabilities state what the hardware transmits and leave licence limits to profile policy. The device reports 5 frequency ranges but the Benshi protocol exposes only the count, never the edges (there is no freq-range read in benlink, only a use_freq_range_2 settings flag), so the real limits cannot be confirmed over the air and must be checked against the radio display. AM is declared as a valid mode: Eric confirmed 2026-09-16 that this unit receives AM airband (108-137 MHz) despite GetDeviceInfo's supports_gmrs/supports_noaa/etc bits saying nothing about it directly -- those flags describe app-level feature gating, not the RfCh modulation enum, which has always included AM (ModulationType.AM = 1, tx_mod/rx_mod independent fields) per benlink protocol/command/rf_ch.py. The 'Airband' band entry is rx_only: true and every exporter must refuse tx_permitted: true on an AM channel -- there is no FCC/Part 97 authority to transmit on 108-137 MHz from an amateur station, so this is a legal constraint enforced in software, not a hardware one. Untested: AM transmit itself (deliberately never attempted), and the 25 kHz airband channel spacing assumption -- the bandwidth field is a single NARROW/WIDE bit meant for FM deviation and its effect (if any) on AM channels is unverified. DMR is protocol-supported (RfChDMR) but supports_dmr is false on this hardware. FM broadcast reception is deliberately NOT listed: the radio is believed to have it, but neither the span nor the behaviour has been checked, and an unverified band would let channels validate that may not work. hardware_verified is false: benlink channel writes have round-tripped and survived a power cycle on this radio, but no codeplugger-generated plan has been applied to it end to end yet, so the backend requires an explicit opt-in to program it."
 }

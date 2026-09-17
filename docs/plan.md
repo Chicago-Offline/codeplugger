@@ -204,6 +204,44 @@ Working today:
   reproduced an intended codeplug with zero mismatches. Remaining acceptance
   work is the on-demand path — re-running the two C64 writes through the
   backend rather than the one-off script.
+- Benshi Bluetooth radios (`vero_vrn76`, `btech_uv_pro`): a region-plan JSON
+  export (`exporters/benlink_plan.py`) and a gated write backend
+  (`backends/benlink.py`) built on
+  [`benlink`](https://github.com/khusmann/benlink). These radios have no
+  programming cable and no CHIRP driver, and there is no prospect of one:
+  CHIRP has no Bluetooth transport at all, so the vendor phone app and
+  benlink's reverse-engineered BLE/RFCOMM protocol are the only ways in.
+  benlink is Apache-2.0, the same licence as codeplugger, so unlike the GPL-3
+  CHIRP path it is imported rather than subprocessed — as an optional extra,
+  so codeplugger stays installable without a Bluetooth stack. Two things about
+  these radios do not fit the shape every other target has. Channels are
+  region-scoped: each region (a "group" on the VR-N76, a "bank" on the
+  UV-Pro) owns its own channel table instead of indexing one global pool, so
+  a resolved zone becomes a region and a channel wanted in two zones occupies
+  a slot in both. And the channel record carries a `tx_disable` bit, so a
+  receive-only assignment is finally exported as receive-only rather than as
+  the plain simplex channel the CHIRP CSV path has to settle for. The safety
+  model differs to match: there is no codeplug image to diff, each channel is
+  its own round trip, so the mandatory backup is a JSON snapshot of every
+  region the plan will touch and slots the plan does not fill are erased
+  rather than left behind (a region may opt out with `blank_unlisted: false`,
+  which is how the N76's firmware-owned APRS region stays untouched). There is
+  no model string to gate on either. Where a `product_id` has been read off a
+  physical radio the backend refuses to write to anything else; where it has
+  not, the fallback is the connected radio's self-reported region and channel
+  counts — which differ across the family, 6x32 on the VR-N76 against the
+  UV-Pro's advertised 180 channels in six banks — and any model not marked
+  `hardware_verified` needs an explicit opt-in regardless. Region support
+  (read/write region names and per-region channels) is not in an upstream
+  benlink release yet; the dependency is pinned to the Chicago Offline fork
+  while khusmann/benlink#28 is in draft. The VR-N76's bands get the W31E
+  treatment — 136-174 and 400-470 MHz transmit, per the case marking and the
+  vendor, with the 108-136 MHz aviation band receive-only — because FCC
+  Part 97 is not an equipment-certification regime and no grant exists to
+  narrow them with. The UV-Pro entry omits `bands` entirely rather than
+  guessing one: BTECH publishes no transmit span, and an invented one is
+  exactly the inference this project refuses. Neither radio has had a
+  codeplugger-generated plan written to it yet.
 - DM-32 analog channels/zones: NeonPlug `.neonplug` export
   (`exporters/neonplug/`, profile 0.1, FM only) as an interchange format for
   NeonPlug's own GUI, verified base-free against a pinned NeonPlug revision's

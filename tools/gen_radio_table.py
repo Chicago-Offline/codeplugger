@@ -102,7 +102,10 @@ def derive_modes(cap: dict) -> str:
     2026-09-16 so this column can be derived rather than restated.
 
     AM is receive-only on every radio we support (airband / FM broadcast
-    ``rx_only`` bands), so it renders as 'AM RX' and always comes last.
+    ``rx_only`` bands), so it renders as 'AM RX' and always comes last. A
+    radio that declares no ``bands`` at all is not checked against that: the
+    same degradation the profile validator uses, since absent capability data
+    means unknown rather than contradicted.
     """
     modes = cap.get("modes") or []
     if not modes:
@@ -115,7 +118,8 @@ def derive_modes(cap: dict) -> str:
             "derive_modes() how to render them"
         )
 
-    if "AM" in modes and not any(b.get("rx_only") for b in cap.get("bands") or []):
+    bands = cap.get("bands")
+    if "AM" in modes and bands and not any(b.get("rx_only") for b in bands):
         raise GenError(
             f"{cap['id']}: declares AM but has no rx_only band; the table renders "
             "AM as receive-only"
