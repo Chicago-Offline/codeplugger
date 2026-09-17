@@ -1,6 +1,6 @@
 """Export resolved analog channels as CHIRP-compatible CSV.
 
-Three constraints shape this exporter:
+These constraints shape this exporter:
 
 ``Duplex`` is limited to ``+``, ``-`` or empty. CHIRP's in-memory model also
 allows ``split`` and ``off``, but its CSV *parser* does not
@@ -30,6 +30,14 @@ scan. ``chirp_common`` defines exactly three values -- ``""`` (scan normally),
 ``"S"`` (skip) and ``"P"`` (priority) -- and drivers narrow that further via
 ``valid_skips``, which this exporter cannot see. Anything outside the three is
 rejected here rather than passed through to fail at import.
+
+``AM`` is accepted but only receive-only. Airband receivers are the reason it
+exists here (the HA2 and UV-5R Mini both declare AM), and there is no Part 97
+authority to transmit on 108-137 MHz from an amateur station, so an ``AM``
+channel with ``tx_permitted: true`` is a hard export error -- the same legal
+gate ``benlink_plan`` applies. Note that this refusal happens at export time
+and is not a transmit inhibit in the file: CHIRP CSV has no such field, so an
+AM row still imports as an ordinary simplex memory.
 """
 
 from __future__ import annotations
@@ -174,24 +182,36 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
 
     for idx, channel in enumerate(codeplug.channels, start=1):
         mode = (channel.mode or "FM").upper()
-        if mode != "FM":
+        if mode not in ("FM", "AM"):
             raise ValueError(
                 f"channel '{channel.display_name}' mode '{mode}' is unsupported "
                 "for CHIRP CSV export"
             )
+        if mode == "AM" and channel.tx_permitted:
+            raise ValueError(
+                f"channel '{channel.display_name}' is AM with tx_permitted true: "
+                "AM channels must be receive-only (no transmit authority on "
+                "airband from an amateur station)"
+            )
 
         duplex, offset = _duplex_and_offset(channel)
-        narrow = (
-            channel.bandwidth_khz is not None
-            and channel.bandwidth_khz <= NARROW_BANDWIDTH_KHZ
-        )
+        # The NFM/FM split is a bandwidth distinction within FM; AM has no
+        # narrow variant in chirp_common.MODES.
+        if mode == "AM":
+            chirp_mode = "AM"
+        else:
+            narrow = (
+                channel.bandwidth_khz is not None
+                and channel.bandwidth_khz <= NARROW_BANDWIDTH_KHZ
+            )
+            chirp_mode = "NFM" if narrow else "FM"
         row = {
             "Location": str(idx),
             "Name": channel.display_name,
             "Frequency": _format_frequency(channel.rx_frequency_mhz),
             "Duplex": duplex,
             "Offset": offset,
-            "Mode": "NFM" if narrow else "FM",
+            "Mode": chirp_mode,
             "TStep": "5.00",
             "Skip": _skip(channel),
             "Comment": channel.notes or "",
