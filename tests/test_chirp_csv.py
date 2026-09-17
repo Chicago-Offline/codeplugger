@@ -328,6 +328,61 @@ def test_chirp_csv_rejects_non_fm_modes() -> None:
         chirp_csv_from_resolved(_codeplug(channels))
 
 
+def _airband_channel(*, tx_permitted: bool = False) -> ResolvedChannel:
+    return ResolvedChannel(
+        reference="twr",
+        assignment_id="twr",
+        display_name="ORD TWR",
+        rx_frequency_mhz=120.750,
+        tx_frequency_mhz=None,
+        mode="AM",
+        service="airband",
+        tones=ResolvedTones(),
+        tx_permitted=tx_permitted,
+        notes="tower",
+    )
+
+
+def test_chirp_csv_exports_am_airband_as_receive_only() -> None:
+    text = chirp_csv_from_resolved(_codeplug([_airband_channel()]))
+    row = list(csv.DictReader(io.StringIO(text)))[0]
+
+    assert row["Mode"] == "AM"
+    assert row["Frequency"] == "120.750000"
+    assert row["Duplex"] == ""
+    assert row["Offset"] == "0.000000"
+
+
+def test_chirp_csv_refuses_to_transmit_on_am() -> None:
+    # A legal constraint, not a hardware one: there is no Part 97 authority to
+    # transmit on airband, so this is refused regardless of what the radio can do.
+    with pytest.raises(ValueError, match="receive-only"):
+        chirp_csv_from_resolved(_codeplug([_airband_channel(tx_permitted=True)]))
+
+
+def test_chirp_csv_am_has_no_narrow_variant() -> None:
+    """Bandwidth picks NFM vs FM, but never narrows AM: chirp_common has no NAM."""
+
+    channels = [
+        ResolvedChannel(
+            reference="twr",
+            assignment_id="twr",
+            display_name="ORD TWR",
+            rx_frequency_mhz=120.750,
+            tx_frequency_mhz=None,
+            mode="AM",
+            service="airband",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            bandwidth_khz=12.5,
+            notes=None,
+        )
+    ]
+
+    row = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))[0]
+    assert row["Mode"] == "AM"
+
+
 def test_chirp_csv_zero_pads_dtcs_codes() -> None:
     """DTCS codes are three-digit, matching CHIRP's own "%03i" output.
 
