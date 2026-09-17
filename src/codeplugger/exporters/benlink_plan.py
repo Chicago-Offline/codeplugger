@@ -3,8 +3,8 @@
 This is the write path for the Vero VR-N76 and its Benshi-protocol siblings.
 Unlike every other exporter here, the artifact is not a file a vendor CPS
 imports -- there is no CPS for these radios on desktop, and no CHIRP driver.
-The plan is consumed by ``apply_codeplug.py`` in the benlink fork, which
-writes channels over BLE/RFCOMM directly.
+The plan is consumed by :mod:`codeplugger.backends.benlink`, which writes
+channels over BLE/RFCOMM directly.
 
 The format is specified in the benlink repo (``docs/codeplug-plan.md``); the
 subset this exporter emits is version 1.
@@ -253,8 +253,8 @@ def benlink_plan_from_resolved(
     false to emit a patch that only touches the listed slots.
 
     ``capabilities`` supplies the radio identity and geometry. Without it the
-    plan still applies, but ``apply_codeplug.py`` loses its check that the
-    connected radio is the model the plan was built for.
+    plan still applies, but the backend loses its check that the connected
+    radio is the model the plan was built for.
     """
     capabilities = capabilities or {}
     benlink_caps = capabilities.get("benlink", {})

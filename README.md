@@ -23,8 +23,8 @@ flowchart LR
     registry["Instance registry<br/>fleet radios, optional"]
     resolve["codeplugger<br/>Resolve and validate against radio capabilities"]
     resolved["Resolved codeplug<br/>radio-neutral, deterministic"]
-    backend["Programming backend<br/>gated write: dmrconf, p64tool, chirp-writer"]
-    exporter["Exporter<br/>CHIRP CSV / qdmr YAML / P4 TOML"]
+    backend["Programming backend<br/>gated write: dmrconf, p64tool, chirp-writer, benlink"]
+    exporter["Exporter<br/>CHIRP CSV / qdmr YAML / P4 TOML / benlink plan"]
     cps["CPS tool<br/>CHIRP / vendor CPS"]
     artifacts["Artifacts<br/>HTML reference + operation log"]
     radio["Radio"]
@@ -117,13 +117,14 @@ cross-repository contract and end-to-end tests.
 Profile resolution and validation, the fleet dry run, P4 TOML export with a
 gated `p64tool` write backend, DM-32 qdmr YAML export with a gated,
 hardware-verified `dmrconf` write backend, CHIRP CSV export for analog radios
-with a gated `chirp-writer` write backend, and HTML/Markdown/operation-log
-artifacts are working today. The `chirp-writer` path has not yet been accepted
-against a physical radio. The near-term priority is deepening DM-32 support by
-contributing missing settings (display colors, button functions) upstream to
-qdmr, then widening the qdmr backend to more radios; see
-[docs/plan.md](docs/plan.md) for the sequenced plan and what is deliberately
-deferred.
+with a gated `chirp-writer` write backend, Bluetooth programming of Benshi
+radios through a gated `benlink` backend, and HTML/Markdown/operation-log
+artifacts are working today. The `chirp-writer` path is hardware-verified on
+the FT-2800M; the `benlink` path has not yet been accepted against a physical
+radio. The near-term priority is deepening DM-32 support by contributing
+missing settings (display colors, button functions) upstream to qdmr, then
+widening the qdmr backend to more radios; see [docs/plan.md](docs/plan.md) for
+the sequenced plan and what is deliberately deferred.
 
 Repository directories:
 

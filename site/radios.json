@@ -103,6 +103,15 @@
       "headless": { "supported": true, "hw": true }
     },
     {
+      "id": "btech_uv_pro",
+      "vendor": "Dual-band, Bluetooth",
+      "chirp_csv": false,
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
+    },
+    {
       "id": "yaesu_ft270",
       "vendor": "2 m submersible",
       "chirp_csv": { "supported": true, "note": "as VX-170" },
