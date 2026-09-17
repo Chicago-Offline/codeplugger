@@ -43,8 +43,9 @@ BLOCK_BACKENDS = {"chirp": "chirp-writer", "benlink": "benlink"}
 
 ARTIFACT_COLUMNS = ("chirp_csv", "qdmr_yaml", "p64_toml", "oem_cps")
 
-# How a capabilities mode has to appear in the displayed Modes cell. AM is
-# receive-only on every radio we support (airband / FM broadcast rx_only bands).
+# How each capabilities mode renders in the Modes cell. Insertion order is the
+# display order. AM is receive-only on every radio we support (airband / FM
+# broadcast rx_only bands).
 MODE_TOKENS = {"DMR": "DMR", "FM": "FM", "AM": "AM RX"}
 
 
@@ -92,50 +93,35 @@ def load_rows() -> list[dict]:
 # --------------------------------------------------------------------------
 
 
-def render_modes(cap: dict, declared: list | None) -> str:
-    """Render the Modes cell, cross-checked against capabilities.json.
+def derive_modes(cap: dict) -> str:
+    """Render the Modes cell straight from ``capabilities.modes``.
 
-    The displayed cell is a claim about the *radio*; ``capabilities.modes`` is
-    the set of modes codeplugger will emit for it, and at least one radio
-    (baofeng_uv5r_mini) documents its ``modes`` as emission policy rather than
-    a hardware fact. So the cell is declared in site/radios.json and validated
-    here: it must cover every mode capabilities.json declares, and may not
-    invent tokens.
+    ``modes`` is a hardware claim everywhere in this repo -- the schema calls it
+    "Channel modes the radio supports". baofeng_uv5r_mini used to document its
+    ``modes`` as codeplugger emission policy instead; that was corrected
+    2026-09-16 so this column can be derived rather than restated.
+
+    AM is receive-only on every radio we support (airband / FM broadcast
+    ``rx_only`` bands), so it renders as 'AM RX' and always comes last.
     """
-    if not declared:
-        raise GenError(f"{cap['id']}: site/radios.json entry has no 'modes'")
+    modes = cap.get("modes") or []
+    if not modes:
+        raise GenError(f"{cap['id']}: no modes declared")
 
-    unknown = [m for m in declared if m not in MODE_TOKENS.values()]
+    unknown = sorted(set(modes) - set(MODE_TOKENS))
     if unknown:
         raise GenError(
-            f"{cap['id']}: unknown mode token(s) {unknown}; allowed: "
-            + ", ".join(sorted(set(MODE_TOKENS.values())))
+            f"{cap['id']}: unhandled mode(s) {unknown} -- teach MODE_TOKENS and "
+            "derive_modes() how to render them"
         )
 
-    caps_modes = cap.get("modes") or []
-    bad = sorted(set(caps_modes) - set(MODE_TOKENS))
-    if bad:
-        raise GenError(f"{cap['id']}: unhandled capabilities mode(s) {bad}")
-
-    missing = sorted(
-        MODE_TOKENS[m] for m in caps_modes if MODE_TOKENS[m] not in declared
-    )
-    if missing:
+    if "AM" in modes and not any(b.get("rx_only") for b in cap.get("bands") or []):
         raise GenError(
-            f"{cap['id']}: capabilities.json declares mode(s) the site table "
-            f"does not show: {missing}"
+            f"{cap['id']}: declares AM but has no rx_only band; the table renders "
+            "AM as receive-only"
         )
 
-    if "AM RX" in declared and not any(
-        b.get("rx_only") for b in cap.get("bands") or []
-    ):
-        raise GenError(
-            f"{cap['id']}: table shows 'AM RX' but capabilities.json has no "
-            "rx_only band"
-        )
-
-    order = ["DMR", "FM", "AM RX"]
-    return " · ".join(sorted(declared, key=order.index))
+    return " · ".join(MODE_TOKENS[m] for m in MODE_TOKENS if m in modes)
 
 
 def derive_backend(cap: dict, declared: str | None) -> str | None:
@@ -255,7 +241,7 @@ def render_row(cap: dict, row: dict) -> list[str]:
         f"{ROW_INDENT}<tr>",
         f'{CELL_INDENT}<th scope="row">{name} '
         f'<span class="vendor">{vendor}</span></th>',
-        f'{CELL_INDENT}<td class="modes">{render_modes(cap, row.get("modes"))}</td>',
+        f'{CELL_INDENT}<td class="modes">{derive_modes(cap)}</td>',
     ]
     lines += [CELL_INDENT + render_cell(cells[c]) for c in ARTIFACT_COLUMNS]
     lines.append(CELL_INDENT + render_cell(headless))

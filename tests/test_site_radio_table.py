@@ -84,47 +84,43 @@ AIRBAND = {"name": "Airband", "min_mhz": 108.0, "max_mhz": 136.0, "rx_only": Tru
 
 def test_modes_render_in_a_fixed_order():
     cap = {"id": "test", "name": "Test", "modes": ["AM", "FM", "DMR"], "bands": [AIRBAND]}
-    assert gen.render_modes(cap, ["AM RX", "DMR", "FM"]) == "DMR · FM · AM RX"
-
-
-def test_site_table_may_not_hide_a_capabilities_mode():
-    """If capabilities gains DMR, the table cannot keep saying FM only."""
-    cap = {"id": "test", "name": "Test", "modes": ["FM", "DMR"]}
-    with pytest.raises(gen.GenError, match="DMR"):
-        gen.render_modes(cap, ["FM"])
-
-
-def test_site_table_may_show_rx_only_am_capabilities_omits():
-    """baofeng_uv5r_mini: modes is emission policy, AM RX is still true."""
-    cap = {"id": "test", "name": "Test", "modes": ["FM"], "bands": [AIRBAND]}
-    assert gen.render_modes(cap, ["FM", "AM RX"]) == "FM · AM RX"
+    assert gen.derive_modes(cap) == "DMR · FM · AM RX"
 
 
 def test_am_without_rx_only_band_is_an_error():
     cap = {
         "id": "test",
         "name": "Test",
-        "modes": ["FM"],
+        "modes": ["FM", "AM"],
         "bands": [{"name": "VHF", "min_mhz": 136.0, "max_mhz": 174.0}],
     }
     with pytest.raises(gen.GenError, match="rx_only"):
-        gen.render_modes(cap, ["FM", "AM RX"])
+        gen.derive_modes(cap)
 
 
-def test_unknown_mode_token_is_an_error():
-    cap = {"id": "test", "name": "Test", "modes": ["FM"]}
+def test_unknown_mode_is_an_error():
+    cap = {"id": "test", "name": "Test", "modes": ["FM", "P25"]}
     with pytest.raises(gen.GenError, match="P25"):
-        gen.render_modes(cap, ["FM", "P25"])
+        gen.derive_modes(cap)
 
 
-def test_uv5r_mini_keeps_its_am_rx_cell():
-    """Regression: deriving modes from capabilities would drop this."""
+def test_uv5r_mini_shows_am_rx():
+    """Regression: capabilities declared FM only until 2026-09-16, which would
+    have silently dropped this radio's airband RX from the table."""
+    caps = gen.load_capabilities()
+    assert caps["baofeng_uv5r_mini"]["modes"] == ["FM", "AM"]
     assert 'class="modes">FM · AM RX' in gen.build_tbody()
+
+
+def test_modes_is_not_duplicated_in_site_data():
+    """Modes is derived; restating it in site/radios.json would let it drift."""
+    for row in gen.load_rows():
+        assert "modes" not in row, f"{row['id']}: drop 'modes', it is derived"
 
 
 def test_site_rows_use_known_columns():
     data = json.loads(gen.RADIOS_JSON.read_text())
-    allowed = {"id", "vendor", "modes", "headless", *gen.ARTIFACT_COLUMNS}
+    allowed = {"id", "vendor", "headless", *gen.ARTIFACT_COLUMNS}
     for row in data["rows"]:
         extra = set(row) - allowed
         assert not extra, f"{row.get('id')}: unknown key(s) {sorted(extra)}"

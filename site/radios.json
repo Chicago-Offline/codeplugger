@@ -8,14 +8,9 @@
     "",
     "Columns generated from capabilities.json (never listed here):",
     "  Radio name  <- capabilities.name",
+    "  Modes       <- capabilities.modes  (DMR, FM, then 'AM RX' -- AM is RX-only)",
     "  Headless write backend <- capabilities.chirp -> chirp-writer,",
     "                            capabilities.benlink -> benlink.",
-    "",
-    "'modes' IS listed here, and is checked rather than derived. The cell is a",
-    "claim about the radio; capabilities.modes is the set of modes codeplugger",
-    "will emit for it. baofeng_uv5r_mini documents its modes as emission policy,",
-    "not a hardware fact, so deriving the cell would wrongly drop its AM RX. The",
-    "generator requires every capabilities mode to appear here (AM -> 'AM RX').",
     "",
     "What lives here is what capabilities.json deliberately does not model: the",
     "vendor blurb, the 'hw' (verified on a physical radio) badges, whether a given",
@@ -29,7 +24,6 @@
     {
       "id": "baofeng_dm32",
       "vendor": "DM-32UV",
-      "modes": ["DMR", "FM", "AM RX"],
       "chirp_csv": false,
       "qdmr_yaml": true,
       "p64_toml": false,
@@ -39,7 +33,6 @@
     {
       "id": "retevis_matetalk_p4",
       "vendor": "UHF DMR",
-      "modes": ["DMR", "FM"],
       "chirp_csv": false,
       "qdmr_yaml": false,
       "p64_toml": true,
@@ -49,7 +42,6 @@
     {
       "id": "baofeng_uv5r_mini",
       "vendor": "UV-17Pro family",
-      "modes": ["FM", "AM RX"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -59,7 +51,6 @@
     {
       "id": "baofeng_bf_c50",
       "vendor": "70 cm, no display",
-      "modes": ["FM"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -69,7 +60,6 @@
     {
       "id": "baofeng_bf888s",
       "vendor": "UHF, no display",
-      "modes": ["FM"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -79,7 +69,6 @@
     {
       "id": "baofeng_w31e",
       "vendor": "UHF, no display",
-      "modes": ["FM"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -89,7 +78,6 @@
     {
       "id": "ailunce_ha2",
       "vendor": "Dual-band analog",
-      "modes": ["FM", "AM RX"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -99,7 +87,6 @@
     {
       "id": "retevis_c64",
       "vendor": "Dual-band analog",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "hw": true },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -109,7 +96,6 @@
     {
       "id": "vero_vrn76",
       "vendor": "Dual-band, Bluetooth",
-      "modes": ["FM", "AM RX"],
       "chirp_csv": false,
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -119,7 +105,6 @@
     {
       "id": "yaesu_ft270",
       "vendor": "2 m submersible",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "note": "as VX-170" },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -129,7 +114,6 @@
     {
       "id": "yaesu_ft270_mars",
       "vendor": "TX-modded variant",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "note": "as VX-170" },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -139,7 +123,6 @@
     {
       "id": "yaesu_ft277",
       "vendor": "70 cm submersible",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "note": "as VX-177", "hw": true },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -149,7 +132,6 @@
     {
       "id": "yaesu_ft277_mars",
       "vendor": "TX-modded variant",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "note": "as VX-177" },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -159,7 +141,6 @@
     {
       "id": "yaesu_ft2800m",
       "vendor": "2 m mobile",
-      "modes": ["FM"],
       "chirp_csv": { "supported": true, "hw": true },
       "qdmr_yaml": false,
       "p64_toml": false,
@@ -169,7 +150,6 @@
     {
       "id": "yaesu_ft2800m_mars",
       "vendor": "TX-modded variant",
-      "modes": ["FM"],
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
