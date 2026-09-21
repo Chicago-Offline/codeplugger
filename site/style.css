@@ -204,6 +204,14 @@ section > .wrap > p.sub { margin: 0 0 2rem; color: var(--text-dim); max-width: 7
 .features h3 { margin: 0 0 0.35rem; font-size: 1rem; color: var(--text); }
 .features p { margin: 0; color: var(--text-dim); font-size: 0.9rem; }
 
+/* community codeplugs (codeplugs/index.html, generated) */
+.codeplugs { display: grid; gap: 1.2rem; }
+.codeplugs article { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; }
+.codeplugs h3 { margin: 0 0 0.35rem; font-size: 1rem; color: var(--text); }
+.codeplugs .matrix { min-width: 420px; }
+.meta { margin: 0.5rem 0 0; color: var(--text-dim); font-size: 0.85rem; overflow-wrap: anywhere; }
+.codeplugs article > .meta:first-of-type { margin: 0 0 0.9rem; }
+
 /* ecosystem */
 .eco { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
 .eco a.card {

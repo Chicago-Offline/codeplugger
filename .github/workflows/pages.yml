@@ -6,9 +6,18 @@ on:
     paths:
       - "site/**"
       - "radios/**"
+      - "src/**"
       - "tools/gen_radio_table.py"
+      - "tools/build_site_artifacts.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+  # Profiles and SSRF data live in other repositories, so a change there has to
+  # be able to rebuild the published codeplugs. Those repos can trigger this
+  # with repository_dispatch; the nightly run is the backstop if one does not.
+  repository_dispatch:
+    types: [sources-changed]
+  schedule:
+    - cron: "17 6 * * *"
 
 permissions:
   contents: read
@@ -27,10 +36,55 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Check out the ssrf-lite data at the same revision pyproject.toml pins
+      # the package to, so the loader and the data it reads cannot drift apart.
+      # Read the pin rather than restating it here.
+      - name: Resolve the ssrf-lite pin
+        id: pins
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import pathlib, re
+          text = pathlib.Path("pyproject.toml").read_text()
+          match = re.search(r"ssrf-lite @ git\+\S+?@([0-9a-f]{7,40})", text)
+          if not match:
+              raise SystemExit("no pinned ssrf-lite revision in pyproject.toml")
+          print(f"ssrf_lite={match.group(1)}")
+          PY
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Chicago-Offline/ssrf-lite
+          ref: ${{ steps.pins.outputs.ssrf_lite }}
+          path: checkouts/ssrf-lite
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Chicago-Offline/chioff-ssrf-shared
+          path: checkouts/chioff-ssrf-shared
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Chicago-Offline/chioff-codeplugger-profiles-shared
+          path: checkouts/chioff-codeplugger-profiles-shared
+
+      - run: pip install .
+
       # Build the radio table from radios/*/capabilities.json. Fails the deploy
       # if a radio is missing its site row, rather than shipping a short table.
       - name: Generate radio table
         run: python3 tools/gen_radio_table.py
+
+      # Also the project's end-to-end integration test: a profile that stops
+      # resolving, or an SSRF change that breaks a radio limit, fails here
+      # instead of at a bench session.
+      - name: Build community codeplugs
+        run: python3 tools/build_site_artifacts.py --checkout-root checkouts
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

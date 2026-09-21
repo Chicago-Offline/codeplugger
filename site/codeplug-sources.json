@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "Profile sources the site builds downloadable codeplugs from.",
+    "",
+    "tools/build_site_artifacts.py reads this, resolves every listed profile",
+    "against the listed SSRF roots, and writes site/codeplugs/. A profile that",
+    "fails to resolve fails the build -- this file is the project's end-to-end",
+    "integration test as much as it is site content.",
+    "",
+    "'checkout' names a sibling directory, not a path: the builder resolves it",
+    "under --checkout-root, which defaults to this repository's parent. That",
+    "way a developer with the usual ~/src/ layout runs the builder with no",
+    "flags, and CI passes the directory it cloned into.",
+    "",
+    "ssrf_roots are listed in precedence order, same as repeated --ssrf-root.",
+    "",
+    "Which file formats a profile produces is NOT listed here. It comes from",
+    "the radio's row in site/radios.json, so a radio cannot advertise an",
+    "export column in the support table and then fail to offer the file."
+  ],
+  "sources": [
+    {
+      "id": "chioff-shared",
+      "name": "Chicago Offline community net",
+      "description": "Shared GMRS and MURS channels for the Chicago Offline community net. Instance-agnostic: no personal DMR IDs, no per-operator settings.",
+      "repo": "https://github.com/Chicago-Offline/chioff-codeplugger-profiles-shared",
+      "checkout": "chioff-codeplugger-profiles-shared",
+      "ssrf_roots": [
+        {"checkout": "ssrf-lite", "path": "ssrf"},
+        {"checkout": "chioff-ssrf-shared", "path": "ssrf"}
+      ],
+      "profiles": [
+        "profiles/baofeng_dm32/chioff_shared.yml"
+      ]
+    }
+  ]
+}
