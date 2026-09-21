@@ -258,53 +258,87 @@ Working today:
   validates against this repository's DM-32 capabilities, and generates
   qdmr YAML. Small self-contained fixtures remain here for fast unit tests.
 
-## Now: operate the DM-32 path, deepen it upstream, get analog off the GUI
+## Now: publish community codeplugs, get off fork pins, finish analog acceptance
 
-The DM-32 headless path is complete and hardware-verified. The current
-focus is keeping it operational, closing the feature gap against the OEM
-tooling by contributing to qdmr, and reusing the `dmrconf` investment:
+Every stage of the pipeline works and four write backends exist, but the
+only operator who has ever run it is the maintainer, on the bench. The
+priority now is getting the output into other people's hands with nothing
+to install, and making the ecosystem the project depends on outlast a
+single maintainer's forks:
 
-1. **Run the DM-32 path in anger.** Program the real fleet from the private
-   profile repository, keep the operation log and read-back archives as the
-   audit trail, and feed any on-radio surprises back into SSRF data,
-   profiles, or exporter defaults (never into the generated codeplug).
-2. **Grow the DM-32 feature set by contributing to qdmr.** Where NeonPlug
-   (and the OEM CPS) can set something the `dmrconf` path cannot, the fix
-   belongs upstream, not in a codeplugger-side byte patcher. qdmr's
-   `DM32UVCodeplug` already decodes and encodes the relevant bytes
-   (`GeneralSettingsElement`: call/standby/channel-name/zone-name colors,
-   side-key and P1/P2 short/long-press `KeyFunction`s, long-press duration,
-   side-key lock, backlight, date format, boot display; `ChannelElement`:
-   key index) but does not surface them in the configuration model, so
-   they are neither readable nor writable from YAML. The work is a
-   `DM32UVExtension` in the pattern of qdmr's existing AnyTone/Radioddity/
-   TYT extensions, wired into `GeneralSettingsElement::decode/encode`, plus
-   `dmrconf verify` limits and docs. Sequence, one PR each, smallest first:
-   1. display colors (unblocks the long-standing screen-color gap),
-   2. programmable key functions (SK1/SK2/P1/P2 short and long press,
-      long-press duration, side-key lock),
-   3. remaining general settings NeonPlug exposes (backlight, date
-      format, roger tone, APO, and so on),
-   4. per-channel extras (key index, any DM-32-only channel flags).
-   Each PR is validated against a real radio via read/write round-trip.
-   On the codeplugger side, expose each landed setting through the
-   existing `extensions.qdmr` passthrough first; promote something to
-   first-class profile schema only if it turns out to be radio-neutral
-   policy (button mappings are the likely candidate). NeonPlug's byte
-   codec and the
-   [base-free experiment](neonplug-base-free-experiment.md) serve as the
-   reference for field meanings, not as a delivery path. Until a PR is
-   released, pin the exporter's `QDMR_CONFIG_VERSION` and tests to the
-   qdmr revision that carries it and document the required build.
-3. **Take the analog path off the CHIRP GUI.** The `chirp-writer` backend
-   exists but has never driven a radio. Accept it on two radios that
-   exercise both halves of the design: the Retevis C64, which answers on
-   demand, and the FT-277R, whose clone mode needs an operator for every
-   transfer. A pass is a real write with a clean read-back diff plus the
-   backup and operation log kept as the audit trail. Until then the GUI
-   remains the write path for analog radios, and the one-off C64 script
-   stays where it is rather than being deleted.
-4. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
+1. **Serve prebuilt community codeplugs from the site.** A Pages workflow
+   checks out `ssrf-lite` at the pinned revision, `chioff-ssrf-shared`, and
+   `chioff-codeplugger-profiles-shared`, runs `codeplugger-profile` for
+   every shared profile, and publishes per radio: the HTML reference, the
+   CHIRP CSV / qdmr YAML / benlink plan, and the SHA-256. The generated
+   radio table in `site/index.html` gains a community-net column linking to
+   those files, so it says not just "supported" but "here is the codeplug".
+   A member with a BF-888S downloads a CSV and imports it in CHIRP; no
+   clone, no `uv`, no CLI flags. The same job is the end-to-end integration
+   test the project has lacked: every SSRF or profile change rebuilds on CI,
+   a change like the September GMRS wide/narrow flip shows up as an
+   artifact diff rather than a bench surprise, and the published hashes
+   make the deterministic-build claim something anyone can check locally.
+   Shared profiles are instance-agnostic, so no personal DMR IDs are
+   involved (qdmr output carries the `UNUSED` placeholder ID); the shared
+   repositories are already public by intent, and the artifacts stay
+   disposable, regenerated from sources on every build. Start with a
+   `tools/build_site_artifacts.py` beside `tools/gen_radio_table.py` and a
+   matrix job in `.github/workflows/pages.yml`.
+2. **Upstream the forks the project is pinned to.** Three write paths
+   currently depend on code that lives only in a personal fork or a local
+   checkout, each a single-maintainer bus factor:
+   - **benlink**: region (channel bank) read/write is pinned to the
+     `emuehlstein/benlink@n76-support` branch while khusmann/benlink#28 is
+     in draft. Land it, then move the `benlink` extra to a release.
+   - **qdmr**: the DM-32UV button mappings and display colors are
+     hardware-validated in a local fork but not upstream. The work is a
+     `DM32UVExtension` in the pattern of qdmr's AnyTone/Radioddity/TYT
+     extensions, wired into `GeneralSettingsElement::decode/encode`, plus
+     `dmrconf verify` limits and docs. One PR each, smallest first:
+     display colors, then programmable key functions (SK1/SK2/P1/P2 short
+     and long press, long-press duration, side-key lock), then the
+     remaining general settings NeonPlug exposes (backlight, date format,
+     roger tone, APO), then per-channel extras (key index). Each PR is
+     validated against a real radio via read/write round-trip. On the
+     codeplugger side, expose each landed setting through the existing
+     `extensions.qdmr` passthrough first; promote something to first-class
+     profile schema only if it turns out to be radio-neutral policy
+     (button mappings are the likely candidate). NeonPlug's byte codec and
+     the [base-free experiment](neonplug-base-free-experiment.md) are the
+     reference for field meanings, not a delivery path. Until a PR is
+     released, pin the exporter's `QDMR_CONFIG_VERSION` and tests to the
+     qdmr revision that carries it and document the required build.
+   - **CHIRP**: the BF-C50 driver exists on the `bf-c50` branch of
+     `emuehlstein/chirpnewfangs` but cannot go upstream until an image read
+     off a physical radio exists, because CHIRP's driver tests are
+     image-driven. Read one, add the test image, open the PR; only then
+     does `baofeng_bf_c50` get a `chirp` block.
+3. **Finish `chirp-writer` acceptance on an on-demand radio.** The
+   backend is hardware-verified on the FT-2800M, a `clone_mode: manual`
+   radio, which was the risky half. The other half — a radio that answers
+   on demand — has only been written through the one-off C64 script.
+   Re-run the two C64 writes through the backend with a clean read-back
+   diff, then delete the script. Until then the analog headless claim
+   rests on one radio.
+4. **Allow the same assignment in more than one zone.** Profile 0.1
+   rejects it ("assignment X is selected more than once"). On region-scoped
+   radios (the Benshi family) that blocks the natural "same repeater in
+   several groups" layout outright, and on every other radio it is an odd
+   restriction with no capability behind it. Lift it in the schema and
+   let exporters that index a global channel pool emit the channel once.
+5. **Model instance-agnostic profiles in the fleet join.** The registry
+   join is 1:1 `radio_instance == instance_id`, so every shared community
+   profile errors under `codeplugger-fleet` by design and is validated
+   per-profile instead. Item 1 sidesteps this by publishing per profile,
+   but it is the same gap: a profile with no `radio_instance` should be
+   joinable to any registered radio of its `radio`.
+6. **Keep the DM-32 fleet running.** Program the real fleet from the
+   private profile repository, keep the operation log and read-back
+   archives as the audit trail, and feed any on-radio surprises back into
+   SSRF data, profiles, or exporter defaults (never into the generated
+   codeplug).
+7. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
    YAML exporter and `dmrconf` backend are already radio-neutral; adding a
    radio qdmr supports should mostly be a capabilities file plus a
    `dmrconf verify --radio=<key>` skip-if-uninstalled test. Candidates in
@@ -313,23 +347,36 @@ tooling by contributing to qdmr, and reusing the `dmrconf` investment:
    Baofeng DM-1701. Each needs a named, reviewed set of exporter defaults
    where qdmr's limits differ from the DM-32UV (placeholders, name lengths,
    list minimums).
-5. **OpenGD77 via `dmrconf`.** `radios/opengd77/` exists and is empty.
+8. **OpenGD77 via `dmrconf`.** `radios/opengd77/` exists and is empty.
    Capabilities plus the qdmr path first; an OpenGD77 CPS CSV exporter only
    if the `dmrconf` path leaves gaps.
 
 Known gaps:
 
+- Nothing generated by codeplugger is reachable without cloning three
+  repositories and installing the CLI; tracked by item 1 above.
+- Three write paths depend on unmerged fork branches or local checkouts
+  (benlink regions, qdmr DM-32UV extension, CHIRP BF-C50 driver); tracked
+  by item 2 above.
 - DM-32 display colors, button functions, and most general settings are
-  not reachable through `dmrconf` YAML today; tracked by item 2 above.
+  not reachable through a released `dmrconf` today; tracked by item 2.
+- The `chirp-writer` backend is hardware-verified on one radio
+  (FT-2800M, manual clone mode). The on-demand path has only been driven
+  by the one-off C64 script; tracked by item 3.
+- The `benlink` backend has not written a codeplugger-generated plan to a
+  physical radio yet; `vero_vrn76` stays `hardware_verified: false` until
+  it has.
+- An assignment cannot appear in two zones; tracked by item 4.
+- Shared community profiles cannot participate in the fleet dry run;
+  tracked by item 5.
 - Scan lists are membership-only (no priority channels) across exporters.
-- The `chirp-writer` backend has never driven a physical radio. Both an
-  on-demand radio (C64) and a clone-mode radio (FT-277R) need a real
-  write plus read-back before the analog path counts as operational, and
-  the FT-27x clone sequence is the risky half: the manual clone dance has
-  only ever been done through the CHIRP GUI.
 
 ## Later
 
+- Publish to PyPI so `uvx codeplugger-profile` works without a clone.
+  Lower priority once the site serves artifacts, since most community
+  members will never need the CLI; blocked anyway on the `ssrf-lite` and
+  `benlink` dependencies being releases rather than git pins.
 - AnyTone CPS CSV export-only path, if the qdmr route proves insufficient
   for AnyTone owners.
 - `dmrconfig` / `editcp` backends are skipped unless qdmr coverage gaps
@@ -350,7 +397,8 @@ Until the explicit-ID workflow is proven end to end on more radios:
   they arrive first as `extensions.qdmr` passthrough once the upstream
   qdmr work in the Now section lands
 - Scan-list priority channels
-- Radios outside the qdmr / CHIRP / p64tool backends already in the tree
+- Radios outside the qdmr / CHIRP / p64tool / benlink backends already in
+  the tree
 
 ## Non-goals
 

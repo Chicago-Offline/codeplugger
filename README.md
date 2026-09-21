@@ -121,9 +121,10 @@ with a gated `chirp-writer` write backend, Bluetooth programming of Benshi
 radios through a gated `benlink` backend, and HTML/Markdown/operation-log
 artifacts are working today. The `chirp-writer` path is hardware-verified on
 the FT-2800M; the `benlink` path has not yet been accepted against a physical
-radio. The near-term priority is deepening DM-32 support by contributing
-missing settings (display colors, button functions) upstream to qdmr, then
-widening the qdmr backend to more radios; see [docs/plan.md](docs/plan.md) for
+radio. The near-term priority is publishing prebuilt community-net codeplugs
+from the project site so members can download a file without installing
+anything, then moving the benlink, qdmr, and CHIRP work the project depends
+on out of forks and upstream; see [docs/plan.md](docs/plan.md) for
 the sequenced plan and what is deliberately deferred.
 
 Repository directories:
