@@ -30,7 +30,8 @@
         {"checkout": "chioff-ssrf-shared", "path": "ssrf"}
       ],
       "profiles": [
-        "profiles/baofeng_dm32/chioff_shared.yml"
+        "profiles/baofeng_dm32/chioff_shared.yml",
+        "profiles/baofeng_uv5r_mini/chioff_shared.yml"
       ]
     }
   ]

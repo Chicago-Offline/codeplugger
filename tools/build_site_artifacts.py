@@ -279,6 +279,10 @@ def esc(value: Any) -> str:
     return html.escape(str(value if value is not None else ""))
 
 
+def plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 FORMAT_LABELS = {
     ".csv": ("CHIRP CSV", "Import in CHIRP, then upload to the radio."),
     ".qdmr.yaml": ("qdmr YAML", "Open in qdmr, or write with dmrconf."),
@@ -304,7 +308,8 @@ def render_profile_card(entry: dict) -> str:
         f'<article id="{esc(entry["profile_id"])}">'
         f'<h3>{esc(entry["profile_name"])}</h3>'
         f'<p class="meta">{esc(entry["radio_name"] or entry["radio"])} · '
-        f'{entry["zones"]} zones · {entry["channels"]} channels · '
+        f'{plural(entry["zones"], "zone")} · '
+        f'{plural(entry["channels"], "channel")} · '
         f'<code>{esc(entry["profile_id"])}</code></p>'
         '<div class="matrix-scroll"><table class="matrix"><thead><tr>'
         "<th>File</th><th>What it is for</th><th>SHA-256</th>"
