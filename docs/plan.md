@@ -352,9 +352,17 @@ single maintainer's forks:
    Baofeng DM-1701. Each needs a named, reviewed set of exporter defaults
    where qdmr's limits differ from the DM-32UV (placeholders, name lengths,
    list minimums).
-8. **OpenGD77 via `dmrconf`.** `radios/opengd77/` exists and is empty.
-   Capabilities plus the qdmr path first; an OpenGD77 CPS CSV exporter only
-   if the `dmrconf` path leaves gaps.
+8. **OpenGD77 via `dmrconf`.** Landed as `radios/retevis_rt3s_opengd77/`
+   (OpenGD77 firmware on MD-UV380 hardware, dmrconf key `openuv380`):
+   capabilities from qdmr's shared `OpenGD77Limits`, plus a
+   `VERIFY_RADIO_KEYS` stand-in in the dmrconf backend because
+   `verify --radio=openuv380` segfaults in qdmr 0.15.1 (no-device radio
+   construction dereferences the device handle; `opengd77` shares the same
+   limits singleton). Scan lists are declared `max_scan_lists: 0` -- OpenGD77
+   scans zones and qdmr silently ignores scan lists, so profiles must not
+   carry them. An OpenGD77 CPS CSV exporter is still only warranted if the
+   `dmrconf` path leaves gaps. Remaining: hardware-verify a write to
+   `eam_rt3s_01` and flip the site row's `hw` flag.
 
 Known gaps:
 
