@@ -310,9 +310,10 @@
         </div>
         <div class="planned">
           <strong>Next up:</strong> more qdmr-supported radios through capabilities definitions alone
-          (AnyTone AT-D868UV / 878UV / 578UV, TYT MD-UV380 / UV390, Retevis RT3S, Radioddity GD-77, Baofeng DM-1701),
-          then OpenGD77 via <code>dmrconf</code>, then export-only OEM CPS files starting with AnyTone CPS CSV.
-          Adding a radio never touches input resolution.
+          (AnyTone AT-D868UV / 878UV / 578UV, TYT MD-UV380 / UV390 and Retevis RT3S on stock firmware,
+          Radioddity GD-77, Baofeng DM-1701), then export-only OEM CPS files starting with AnyTone CPS CSV.
+          OpenGD77 on the MD-UV380 family landed exactly that way: a capabilities file plus the existing
+          <code>dmrconf</code> backend. Adding a radio never touches input resolution.
         </div>
       </div>
     </section>
