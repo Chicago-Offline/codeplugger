@@ -23,10 +23,28 @@ from typing import Sequence
 
 from ..artifacts import ArtifactStore
 
-# dmrconf radio keys mapped to the device names `detect` reports
-# (`dmrconf --list-radios`).
+# dmrconf radio keys mapped to the device names `detect` reports. These are
+# the radio classes' display names (e.g. `_name` in qdmr's lib/openuv380.cc),
+# which are NOT always the names `--list-radios` prints: `--list-radios`
+# shows RadioInfo names ("OpenMDUV380") while `detect` prints the display
+# name ("Open MD-UV380"). Values here were captured from real `detect` runs.
 RADIO_NAMES = {
     "dm32uv": "DM-32UV",
+    # OpenGD77 firmware on TYT MD-UV380 hardware (Retevis RT3S included).
+    "openuv380": "Open MD-UV380",
+}
+
+# Radio keys whose headless `verify` is broken and must run under a stand-in
+# key with identical limits. `verify --radio=openuv380` segfaults in qdmr
+# 0.15.1: cli/verify.cc constructs the radio object without a device, and
+# OpenUV380's constructor dereferences it (`device->extendedCallsignDB()`,
+# lib/openuv380.cc). Verifying as `opengd77` is exactly equivalent because
+# both radios return the one shared OpenGD77Limits singleton from
+# OpenGD77Base::limits() (lib/opengd77base.cc). `detect`/`write` are
+# unaffected: they talk to a real device. Reproduced 2026-09-23 on a
+# minimal codeplug with dmrconf 0.15.1 (Homebrew).
+VERIFY_RADIO_KEYS = {
+    "openuv380": "opengd77",
 }
 
 
@@ -92,12 +110,16 @@ class Dmrconf:
         raise DmrconfError(f"dmrconf detect reported no radio: {output.strip()}")
 
     def verify(self, codeplug: Path, *, radio_key: str) -> str:
-        """Verify a codeplug file against a radio's limits without hardware."""
+        """Verify a codeplug file against a radio's limits without hardware.
+
+        Keys in :data:`VERIFY_RADIO_KEYS` are verified under their stand-in
+        key; see that table for why the substitution is limit-preserving.
+        """
 
         args = [
             "verify",
             *_format_args(codeplug),
-            f"--radio={radio_key}",
+            f"--radio={VERIFY_RADIO_KEYS.get(radio_key, radio_key)}",
             str(codeplug),
         ]
         return self._run(args, artifacts=(codeplug,))

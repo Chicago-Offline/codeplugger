@@ -94,6 +94,15 @@
       "headless": { "supported": true }
     },
     {
+      "id": "retevis_rt3s_opengd77",
+      "vendor": "MD-UV380 family, OpenGD77",
+      "chirp_csv": false,
+      "qdmr_yaml": true,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true, "backend": "dmrconf", "hw": true }
+    },
+    {
       "id": "vero_vrn76",
       "vendor": "Dual-band, Bluetooth",
       "chirp_csv": false,

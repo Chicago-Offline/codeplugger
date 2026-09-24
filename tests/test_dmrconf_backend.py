@@ -69,6 +69,31 @@ def test_write_refuses_unknown_radio_key() -> None:
         )
 
 
+def test_write_openuv380_verifies_under_opengd77_standin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # qdmr 0.15.1 segfaults on `verify --radio=openuv380` (no-device radio
+    # construction dereferences the device handle), so verification runs
+    # under the limit-identical opengd77 key while detect/write still gate
+    # on the real device name.
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "codeplugger.backends.dmrconf.subprocess.run",
+        _fake_run(calls, {"detect": "Found: Open MD-UV380\n", "write": "done\n"}),
+    )
+
+    output = Dmrconf().write(
+        Path("codeplug.yaml"), radio_key="openuv380", confirm=True
+    )
+
+    assert output == "done\n"
+    assert calls == [
+        ["dmrconf", "verify", "--yaml", "--radio=opengd77", "codeplug.yaml"],
+        ["dmrconf", "detect"],
+        ["dmrconf", "write", "--yaml", "codeplug.yaml"],
+    ]
+
+
 def test_write_can_archive_read_back(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(

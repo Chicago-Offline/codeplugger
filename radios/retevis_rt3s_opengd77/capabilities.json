@@ -1,0 +1,38 @@
+{
+  "id": "retevis_rt3s_opengd77",
+  "name": "Retevis RT3S (OpenGD77)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 1024,
+    "max_zones": 68,
+    "max_channels_per_zone": 80,
+    "max_scan_lists": 0,
+    "max_rx_group_lists": 76,
+    "max_talkgroups_per_rx_group_list": 32,
+    "max_channel_name_chars": 16,
+    "max_zone_name_chars": 16,
+    "max_contact_name_chars": 16,
+    "max_contacts": 1024
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400.0,
+      "max_mhz": 470.0
+    }
+  ],
+  "modes": [
+    "FM",
+    "DMR"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25.0
+  ],
+  "notes": "Retevis RT3S (TYT MD-UV380 family) running OpenGD77 firmware, programmed through qdmr's dmrconf CLI as radio 'openuv380' (detect reports 'Open MD-UV380'). Every limit here is sourced from qdmr v0.15.1 lib/opengd77_limits.cc (OpenGD77Limits, shared by all OpenGD77-family radios via OpenGD77Base::limits()): channels 1-1024 with 1-16 ASCII-char names, zones 0-68 with 80 channels each and 1-16 char names, group lists 0-76 with 1-32 contact refs, DMR contacts 1-1024 with 1-16 char names, and FM/DMR frequency ranges 136-174 and 400-470 MHz (Critical severity). The UHF ceiling is 470, not the MD-UV380 hardware's nominal 480: qdmr rejects above 470 on this radio key, and 470 still covers GMRS (462-467). max_scan_lists is 0 because OpenGD77 has no scan-list entity at all -- scanning is zone-based (hold the zone) -- and qdmr's limits mark scanlists RadioLimitIgnored, so any scan list in a profile would be silently dropped on write; declaring 0 makes codeplugger reject them loudly instead. Other qdmr constraints not expressible in this schema, enforced by 'dmrconf verify --radio=openuv380' in the write path: exactly one DMR radio ID with a name of at most 8 ASCII chars, per-channel power enum limited to Low/High (no Mid step), and DTMF contacts capped at 32. Modes are FM and DMR only; the OpenGD77 limits define no AM channel class, so airband is not representable through this path. Bands and counts deliberately describe the qdmr/OpenGD77 write path, not the TYT OEM firmware: the same hardware under OEM firmware would be a different radio definition. Hardware note (fleet): Eric's eam_rt3s_01 is the STANDARD MD-UV380 board; the 'MD-UV380 (10W Plus)' OpenGD77 build boots with a dead backlight on it. Firmware variant matters for flashing, not for this capabilities file."
+}
