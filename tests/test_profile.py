@@ -1657,3 +1657,172 @@ def test_assignment_referencing_unknown_rx_group_or_scan_list_fails() -> None:
     message = str(excinfo.value)
     assert "unknown RX group list 'grp_missing'" in message
     assert "unknown scan list 'scan_missing'" in message
+
+
+def _write_two_slot_ssrf(root: Path) -> None:
+    """One DMR chain using both timeslots, with a contact pinned to each."""
+
+    systems = root / "systems"
+    systems.mkdir(parents=True, exist_ok=True)
+    (systems / "fixture.yml").write_text(
+        yaml.safe_dump(
+            {
+                "ssrf_lite_version": "0.5.3",
+                "organizations": [{"id": "org_test", "name": "Test"}],
+                "stations": [{"id": "stn_test", "organization_id": "org_test"}],
+                "antennas": [{"id": "ant_test", "station_id": "stn_test"}],
+                "rf_chains": [
+                    {
+                        "id": "chain_dmr",
+                        "station_id": "stn_test",
+                        "antenna_id": "ant_test",
+                        "tx": {"freq_mhz": 446.5, "emission": "7K60FXE"},
+                        "rx": {"freq_mhz": 446.5},
+                        "mode": {
+                            "type": "DMR",
+                            "color_code": 1,
+                            "timeslots": [1, 2],
+                        },
+                    }
+                ],
+                "contacts": [
+                    {
+                        "id": "tg_slot_two",
+                        "name": "Slot Two",
+                        "kind": "Group",
+                        "number": 1101,
+                        "default_timeslot": 2,
+                    },
+                    {
+                        "id": "tg_no_slot",
+                        "name": "No Slot",
+                        "kind": "Group",
+                        "number": 50,
+                    },
+                    {
+                        "id": "tg_bad_slot",
+                        "name": "Bad Slot",
+                        "kind": "Group",
+                        "number": 77,
+                        "default_timeslot": 2,
+                    },
+                ],
+                "assignments": [
+                    {
+                        "id": "asg_dmr",
+                        "rf_chain_id": "chain_dmr",
+                        "usage": "simplex",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _resolve_two_slot(root: Path, assignment: object):
+    profile = root / "profile.yml"
+    _write_profile(profile, [assignment])
+    _write_radio(root / "radios")
+    _write_two_slot_ssrf(root / "ssrf")
+    registry = _write_dmr_registry(root, default_dmr_id="ham")
+    return resolve_codeplug(
+        profile,
+        [root / "ssrf"],
+        radio_root=root / "radios",
+        instance_registry_path=registry,
+    )
+
+
+def test_contact_default_timeslot_selects_slot() -> None:
+    """A talkgroup observed on TS2 puts its channel on TS2, not timeslots[0]."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        resolved = _resolve_two_slot(
+            root, {"id": "asg_dmr", "contact": "tg_slot_two"}
+        )
+
+    assert resolved.channels[0].timeslots == (1, 2)
+    assert resolved.channels[0].timeslot == 2
+
+
+def test_timeslot_defaults_to_first_declared_slot() -> None:
+    """Without a contact default the historical behaviour is unchanged."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        resolved = _resolve_two_slot(
+            root, {"id": "asg_dmr", "contact": "tg_no_slot"}
+        )
+
+    assert resolved.channels[0].timeslot == 1
+
+
+def test_assignment_timeslot_overrides_contact_default() -> None:
+    """An explicit profile timeslot wins over the contact's default."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        resolved = _resolve_two_slot(
+            root, {"id": "asg_dmr", "contact": "tg_slot_two", "timeslot": 1}
+        )
+
+    assert resolved.channels[0].timeslot == 1
+
+
+def test_assignment_timeslot_not_declared_by_chain_is_rejected() -> None:
+    """Never silently place a channel on a slot the repeater does not use."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_dmr", "timeslot": 2}])
+        _write_radio(root / "radios")
+        _write_two_slot_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"]["timeslots"] = [1]
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        with pytest.raises(ProfileValidationError) as excinfo:
+            resolve_codeplug(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+    message = str(excinfo.value)
+    assert "profile assignment" in message
+    assert "timeslot 2" in message
+
+
+def test_contact_default_timeslot_not_declared_by_chain_is_rejected() -> None:
+    """A contact pinned to a slot the chain lacks is an error, not a fallback."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_dmr", "contact": "tg_bad_slot"}])
+        _write_radio(root / "radios")
+        _write_two_slot_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"]["timeslots"] = [1]
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        with pytest.raises(ProfileValidationError) as excinfo:
+            resolve_codeplug(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
+
+    message = str(excinfo.value)
+    assert "contact default_timeslot" in message
+    assert "only declares 1" in message
