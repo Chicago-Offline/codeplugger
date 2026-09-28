@@ -4,28 +4,61 @@
   "title": "Codeplugger Profile 0.1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "id", "name", "radio", "zones"],
+  "required": [
+    "version",
+    "id",
+    "name",
+    "radio",
+    "zones"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": "0.1" },
-    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-    "name": { "type": "string", "minLength": 1 },
-    "radio": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-    "radio_instance": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-    "extends": { "type": "string", "minLength": 1 },
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "radio": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "radio_instance": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "extends": {
+      "type": "string",
+      "minLength": 1
+    },
     "zones_only": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "omit_zones": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "extensions": { "$ref": "#/$defs/extensions" },
+    "extensions": {
+      "$ref": "#/$defs/extensions"
+    },
     "rx_groups": {
       "type": "array",
       "description": "DMR RX group lists. Members reference SSRF contact ids (talkgroup facts live in SSRF; grouping them is profile policy).",
@@ -33,15 +66,28 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "contacts"],
+        "required": [
+          "id",
+          "name",
+          "contacts"
+        ],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-          "name": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "contacts": {
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }
@@ -53,15 +99,28 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "channels"],
+        "required": [
+          "id",
+          "name",
+          "channels"
+        ],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-          "name": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "channels": {
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }
@@ -72,10 +131,20 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "assignments"],
+        "required": [
+          "id",
+          "name",
+          "assignments"
+        ],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
-          "name": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "dmr_id": {
             "type": "string",
             "minLength": 1,
@@ -87,31 +156,90 @@
             "uniqueItems": true,
             "items": {
               "oneOf": [
-                { "type": "string", "minLength": 1 },
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["id"],
+                  "required": [
+                    "id"
+                  ],
                   "anyOf": [
-                    { "required": ["display_name"] },
-                    { "required": ["extensions"] },
-                    { "required": ["contact"] },
-                    { "required": ["rx_group"] },
-                    { "required": ["scan_list"] },
-                    { "required": ["dmr_id"] }
+                    {
+                      "required": [
+                        "display_name"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "extensions"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "contact"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "rx_group"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "scan_list"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "dmr_id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "timeslot"
+                      ]
+                    }
                   ],
                   "properties": {
-                    "id": { "type": "string", "minLength": 1 },
-                    "display_name": { "type": "string", "minLength": 1 },
-                    "contact": { "type": "string", "minLength": 1 },
-                    "rx_group": { "type": "string", "minLength": 1 },
-                    "scan_list": { "type": "string", "minLength": 1 },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "display_name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "contact": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "rx_group": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "scan_list": {
+                      "type": "string",
+                      "minLength": 1
+                    },
                     "dmr_id": {
                       "type": "string",
                       "minLength": 1,
                       "description": "DMR identity key overriding the zone default and instance default_dmr_id for this assignment (see instance registry 'dmr_ids')."
                     },
-                    "extensions": { "$ref": "#/$defs/extensions" }
+                    "extensions": {
+                      "$ref": "#/$defs/extensions"
+                    },
+                    "timeslot": {
+                      "type": "integer",
+                      "enum": [
+                        1,
+                        2
+                      ],
+                      "description": "DMR timeslot for this channel. Must be one of the slots the SSRF chain declares in mode.timeslots. Overrides the contact default_timeslot."
+                    }
                   }
                 }
               ]
@@ -126,8 +254,12 @@
       "type": "object",
       "description": "Namespaced escape hatch for radio- or backend-specific settings the core schema does not model. Keys are namespaces (usually a radio or backend id); values are passed through to exporters unvalidated, mirroring qdmr's extension mechanism.",
       "minProperties": 1,
-      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_]*$" },
-      "additionalProperties": { "type": "object" }
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object"
+      }
     }
   }
 }

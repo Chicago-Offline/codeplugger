@@ -41,6 +41,7 @@ class ResolvedContact:
     name: str
     number: int
     kind: str  # "group", "private", or "all"
+    default_timeslot: int | None = None
 
 
 @dataclass(frozen=True)
@@ -162,6 +163,43 @@ def _bandwidth_khz(source: Any | None) -> float | None:
     return bandwidth_khz_from_emission(getattr(source, "emission", None))
 
 
+def _select_timeslot(
+    timeslots: Sequence[int],
+    override: int | None,
+    contact_default: int | None,
+    assignment_id: str,
+) -> int | None:
+    """Pick the timeslot a DMR channel sits on.
+
+    A receiver can only listen to one slot at a time, so a two-slot repeater
+    needs one channel per slot. Precedence, most explicit first:
+
+    1. ``timeslot`` on the profile assignment - the operator said so.
+    2. ``default_timeslot`` on the SSRF contact - the talkgroup is observed on
+       that slot, so a channel carrying it belongs there.
+    3. The first slot the chain declares, which is the historical behaviour.
+
+    A slot the chain does not declare is always an error: silently moving a
+    channel to a slot the repeater does not use produces a channel that hears
+    nothing, which is far harder to debug than a failed build.
+    """
+
+    available = tuple(timeslots or ())
+    if not available:
+        return None
+    for value, source in ((override, "profile assignment"), (contact_default, "contact default_timeslot")):
+        if value is None:
+            continue
+        if value not in available:
+            raise ProfileValidationError(
+                f"assignment '{assignment_id}': {source} requests timeslot "
+                f"{value}, but the chain only declares "
+                f"{', '.join(str(item) for item in available)}."
+            )
+        return value
+    return available[0]
+
+
 def _tones(mode: Any | None) -> ResolvedTones:
     if mode is None:
         return ResolvedTones()
@@ -183,6 +221,8 @@ def _resolve_assignment(
     scan_list_id: str | None = None,
     dmr_id_key: str | None = None,
     dmr_id: int | None = None,
+    timeslot_override: int | None = None,
+    contact_default_timeslot: int | None = None,
 ) -> list[ResolvedChannel]:
     reference = document.reference
     extensions = extensions or {}
@@ -228,10 +268,11 @@ def _resolve_assignment(
                 power_w=rf_chain.tx.power_w,
                 color_code=rf_chain.mode.color_code,
                 timeslots=tuple(rf_chain.mode.timeslots or ()),
-                timeslot=(
-                    rf_chain.mode.timeslots[0]
-                    if rf_chain.mode.timeslots
-                    else None
+                timeslot=_select_timeslot(
+                    rf_chain.mode.timeslots or (),
+                    timeslot_override,
+                    contact_default_timeslot,
+                    assignment.id,
                 ),
                 contact_id=contact_id,
                 rx_group_id=rx_group_id,
@@ -366,6 +407,9 @@ def build_codeplug(
     zones: list[ResolvedZone] = []
     assignment_channel_refs: dict[str, tuple[str, ...]] = {}
     contact_order: list[str] = []
+    # Indexed before the zone loop because channel resolution reads each
+    # contact's default_timeslot to place the channel on the right slot.
+    ssrf_contacts = _ssrf_contacts(documents)
     dmr_id_map = {
         entry["key"]: entry
         for entry in (instance_metadata or {}).get("dmr_ids", []) or []
@@ -394,11 +438,20 @@ def build_codeplug(
             )
             contact_id = rx_group_id = scan_list_id = None
             assignment_dmr_id_key = None
+            timeslot_override = None
             if isinstance(assignment_value, dict):
                 contact_id = assignment_value.get("contact")
                 rx_group_id = assignment_value.get("rx_group")
                 scan_list_id = assignment_value.get("scan_list")
                 assignment_dmr_id_key = assignment_value.get("dmr_id")
+                timeslot_override = assignment_value.get("timeslot")
+            contact_default_timeslot = None
+            if contact_id is not None:
+                selected_contact = ssrf_contacts.get(contact_id)
+                if selected_contact is not None:
+                    contact_default_timeslot = getattr(
+                        selected_contact, "default_timeslot", None
+                    )
             if contact_id is not None and contact_id not in contact_order:
                 contact_order.append(contact_id)
             effective_dmr_id_key = (
@@ -423,6 +476,8 @@ def build_codeplug(
                 scan_list_id,
                 dmr_id_key,
                 dmr_id,
+                timeslot_override,
+                contact_default_timeslot,
             )
             for resolved_channel in resolved_channels:
                 _check_name_length(
@@ -450,7 +505,6 @@ def build_codeplug(
     if report.has_critical:
         raise ProfileValidationError(report.critical_message())
 
-    ssrf_contacts = _ssrf_contacts(documents)
     rx_group_contact_ids = [
         contact_id
         for group in profile.get("rx_groups", [])
@@ -471,6 +525,7 @@ def build_codeplug(
                 name=contact.name,
                 number=int(contact.number),
                 kind=kind,
+                default_timeslot=getattr(contact, "default_timeslot", None),
             )
         )
     rx_groups = tuple(
