@@ -367,6 +367,28 @@
       </div>
     </section>
 
+    <section id="flow">
+      <div class="wrap">
+        <h2>How the data flows</h2>
+        <p class="sub">
+          One pipeline, antenna to programmed radio: measured reception reports
+          keep the database honest, profiles keep the radios yours.
+        </p>
+        <pre class="mermaid">
+flowchart LR
+  rf["&#128225; rf-survey"] -- "reception reports" --> ssrf["&#128451; ssrf-lite"]
+  ov["overlays &middot; shared + private"] --> ssrf
+  ssrf -- "validated RF data" --> cp["&#9881; codeplugger"]
+  prof["&#128100; profiles"] --> cp
+  cp -- "CHIRP &middot; qdmr &middot; dmrconf" --> radios(["&#128251; radios"])
+  click rf "https://chicago-offline.github.io/rf-survey/" _blank
+  click ssrf "https://chicago-offline.github.io/ssrf-lite/" _blank
+  click cp "https://chicago-offline.github.io/codeplugger/" _blank
+  click prof "https://chicago-offline.github.io/chioff-codeplugger-profiles-shared/" _blank
+        </pre>
+      </div>
+    </section>
+
     <section id="ecosystem">
       <div class="wrap">
         <h2>Ecosystem</h2>
@@ -460,5 +482,29 @@ zones:
       <span><a href="https://github.com/Chicago-Offline/codeplugger">Source</a> · <a href="https://github.com/Chicago-Offline/codeplugger/blob/main/docs/plan.md">Plan</a> · <a href="https://github.com/Chicago-Offline/codeplugger/issues">Issues</a></span>
     </div>
   </footer>
+  <style>
+    .mermaid { display: flex; justify-content: center; margin-top: 1.5rem; }
+    .mermaid svg { max-width: 100%; height: auto; }
+  </style>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "base",
+      themeVariables: {
+        primaryColor: "#171e26",
+        primaryTextColor: "#d6dee6",
+        primaryBorderColor: "#2a3743",
+        lineColor: "#4fb3ff",
+        secondaryColor: "#1e2833",
+        tertiaryColor: "#171e26",
+        background: "#0f1419",
+        mainBkg: "#171e26",
+        nodeTextColor: "#d6dee6",
+        edgeLabelBackground: "#0f1419",
+        fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+      }
+    });
+  </script>
 </body>
 </html>
