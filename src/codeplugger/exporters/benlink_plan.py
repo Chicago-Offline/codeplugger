@@ -263,6 +263,14 @@ def benlink_plan_from_resolved(
     max_zones = limits.get("max_zones")
     max_per_zone = limits.get("max_channels_per_zone")
 
+    numbers = [number for number, _ in codeplug.numbered_channels()]
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError(
+            "profile leaves gaps in the channel numbering (next_channel "
+            "spacers), which a Benlink region plan cannot represent: each "
+            "region numbers its channels from slot 1"
+        )
+
     if max_zones is not None and len(codeplug.zones) > int(max_zones):
         raise ValueError(
             f"profile has {len(codeplug.zones)} zones; "

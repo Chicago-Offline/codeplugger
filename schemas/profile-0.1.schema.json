@@ -90,6 +90,15 @@
                 { "type": "string", "minLength": 1 },
                 {
                   "type": "object",
+                  "description": "Spacer: the next assignment starts at this channel number, leaving the slots in between empty. Emits no channel of its own.",
+                  "additionalProperties": false,
+                  "required": ["next_channel"],
+                  "properties": {
+                    "next_channel": { "type": "integer", "minimum": 1 }
+                  }
+                },
+                {
+                  "type": "object",
                   "additionalProperties": false,
                   "required": ["id"],
                   "anyOf": [

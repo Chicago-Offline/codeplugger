@@ -132,6 +132,9 @@ def _channel_row_values(
 
     ``scan_list_names`` maps scan-list id to display name so the channel table
     can show which list a channel scans under; ids fall through unmapped.
+    ``index`` is only the fallback for the ``#`` cell: a channel that carries
+    its own number (profiles may renumber with ``next_channel`` spacers) shows
+    the number the operator will dial.
     """
 
     tx = (
@@ -149,8 +152,9 @@ def _channel_row_values(
     power = getattr(channel, "power_w", None)
     scan_list_id = getattr(channel, "scan_list_id", None) or ""
     scan_list = (scan_list_names or {}).get(scan_list_id, scan_list_id)
+    number = getattr(channel, "channel_number", None) or index
     return [
-        str(index),
+        str(number),
         channel.display_name,
         f"{channel.rx_frequency_mhz:.6f}",
         tx,

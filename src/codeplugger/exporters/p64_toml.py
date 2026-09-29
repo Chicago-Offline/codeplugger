@@ -109,6 +109,23 @@ def _check_single_dmr_identity(codeplug: ResolvedCodeplug) -> None:
         )
 
 
+def _reject_channel_gaps(codeplug: ResolvedCodeplug) -> None:
+    """Refuse a sparse codeplug.
+
+    Baseline channel records are positional: record N holds channel N, so an
+    empty slot in the middle cannot be expressed without leaving the previous
+    codeplug's contents in it.
+    """
+
+    numbers = [number for number, _ in codeplug.numbered_channels()]
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError(
+            "profile leaves gaps in the channel numbering (next_channel "
+            "spacers), which a p64tool baseline cannot represent: channel "
+            "records are positional"
+        )
+
+
 def p64_toml_from_resolved(
     codeplug: ResolvedCodeplug,
     baseline_toml: str,
@@ -126,6 +143,7 @@ def p64_toml_from_resolved(
     """
 
     _check_single_dmr_identity(codeplug)
+    _reject_channel_gaps(codeplug)
     document = parse(baseline_toml)
     if fleet_instances is not None:
         _apply_fleet_identities(document, codeplug, fleet_instances)

@@ -426,6 +426,24 @@ def _collect_radio_ids(
     return radio_ids, id_by_key
 
 
+def _reject_channel_gaps(codeplug: ResolvedCodeplug) -> None:
+    """Refuse a sparse codeplug.
+
+    A qdmr channel list has no slot numbers: position in the list *is* the
+    memory index, so an empty slot cannot be expressed. Exporting anyway
+    would silently compact the gaps and move every channel the operator
+    deliberately numbered.
+    """
+
+    numbers = [number for number, _ in codeplug.numbered_channels()]
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError(
+            "profile leaves gaps in the channel numbering (next_channel "
+            "spacers), which a qdmr codeplug cannot represent: channels are "
+            "stored in list order with no slot numbers"
+        )
+
+
 def qdmr_yaml_from_resolved(
     codeplug: ResolvedCodeplug,
     *,
@@ -441,6 +459,7 @@ def qdmr_yaml_from_resolved(
     """
 
     radio_ids, id_by_key = _collect_radio_ids(codeplug)
+    _reject_channel_gaps(codeplug)
     channels: list[dict[str, Any]] = []
     channel_ids: dict[str, str] = {}
     contacts, group_lists, contact_ids, rx_group_ids = _contacts(

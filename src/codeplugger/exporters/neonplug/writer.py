@@ -238,9 +238,11 @@ def neonplug_document_from_resolved(
     missing/duplicate channel references, non-analog tone combinations, or
     codeplugs larger than the DM-32UV's NeonPlug-modeled capacity.
     """
-    if len(codeplug.channels) > CHANNEL_MAX:
+    numbered = codeplug.numbered_channels()
+    highest_number = max((number for number, _ in numbered), default=0)
+    if highest_number > CHANNEL_MAX:
         raise ValueError(
-            f"codeplug has {len(codeplug.channels)} channels, exceeds "
+            f"codeplug uses channel numbers up to {highest_number}, exceeds "
             f"NeonPlug's {CHANNEL_MAX}-channel limit for this radio"
         )
     if len(codeplug.zones) > ZONES_MAX:
@@ -251,14 +253,16 @@ def neonplug_document_from_resolved(
 
     channel_numbers: dict[str, int] = {}
     channels_out: list[dict[str, Any]] = []
-    for index, channel in enumerate(codeplug.channels, start=1):
+    for number, channel in numbered:
         if channel.reference in channel_numbers:
             raise ValueError(
                 f"duplicate channel reference {channel.reference!r} in codeplug.channels"
             )
-        channel_numbers[channel.reference] = index
+        channel_numbers[channel.reference] = number
         channels_out.append(
-            _channel_document(channel, index, analog_bandwidth_khz=analog_bandwidth_khz)
+            _channel_document(
+                channel, number, analog_bandwidth_khz=analog_bandwidth_khz
+            )
         )
 
     zones_out = [_zone_document(zone, channel_numbers) for zone in codeplug.zones]

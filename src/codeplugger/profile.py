@@ -198,6 +198,14 @@ def _assignment_id(value: Any) -> str:
     return value["id"] if isinstance(value, dict) else value
 
 
+def _spacer_target(value: Any) -> int | None:
+    """Return a spacer entry's jump target, or None for a real assignment."""
+
+    if isinstance(value, dict) and "id" not in value:
+        return int(value["next_channel"])
+    return None
+
+
 def _load_mapping(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
@@ -440,6 +448,8 @@ def _check_group_policy(
         for assignment in zone["assignments"]:
             if not isinstance(assignment, dict):
                 continue
+            if _spacer_target(assignment) is not None:
+                continue
             context = f"assignment '{assignment['id']}'"
             contact_id = assignment.get("contact")
             if contact_id is not None:
@@ -676,6 +686,8 @@ def _check_dmr_id_policy(
                 "known dmr_ids key",
             )
         for assignment_value in zone["assignments"]:
+            if _spacer_target(assignment_value) is not None:
+                continue
             assignment_id = _assignment_id(assignment_value)
             if assignment_id not in selected:
                 continue  # already reported above (unknown/ambiguous/duplicate)
@@ -788,6 +800,7 @@ def _load_and_validate_profile(
     zone_ids: set[str] = set()
     selected: set[str] = set()
     total_channels = 0
+    next_channel_number = 1
     for zone in zones:
         if zone["id"] in zone_ids:
             report.critical((), f"duplicate zone ID '{zone['id']}'")
@@ -795,6 +808,19 @@ def _load_and_validate_profile(
         _check_name_length(report, limits, "max_zone_name_chars", "zone", zone["name"])
         zone_channel_count = 0
         for assignment in zone["assignments"]:
+            spacer_target = _spacer_target(assignment)
+            if spacer_target is not None:
+                if spacer_target < next_channel_number:
+                    report.critical(
+                        (),
+                        f"zone '{zone['name']}' jumps to channel "
+                        f"{spacer_target}, which is at or below channel "
+                        f"{next_channel_number - 1}; channel numbers must "
+                        "increase",
+                    )
+                else:
+                    next_channel_number = spacer_target
+                continue
             assignment_id = _assignment_id(assignment)
             if assignment_id in ambiguous_assignments:
                 report.critical(
@@ -818,6 +844,7 @@ def _load_and_validate_profile(
                 continue
             selected.add(assignment_id)
             zone_channel_count += channel_counts[assignment_id]
+            next_channel_number += channel_counts[assignment_id]
         if zone_channel_count > limits["max_channels_per_zone"]:
             report.critical(
                 (),
@@ -826,11 +853,18 @@ def _load_and_validate_profile(
             )
         total_channels += zone_channel_count
 
-    if total_channels > limits["max_channels"]:
+    # Spacers leave empty slots behind, so the radio's ceiling applies to the
+    # highest channel number reached, not to how many channels are filled.
+    highest_channel_number = next_channel_number - 1
+    if highest_channel_number > limits["max_channels"]:
+        detail = (
+            f"profile expands to {total_channels} channels"
+            if highest_channel_number == total_channels
+            else f"profile uses channel numbers up to {highest_channel_number}"
+        )
         report.critical(
             (),
-            f"profile expands to {total_channels} channels; "
-            f"{limit_source} is {limits['max_channels']}",
+            f"{detail}; {limit_source} is {limits['max_channels']}",
         )
 
     _check_group_policy(
@@ -1015,7 +1049,12 @@ def main() -> int:
 
         print(markdown_reference_from_resolved(codeplug, **render_options), end="")
         return 0
-    assignment_count = sum(len(zone["assignments"]) for zone in profile["zones"])
+    assignment_count = sum(
+        1
+        for zone in profile["zones"]
+        for assignment in zone["assignments"]
+        if _spacer_target(assignment) is None
+    )
     print(
         f"Validated profile '{profile['id']}': "
         f"{len(profile['zones'])} zones, {assignment_count} assignments"
