@@ -10,35 +10,29 @@
   },
   "bands": [
     {
-      "name": "10 m extended TX",
+      "name": "10 m / 11 m TX",
       "min_mhz": 26,
       "max_mhz": 33
     },
     {
-      "name": "6 m extended TX",
+      "name": "6 m TX",
       "min_mhz": 47,
       "max_mhz": 54
     },
     {
-      "name": "VHF extended TX",
-      "min_mhz": 136,
+      "name": "VHF TX",
+      "min_mhz": 134,
       "max_mhz": 174
     },
     {
-      "name": "UHF extended TX",
+      "name": "UHF TX",
       "min_mhz": 400,
       "max_mhz": 480
     },
     {
-      "name": "VHF receive",
+      "name": "VHF receive (incl. airband AM)",
       "min_mhz": 108,
       "max_mhz": 180,
-      "rx_only": true
-    },
-    {
-      "name": "220 MHz receive",
-      "min_mhz": 220,
-      "max_mhz": 260,
       "rx_only": true
     },
     {
@@ -73,5 +67,5 @@
     "model": "TYT TH-9800",
     "clone_mode": "manual"
   },
-  "notes": "TH-9800 whose stored band limits open transmit beyond the US amateur allocations. Identical to tyt_th9800 in every storage limit, mode, bandwidth and clone parameter -- 800 channels, 6-character names, FM with a 25/12.5 kHz split, no reachable banks, 65296-byte image at 38400 baud, manual clone mode per transfer -- so see that file for provenance. The only difference is which spans are transmit-capable. Separate radio id rather than a flag, following yaesu_ft2800m_mars and yaesu_ft277_mars: transmit permission must never be inferred, and the instance registry already binds one physical radio to one radio id. WHAT 'EXTENDED' MEANS HERE IS NOT A MODIFICATION IN THE YAESU SENSE. There is no diode to cut and no clone-ID byte to match. The TH-9800 stores its own per-band limits in the codeplug: th9800.py declares struct bandlimits[9] with lorx/hirx/lotx/hitx for each of BANDS = 30/50/60/108/150/250/350/450/850 MHz, and get_settings() surfaces all four edges under 'Model Info' with set_mutable(False), so CHIRP shows them and refuses to change them. A given unit is therefore wide or narrow as shipped, by region and production run, and many TH-9800s are sold wide with no modification at all. This id is for a unit whose bandlimits read wide; tyt_th9800 is for one that reads ham-only. THE TX SPANS BELOW ARE PROVISIONAL AND UNVERIFIED. 26-33, 47-54, 136-174 and 400-480 MHz are the commonly reported wide-open TX set for this radio, not a measured result and not read off an image, and they are narrower than the driver's valid_bands on VHF and UHF because valid_bands is the programming span the CHIRP UI accepts rather than a PA capability. The radio transmits on four bands only; 220-260, 350-399.995 and 750-950 MHz are receive-only on every TH-9800 regardless of bandlimits, because there is no transmitter for them, so they stay rx_only here exactly as in the base id. 108-180 MHz also stays rx_only despite overlapping the 136-174 TX span, which is the same overlap pattern yaesu_ft2800m uses, and it is what keeps AM honest: AM on this radio is airband receive, the radio cannot transmit AM at all, and the mode is listed only because the driver's valid_modes includes it. ANY REAL INSTANCE SHOULD REPLACE THESE NUMBERS WITH ITS OWN. Read the radio, open the CHIRP settings tab, Model Info, and record the per-band Tx Start / Tx end values; those are authoritative for that unit and this file should be corrected to match once a clone image exists. Like the base id this entry is paper-derived: no hardware read, no write, no read-back, and the underlying driver is registered ExperimentalRadio with its own warning that support is still under development. Finally, the mod is the operator's responsibility. Transmitting outside the amateur allocations requires the appropriate authorization, and on a non-type-accepted radio commercial, public-safety and MURS use is not authorized at all; a wide bandlimit table is a capability, not a permission."
+  "notes": "TH-9800 whose stored band limits open transmit beyond the US amateur allocations. Identical to tyt_th9800 in every storage limit, mode, bandwidth and clone parameter -- 800 channels, 6-character names, FM with a 25/12.5 kHz split, no reachable banks, 65296-byte image at 38400 baud, manual clone mode per transfer -- so see that file for the driver-derived provenance. The only difference is which spans transmit. Separate radio id rather than a flag, following yaesu_ft2800m_mars and yaesu_ft277_mars: transmit permission must never be inferred, and the instance registry already binds one physical radio to one radio id. THE BAND EDGES BELOW ARE MEASURED, NOT ASSUMED. They come from a real radio read on 2026-09-29, and they replace the provisional figures this entry was first written with. The TH-9800 does not take transmit limits from the driver at all: th9800.py declares struct bandlimits[9] (lorx/hirx/lotx/hitx per band, over 30/50/60/108/150/250/350/450/850 MHz) inside the codeplug itself, and get_settings() surfaces all four edges under Model Info with set_mutable(False), so CHIRP displays them and refuses to change them. A unit is therefore wide or narrow as shipped, by region and production run, and many TH-9800s are sold wide with no modification at all -- there is no diode to cut and no clone-ID byte, so 'extended TX' here is a description of what the image says, not of a hardware mod. The reference unit read: 30 MHz band RX 26.0-33.0 TX 26.0-33.0; 50 MHz band RX 47.0-54.0 TX 47.0-54.0; 108 MHz band RX 108.0-133.995 with TX zeroed; 150 MHz band RX 134.0-180.0 TX 134.0-174.0; 350 MHz band RX 350.0-399.995 with TX zeroed; 450 MHz band RX 400.0-512.0 TX 400.0-480.0; 850 MHz band RX 750.0-950.0 with TX zeroed. Those figures were parsed straight out of the image and independently cross-checked against the driver's own settings decode, which agreed exactly. Note the low VHF transmit edge is 134.0 MHz, not the 136.0 that is usually quoted for this radio. TWO BAND SLOTS READ ALL ZEROS on the reference unit, the 60 MHz slot and the 250 MHz slot, so that radio has no 220-260 MHz coverage at all despite the driver listing 220-260 in valid_bands. The 220-260 span is therefore absent from this id, while the paper-derived base id still carries it as receive-only; if a wide unit ever turns up with a populated 250 MHz slot it needs its own entry rather than a quiet widening of this one. Airband stays receive-only here exactly as in the base id, which the measured 108 MHz row confirms with its zeroed transmit edges, and that is also what keeps AM honest: AM on this radio is airband receive, the radio cannot transmit AM at all, and the mode is listed only because the driver's valid_modes includes it. ONE CAVEAT ON IDENTIFICATION, LEARNED FROM THE SAME READ. match_model() requires filedata[0xfe18:0xfe1e] == b'TH9800' because TYT shipped the same model string in the TH-7800, with a non-zero first bandlimit block at 0xfe40 as the tiebreak. On the reference radio that field does not contain 'TH9800' at all -- it reads b'B' followed by 0xff padding, and the literal 'TH9800' instead sits at offset 0x0 as part of the 16-byte identify header that _download prepends, which is what _mmap_offset 0x10 accounts for. A bare 65296-byte image from that unit would consequently fail match_model and the driver would not claim it; the saved file loaded only because CHIRP wrote 65485 bytes with a metadata blob and matched on metadata instead. Do not rely on the 0xfe18 string to recognise this radio, and do not relax the check either, since TYT_TH-7800 and Retevis_MA1 both also report _memsize 65296. WRITE PATH IS STILL UNVERIFIED: the read leg is now proven end to end, but nothing has been written to a radio and no read-back diff has been done, and the underlying driver is registered ExperimentalRadio. Take a full backup before the first write. Finally, a wide bandlimit table is a capability, not a permission: transmitting outside the amateur allocations requires the appropriate authorization, and on a non-type-accepted radio commercial, public-safety and MURS use is not authorized at all."
 }
