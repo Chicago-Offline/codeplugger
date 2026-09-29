@@ -18,6 +18,7 @@ from .profile import (
     _contact_kind,
     _load_and_validate_profile,
     _load_capabilities,
+    _spacer_target,
     _ssrf_contacts,
 )
 from .validation import ValidationReport
@@ -87,6 +88,7 @@ class ResolvedChannel:
     dmr_id_key: str | None = None
     dmr_id: int | None = None
     extensions: dict[str, Any] = field(default_factory=dict)
+    channel_number: int | None = None
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,24 @@ class ResolvedCodeplug:
         """Serialize deterministically as human-readable YAML."""
 
         return yaml.safe_dump(self.to_dict(), sort_keys=True)
+
+    def numbered_channels(self) -> tuple[tuple[int, ResolvedChannel], ...]:
+        """Pair each channel with the channel number it occupies on the radio.
+
+        Profiles may leave gaps via ``next_channel`` spacers, so the number is
+        not the channel's position in this list. Channels built outside
+        ``build_codeplug`` carry no number and fall back to their position.
+        """
+
+        return tuple(
+            (
+                channel.channel_number
+                if channel.channel_number is not None
+                else position,
+                channel,
+            )
+            for position, channel in enumerate(self.channels, start=1)
+        )
 
 
 def _display_name(assignment: Any, fallback: str, override: str | None) -> str:
@@ -221,6 +241,7 @@ def _resolve_assignment(
     scan_list_id: str | None = None,
     dmr_id_key: str | None = None,
     dmr_id: int | None = None,
+    start_number: int = 1,
     timeslot_override: int | None = None,
     contact_default_timeslot: int | None = None,
 ) -> list[ResolvedChannel]:
@@ -264,6 +285,7 @@ def _resolve_assignment(
                 tones=_tones(rf_chain.mode),
                 tx_permitted=tx_frequency is not None,
                 notes=assignment.notes,
+                channel_number=start_number,
                 bandwidth_khz=_bandwidth_khz(rf_chain.tx),
                 power_w=rf_chain.tx.power_w,
                 color_code=rf_chain.mode.color_code,
@@ -332,6 +354,7 @@ def _resolve_assignment(
                 or assignment.usage in {"call", "simplex"}
             ),
             notes=assignment.notes or channel.notes,
+            channel_number=start_number + offset,
             bandwidth_khz=_bandwidth_khz(channel),
             contact_id=contact_id,
             rx_group_id=rx_group_id,
@@ -340,7 +363,7 @@ def _resolve_assignment(
             dmr_id=dmr_id,
             extensions=extensions,
         )
-        for channel in selected_channels
+        for offset, channel in enumerate(selected_channels)
     ]
 
 
@@ -416,10 +439,15 @@ def build_codeplug(
     }
     default_dmr_id_key = (instance_metadata or {}).get("default_dmr_id")
     legacy_dmr_id = (instance_metadata or {}).get("dmr_id")
+    next_channel_number = 1
     for zone in profile["zones"]:
         channel_references: list[str] = []
         zone_dmr_id_key = zone.get("dmr_id")
         for assignment_value in zone["assignments"]:
+            spacer_target = _spacer_target(assignment_value)
+            if spacer_target is not None:
+                next_channel_number = spacer_target
+                continue
             assignment_id = (
                 assignment_value["id"]
                 if isinstance(assignment_value, dict)
@@ -476,9 +504,11 @@ def build_codeplug(
                 scan_list_id,
                 dmr_id_key,
                 dmr_id,
+                next_channel_number,
                 timeslot_override,
                 contact_default_timeslot,
             )
+            next_channel_number += len(resolved_channels)
             for resolved_channel in resolved_channels:
                 _check_name_length(
                     report,

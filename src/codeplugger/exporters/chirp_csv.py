@@ -180,7 +180,7 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
     writer = DictWriter(output, fieldnames=CHIRP_HEADERS, lineterminator="\n")
     writer.writeheader()
 
-    for idx, channel in enumerate(codeplug.channels, start=1):
+    for number, channel in codeplug.numbered_channels():
         mode = (channel.mode or "FM").upper()
         if mode not in ("FM", "AM"):
             raise ValueError(
@@ -206,7 +206,7 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
             )
             chirp_mode = "NFM" if narrow else "FM"
         row = {
-            "Location": str(idx),
+            "Location": str(number),
             "Name": channel.display_name,
             "Frequency": _format_frequency(channel.rx_frequency_mhz),
             "Duplex": duplex,

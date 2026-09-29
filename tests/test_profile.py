@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 import sys
@@ -13,6 +15,7 @@ from codeplugger.profile import (
     _load_and_validate_profile,
     load_and_validate_profile,
 )
+from codeplugger.exporters.chirp_csv import chirp_csv_from_resolved
 from codeplugger.resolved import ResolvedTones, resolve_codeplug
 
 
@@ -145,6 +148,61 @@ def test_profile_resolves_ordered_assignment_ids() -> None:
 
     assert loaded["zones"][0]["assignments"] == ["asg_one", "asg_two"]
     assert loaded["radio_instance"] == "dm32_green_01"
+
+
+def test_next_channel_spacer_preserves_chirp_location_and_radio_limit() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(
+            profile,
+            ["asg_one", {"next_channel": 4}, "asg_two"],
+        )
+        _write_radio(root / "radios", extra_limits={"max_channels": 4})
+        _write_ssrf(root / "ssrf")
+
+        codeplug = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert [channel.channel_number for channel in codeplug.channels] == [1, 4]
+
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(codeplug))))
+    assert [row["Location"] for row in rows] == ["1", "4"]
+
+
+def test_next_channel_spacer_cannot_exceed_radio_capacity() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one", {"next_channel": 4}, "asg_two"])
+        _write_radio(root / "radios", extra_limits={"max_channels": 3})
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="channel numbers up to 4"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_next_channel_spacer_cannot_move_backwards() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one", "asg_two", {"next_channel": 2}])
+        _write_radio(root / "radios", extra_limits={"max_channels": 4})
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="channel numbers must increase"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
 
 
 def test_profile_inherits_and_filters_zones() -> None:
