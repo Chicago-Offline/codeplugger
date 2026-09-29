@@ -1,0 +1,77 @@
+{
+  "id": "tyt_th9800_mars",
+  "name": "TYT TH-9800 (extended TX)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 800,
+    "max_zones": 1,
+    "max_channels_per_zone": 800,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "10 m extended TX",
+      "min_mhz": 26,
+      "max_mhz": 33
+    },
+    {
+      "name": "6 m extended TX",
+      "min_mhz": 47,
+      "max_mhz": 54
+    },
+    {
+      "name": "VHF extended TX",
+      "min_mhz": 136,
+      "max_mhz": 174
+    },
+    {
+      "name": "UHF extended TX",
+      "min_mhz": 400,
+      "max_mhz": 480
+    },
+    {
+      "name": "VHF receive",
+      "min_mhz": 108,
+      "max_mhz": 180,
+      "rx_only": true
+    },
+    {
+      "name": "220 MHz receive",
+      "min_mhz": 220,
+      "max_mhz": 260,
+      "rx_only": true
+    },
+    {
+      "name": "350 MHz receive",
+      "min_mhz": 350,
+      "max_mhz": 399.995,
+      "rx_only": true
+    },
+    {
+      "name": "UHF receive",
+      "min_mhz": 400,
+      "max_mhz": 512,
+      "rx_only": true
+    },
+    {
+      "name": "800/900 MHz receive",
+      "min_mhz": 750,
+      "max_mhz": 950,
+      "rx_only": true
+    }
+  ],
+  "modes": [
+    "FM",
+    "AM"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "chirp": {
+    "driver": "TYT_TH-9800",
+    "model": "TYT TH-9800",
+    "clone_mode": "manual"
+  },
+  "notes": "TH-9800 whose stored band limits open transmit beyond the US amateur allocations. Identical to tyt_th9800 in every storage limit, mode, bandwidth and clone parameter -- 800 channels, 6-character names, FM with a 25/12.5 kHz split, no reachable banks, 65296-byte image at 38400 baud, manual clone mode per transfer -- so see that file for provenance. The only difference is which spans are transmit-capable. Separate radio id rather than a flag, following yaesu_ft2800m_mars and yaesu_ft277_mars: transmit permission must never be inferred, and the instance registry already binds one physical radio to one radio id. WHAT 'EXTENDED' MEANS HERE IS NOT A MODIFICATION IN THE YAESU SENSE. There is no diode to cut and no clone-ID byte to match. The TH-9800 stores its own per-band limits in the codeplug: th9800.py declares struct bandlimits[9] with lorx/hirx/lotx/hitx for each of BANDS = 30/50/60/108/150/250/350/450/850 MHz, and get_settings() surfaces all four edges under 'Model Info' with set_mutable(False), so CHIRP shows them and refuses to change them. A given unit is therefore wide or narrow as shipped, by region and production run, and many TH-9800s are sold wide with no modification at all. This id is for a unit whose bandlimits read wide; tyt_th9800 is for one that reads ham-only. THE TX SPANS BELOW ARE PROVISIONAL AND UNVERIFIED. 26-33, 47-54, 136-174 and 400-480 MHz are the commonly reported wide-open TX set for this radio, not a measured result and not read off an image, and they are narrower than the driver's valid_bands on VHF and UHF because valid_bands is the programming span the CHIRP UI accepts rather than a PA capability. The radio transmits on four bands only; 220-260, 350-399.995 and 750-950 MHz are receive-only on every TH-9800 regardless of bandlimits, because there is no transmitter for them, so they stay rx_only here exactly as in the base id. 108-180 MHz also stays rx_only despite overlapping the 136-174 TX span, which is the same overlap pattern yaesu_ft2800m uses, and it is what keeps AM honest: AM on this radio is airband receive, the radio cannot transmit AM at all, and the mode is listed only because the driver's valid_modes includes it. ANY REAL INSTANCE SHOULD REPLACE THESE NUMBERS WITH ITS OWN. Read the radio, open the CHIRP settings tab, Model Info, and record the per-band Tx Start / Tx end values; those are authoritative for that unit and this file should be corrected to match once a clone image exists. Like the base id this entry is paper-derived: no hardware read, no write, no read-back, and the underlying driver is registered ExperimentalRadio with its own warning that support is still under development. Finally, the mod is the operator's responsibility. Transmitting outside the amateur allocations requires the appropriate authorization, and on a non-type-accepted radio commercial, public-safety and MURS use is not authorized at all; a wide bandlimit table is a capability, not a permission."
+}
