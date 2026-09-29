@@ -173,6 +173,15 @@
       "p64_toml": false,
       "oem_cps": false,
       "headless": { "supported": true }
+    },
+    {
+      "id": "yaesu_vx6r",
+      "vendor": "Tri-band submersible",
+      "chirp_csv": { "supported": true, "note": "as VX-6" },
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
     }
   ]
 }

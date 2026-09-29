@@ -1,0 +1,48 @@
+{
+  "id": "yaesu_vx6r",
+  "name": "Yaesu VX-6R",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 900,
+    "max_zones": 1,
+    "max_channels_per_zone": 900,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "2 m ham",
+      "min_mhz": 144,
+      "max_mhz": 148
+    },
+    {
+      "name": "1.25 m ham",
+      "min_mhz": 222,
+      "max_mhz": 225
+    },
+    {
+      "name": "70 cm ham",
+      "min_mhz": 430,
+      "max_mhz": 450
+    },
+    {
+      "name": "wideband receive",
+      "min_mhz": 0.5,
+      "max_mhz": 998.99,
+      "rx_only": true
+    }
+  ],
+  "modes": [
+    "FM",
+    "AM"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "chirp": {
+    "driver": "Yaesu_VX-6",
+    "model": "Yaesu VX-6",
+    "clone_mode": "manual"
+  },
+  "notes": "Stock, unmodified Yaesu VX-6R: a submersible tri-band (2 m / 1.25 m / 70 cm) handheld with wideband receive. Programmed through CHIRP's vx6 driver (chirp/drivers/vx6.py), which registers as Yaesu VX-6 and identifies the radio by model ID 'AH021' with a 32587-byte clone image. UNVERIFIED on our bench: no VX-6R has been read or written here as of 2026-09-28; every limit below is read out of the CHIRP driver source, not measured against hardware, and the target radio lives at a cabin in Byram Township, New Jersey. Storage limits: max_channel_name_chars 6 is rf.valid_name_length = 6, the same aggressive six-character tag budget as the FT-270R, so display names need explicit shortening in the profile rather than trusting truncation. max_channels is set to 900, the published regular-memory count, even though the driver's memory_bounds is (1, 999) over a memory[999] struct; the slots above 900 are the PMS pair and special-channel region, so 900 is the safe flat-import ceiling and 999 is the programming path's upper bound, not usable general memory. max_zones is 1 as a profile-0.1 compatibility shim: unlike the VX-170 this chassis really does have banks (has_bank and has_bank_names are True, bank_names[24]), but the CHIRP CSV interchange format carries no bank column, so banks are not reachable through the file we hand a user. Bands: TX is the three stock amateur allocations 144-148, 222-225 and 430-450 MHz; the 0.5-998.99 MHz span is the driver's valid_bands and is rx_only because stock firmware will not transmit outside those allocations. Consequence for profile authors: GMRS, MURS, marine VHF, NOAA weather, airband and public-safety channels all land in the rx_only band and are receive-only on a stock radio. That is the correct outcome and must not be worked around by widening TX here; if a radio is ever MARS/CAP-modded, add a separate radio id the way yaesu_ft270_mars does. Note also that 1.25 m output is about 1.5 W against 5 W on 2 m and 70 cm, and that 222-225 MHz TX makes this one of the few radios in the fleet that can work a 224 MHz repeater. modes follows the driver's valid_modes [FM, WFM, AM, NFM]; bandwidths_khz 12.5/25 covers the NFM/FM split only, since AM and WFM here are receive conveniences (airband, broadcast) rather than programmable channel bandwidths. Tone handling has one trap: rf.has_ctone is False, so the radio carries a single tone value shared by encode and decode, and a channel needing different TX and RX tones cannot be expressed. Write path: CHIRP.app GUI upload at 19200 baud; the radio enters clone mode by holding [F/W] while powering on, and the upload is armed by pressing [V/M] until the display reads -WAIT-."
+}
