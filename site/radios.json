@@ -173,6 +173,33 @@
       "p64_toml": false,
       "oem_cps": false,
       "headless": { "supported": true }
+    },
+    {
+      "id": "yaesu_vx6r",
+      "vendor": "Tri-band submersible",
+      "chirp_csv": { "supported": true, "note": "as VX-6" },
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
+    },
+    {
+      "id": "tyt_th9800",
+      "vendor": "Quad-band mobile",
+      "chirp_csv": { "supported": true, "note": "experimental driver" },
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
+    },
+    {
+      "id": "tyt_th9800_mars",
+      "vendor": "TX-modded variant",
+      "chirp_csv": { "supported": true, "note": "experimental driver" },
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
     }
   ]
 }
