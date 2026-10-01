@@ -488,6 +488,173 @@ def test_simplex_channel_plan_defaults_tx_to_rx_frequency() -> None:
     assert resolved.channels[0].tx_permitted
 
 
+def test_channel_plan_mirrors_duplex_and_resolves_structured_mode() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_plan"])
+        _write_radio(root / "radios", extra_limits={"max_channel_name_chars": 5})
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["channel_plans"] = [
+            {
+                "id": "plan_test",
+                "name": "Test plan",
+                "channels": [
+                    {
+                        "name": "Marine 20",
+                        "short_name": "M20",
+                        "freq_mhz": 161.6,
+                        "rx_freq_mhz": 157.0,
+                        "mode": {
+                            "type": "FM",
+                            "ctcss_tx_hz": 100.0,
+                            "ctcss_rx_hz": 123.0,
+                        },
+                    }
+                ],
+            }
+        ]
+        data["assignments"].append(
+            {
+                "id": "asg_plan",
+                "channel_plan_id": "plan_test",
+                "usage": "duplex",
+            }
+        )
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    channel = resolved.channels[0]
+    assert (channel.rx_frequency_mhz, channel.tx_frequency_mhz) == (161.6, 157.0)
+    assert channel.display_name == "M20"
+    assert channel.mode == "FM"
+    assert channel.tones == ResolvedTones(ctcss_tx_hz=123.0, ctcss_rx_hz=100.0)
+    assert channel.tx_permitted
+
+
+def test_channel_plan_emissions_expand_into_distinct_modes() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_plan"])
+        _write_radio(
+            root / "radios",
+            max_channels_per_zone=3,
+            extra_limits={"max_channels": 3},
+        )
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["channel_plans"] = [
+            {
+                "id": "plan_test",
+                "name": "Test plan",
+                "channels": [
+                    {
+                        "name": "CB 01",
+                        "freq_mhz": 26.965,
+                        "emissions": [
+                            {
+                                "emission": "8K00A3E",
+                                "mode": "AM",
+                                "bandwidth_khz": 8,
+                            },
+                            {
+                                "emission": "4K00J3E",
+                                "mode": "USB",
+                                "bandwidth_khz": 4,
+                            },
+                        ],
+                    },
+                    {
+                        "name": "CB 02",
+                        "freq_mhz": 27.005,
+                        "emission": "16K0F3E",
+                    },
+                ],
+            }
+        ]
+        data["assignments"].append(
+            {
+                "id": "asg_plan",
+                "channel_plan_id": "plan_test",
+                "usage": "simplex",
+            }
+        )
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert [channel.mode for channel in resolved.channels] == ["AM", "USB", "FM"]
+    assert [channel.display_name for channel in resolved.channels] == [
+        "CB 01 AM",
+        "CB 01 USB",
+        "CB 02",
+    ]
+    assert [channel.bandwidth_khz for channel in resolved.channels] == [8, 4, 25]
+    assert [channel.reference for channel in resolved.channels] == [
+        "asg_plan:CB 01:AM",
+        "asg_plan:CB 01:USB",
+        "asg_plan:CB 02",
+    ]
+
+
+def test_channel_plan_mode_is_checked_against_radio_capabilities() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_plan"])
+        _write_radio(root / "radios")
+        capabilities_path = (
+            root / "radios" / "test_radio" / "capabilities.json"
+        )
+        capabilities = json.loads(capabilities_path.read_text(encoding="utf-8"))
+        capabilities["modes"] = ["FM"]
+        capabilities_path.write_text(json.dumps(capabilities), encoding="utf-8")
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["channel_plans"] = [
+            {
+                "id": "plan_test",
+                "name": "Test plan",
+                "channels": [
+                    {
+                        "name": "Sideband",
+                        "freq_mhz": 27.385,
+                        "mode": {"type": "USB"},
+                    }
+                ],
+            }
+        ]
+        data["assignments"].append(
+            {
+                "id": "asg_plan",
+                "channel_plan_id": "plan_test",
+                "usage": "receive",
+            }
+        )
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ProfileValidationError, match="uses mode USB"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
 def test_resolved_codeplug_defaults_instance_to_profile_id() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -580,6 +747,78 @@ def test_profile_counts_channel_plan_expansion() -> None:
             )
 
 
+def test_profile_counts_channel_plan_emission_expansion() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_plan"])
+        _write_radio(root / "radios", max_channels_per_zone=1)
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["channel_plans"] = [
+            {
+                "id": "plan_test",
+                "name": "Test plan",
+                "channels": [
+                    {
+                        "name": "CB 01",
+                        "freq_mhz": 26.965,
+                        "emissions": [
+                            {"emission": "8K00A3E", "mode": "AM"},
+                            {"emission": "4K00J3E", "mode": "USB"},
+                        ],
+                    }
+                ],
+            }
+        ]
+        data["assignments"].append(
+            {
+                "id": "asg_plan",
+                "channel_plan_id": "plan_test",
+                "usage": "simplex",
+            }
+        )
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ProfileValidationError, match="expands to 2 channels"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_rx_only_station_does_not_need_tx_band_support() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        capabilities_path = (
+            root / "radios" / "test_radio" / "capabilities.json"
+        )
+        capabilities = json.loads(capabilities_path.read_text(encoding="utf-8"))
+        capabilities["bands"] = [
+            {"min_mhz": 146.0, "max_mhz": 147.0, "rx_only": True}
+        ]
+        capabilities_path.write_text(json.dumps(capabilities), encoding="utf-8")
+        _write_ssrf(root / "ssrf")
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["rx"]["freq_mhz"] = None
+        data["assignments"][0]["usage"] = "receive"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        loaded = load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["zones"][0]["assignments"] == ["asg_one"]
+
+
 def test_profile_rejects_assignment_without_rf_data() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -669,16 +908,16 @@ def test_resolved_codeplug_preserves_order_overlays_and_rf_facts() -> None:
     assert resolved.channels[0].tx_frequency_mhz is None
     assert resolved.channels[0].tx_permitted is False
     assert resolved.channels[0].notes == "Overlay note"
-    assert resolved.channels[1].rx_frequency_mhz == 146.34
-    assert resolved.channels[1].tx_frequency_mhz == 146.94
+    assert resolved.channels[1].rx_frequency_mhz == 146.94
+    assert resolved.channels[1].tx_frequency_mhz == 146.34
     assert resolved.channels[1].service == "amateur"
     # chain_one carries no explicit bandwidth_khz, so 25 kHz is derived from
     # its 16K0F3E emission designator.
     assert resolved.channels[1].bandwidth_khz == 25.0
     assert resolved.channels[1].power_w is None
     assert resolved.channels[1].tones == ResolvedTones(
-        ctcss_tx_hz=100.0,
-        ctcss_rx_hz=123.0,
+        ctcss_tx_hz=123.0,
+        ctcss_rx_hz=100.0,
     )
     assert resolved.channels[1].color_code == 1
     assert resolved.channels[1].timeslots == (1,)
