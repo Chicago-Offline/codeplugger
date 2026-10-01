@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import yaml
+from ssrf.emissions import mode_from_emission
 
 from .emission import bandwidth_khz_from_emission
 from .profile import (
@@ -163,8 +164,24 @@ class ResolvedCodeplug:
         )
 
 
-def _display_name(assignment: Any, fallback: str, override: str | None) -> str:
-    return override or assignment.display_name or assignment.channel_name or fallback
+def _display_name(
+    assignment: Any,
+    fallback: str,
+    override: str | None,
+    *,
+    short_name: str | None = None,
+    max_chars: int | None = None,
+    use_assignment_short_name: bool = True,
+) -> str:
+    name = override or assignment.display_name or assignment.channel_name or fallback
+    authored_short_name = (
+        getattr(assignment, "short_name", None)
+        if use_assignment_short_name
+        else None
+    ) or short_name
+    if max_chars is not None and len(name) > max_chars and authored_short_name:
+        return authored_short_name
+    return name
 
 
 def _bandwidth_khz(source: Any | None) -> float | None:
@@ -220,14 +237,16 @@ def _select_timeslot(
     return available[0]
 
 
-def _tones(mode: Any | None) -> ResolvedTones:
+def _tones(mode: Any | None, *, station_perspective: bool = False) -> ResolvedTones:
     if mode is None:
         return ResolvedTones()
+    tx_side = "rx" if station_perspective else "tx"
+    rx_side = "tx" if station_perspective else "rx"
     return ResolvedTones(
-        ctcss_tx_hz=mode.ctcss_tx_hz,
-        ctcss_rx_hz=mode.ctcss_rx_hz,
-        dcs_tx_code=mode.dcs_tx_code,
-        dcs_rx_code=mode.dcs_rx_code,
+        ctcss_tx_hz=getattr(mode, f"ctcss_{tx_side}_hz"),
+        ctcss_rx_hz=getattr(mode, f"ctcss_{rx_side}_hz"),
+        dcs_tx_code=getattr(mode, f"dcs_{tx_side}_code"),
+        dcs_rx_code=getattr(mode, f"dcs_{rx_side}_code"),
     )
 
 
@@ -244,6 +263,7 @@ def _resolve_assignment(
     start_number: int = 1,
     timeslot_override: int | None = None,
     contact_default_timeslot: int | None = None,
+    max_channel_name_chars: int | None = None,
 ) -> list[ResolvedChannel]:
     reference = document.reference
     extensions = extensions or {}
@@ -265,25 +285,37 @@ def _resolve_assignment(
             (item for item in reference.stations if item.id == rf_chain.station_id),
             None,
         )
-        rx_frequency = rf_chain.rx.freq_mhz
-        tx_frequency = rf_chain.tx.freq_mhz
+        station_tx_frequency = rf_chain.tx.freq_mhz
+        station_rx_frequency = rf_chain.rx.freq_mhz
+        rx_frequency = station_tx_frequency or station_rx_frequency
+        tx_frequency = station_rx_frequency or station_tx_frequency
+        tx_permitted = (
+            station_tx_frequency is not None
+            and (
+                station_rx_frequency is not None
+                or assignment.usage in {"call", "simplex"}
+            )
+        )
         return [
             ResolvedChannel(
                 reference=assignment.id,
                 assignment_id=assignment.id,
                 display_name=_display_name(
-                    assignment, assignment.id, display_name_override
+                    assignment,
+                    assignment.id,
+                    display_name_override,
+                    max_chars=max_channel_name_chars,
                 ),
                 rx_frequency_mhz=rx_frequency,
-                tx_frequency_mhz=tx_frequency,
+                tx_frequency_mhz=tx_frequency if tx_permitted else None,
                 mode=rf_chain.mode.type,
                 service=(
                     assignment.service
                     or (authorization.service if authorization else None)
                     or (station.service if station else None)
                 ),
-                tones=_tones(rf_chain.mode),
-                tx_permitted=tx_frequency is not None,
+                tones=_tones(rf_chain.mode, station_perspective=True),
+                tx_permitted=tx_permitted,
                 notes=assignment.notes,
                 channel_number=start_number,
                 bandwidth_khz=_bandwidth_khz(rf_chain.tx),
@@ -320,51 +352,117 @@ def _resolve_assignment(
         for channel in plan.channels
         if assignment.channel_name is None or channel.name == assignment.channel_name
     ]
-    expands_plan = len(selected_channels) > 1
-    return [
-        ResolvedChannel(
-            reference=(
-                f"{assignment.id}:{channel.name}"
-                if expands_plan
-                else assignment.id
-            ),
-            assignment_id=assignment.id,
-            display_name=_display_name(
-                assignment, channel.name, display_name_override
-            ),
-            rx_frequency_mhz=channel.freq_mhz,
-            tx_frequency_mhz=(
-                channel.tx_freq_mhz
-                if channel.tx_freq_mhz is not None
-                else (
-                    channel.freq_mhz
-                    if assignment.usage in {"call", "simplex"}
-                    else None
+    expanded: list[tuple[Any, Any | None, str | None, bool]] = []
+    for channel in selected_channels:
+        emissions = channel.permitted_emissions()
+        if len(emissions) > 1:
+            expanded.extend(
+                (
+                    channel,
+                    emission,
+                    emission.mode or mode_from_emission(emission.emission),
+                    True,
                 )
-            ),
-            mode=None,
-            service=(
-                assignment.service
-                or (authorization.service if authorization else None)
-                or plan.service
-            ),
-            tones=ResolvedTones(),
-            tx_permitted=(
-                channel.tx_freq_mhz is not None
-                or assignment.usage in {"call", "simplex"}
-            ),
-            notes=assignment.notes or channel.notes,
-            channel_number=start_number + offset,
-            bandwidth_khz=_bandwidth_khz(channel),
-            contact_id=contact_id,
-            rx_group_id=rx_group_id,
-            scan_list_id=scan_list_id,
-            dmr_id_key=dmr_id_key,
-            dmr_id=dmr_id,
-            extensions=extensions,
+                for emission in emissions
+            )
+        else:
+            emission = emissions[0] if emissions else None
+            expanded.append(
+                (
+                    channel,
+                    emission,
+                    (
+                        emission.mode
+                        if emission and emission.mode
+                        else mode_from_emission(emission.emission)
+                        if emission
+                        else None
+                    ),
+                    False,
+                )
+            )
+
+    expands_plan = len(expanded) > 1
+    resolved_channels = []
+    for offset, (channel, emission, emission_mode, emission_variant) in enumerate(
+        expanded
+    ):
+        name = _display_name(
+            assignment,
+            channel.name,
+            display_name_override if len(selected_channels) == 1 else None,
+            short_name=channel.short_name,
+            max_chars=max_channel_name_chars,
+            use_assignment_short_name=len(selected_channels) == 1,
         )
-        for offset, channel in enumerate(selected_channels)
-    ]
+        mode = channel.mode
+        mode_type = (
+            emission_mode
+            or (mode.type if mode is not None else None)
+            or mode_from_emission(emission.emission if emission else channel.emission)
+        )
+        suffix = emission_mode or (emission.emission if emission else None)
+        if emission_variant and suffix:
+            name = f"{name} {suffix}"
+
+        station_rx_frequency = channel.rx_freq_mhz
+        tx_permitted = (
+            station_rx_frequency is not None
+            or assignment.usage in {"call", "simplex"}
+        )
+        emission_bandwidth = getattr(emission, "bandwidth_khz", None)
+        if emission_bandwidth is None and emission is not None:
+            emission_bandwidth = bandwidth_khz_from_emission(emission.emission)
+        resolved_channels.append(
+            ResolvedChannel(
+                reference=(
+                    f"{assignment.id}:{channel.name}:{suffix}"
+                    if emission_variant and suffix
+                    else f"{assignment.id}:{channel.name}:{offset}"
+                    if emission_variant
+                    else f"{assignment.id}:{channel.name}"
+                    if expands_plan
+                    else assignment.id
+                ),
+                assignment_id=assignment.id,
+                display_name=name,
+                rx_frequency_mhz=channel.freq_mhz,
+                tx_frequency_mhz=(
+                    (station_rx_frequency or channel.freq_mhz)
+                    if tx_permitted
+                    else None
+                ),
+                mode=mode_type,
+                service=(
+                    assignment.service
+                    or (authorization.service if authorization else None)
+                    or plan.service
+                ),
+                tones=_tones(mode, station_perspective=True),
+                tx_permitted=tx_permitted,
+                notes=assignment.notes or channel.notes,
+                channel_number=start_number + offset,
+                bandwidth_khz=(
+                    emission_bandwidth or _bandwidth_khz(channel)
+                ),
+                power_w=getattr(emission, "power_w", None),
+                color_code=getattr(mode, "color_code", None),
+                timeslots=tuple(getattr(mode, "timeslots", None) or ()),
+                timeslot=_select_timeslot(
+                    getattr(mode, "timeslots", None) or (),
+                    timeslot_override,
+                    contact_default_timeslot,
+                    assignment.id,
+                ),
+                contact_id=contact_id,
+                rx_group_id=rx_group_id,
+                scan_list_id=scan_list_id,
+                dmr_id_key=dmr_id_key,
+                dmr_id=dmr_id,
+                extensions=extensions,
+            )
+        )
+    return resolved_channels
 
 
 def resolve_codeplug(
@@ -507,6 +605,7 @@ def build_codeplug(
                 next_channel_number,
                 timeslot_override,
                 contact_default_timeslot,
+                limits.get("max_channel_name_chars"),
             )
             next_channel_number += len(resolved_channels)
             for resolved_channel in resolved_channels:

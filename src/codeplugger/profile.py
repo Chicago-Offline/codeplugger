@@ -11,6 +11,7 @@ from typing import Any, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 import yaml
+from ssrf.emissions import mode_from_emission
 
 from .emission import bandwidth_khz_from_emission
 from .validation import ValidationReport
@@ -242,7 +243,11 @@ def _assignment_channel_counts(
                     for channel in plan.channels
                     if channel.name == assignment.channel_name
                 ]
-                channel_count = len(matching_channels or plan.channels)
+                selected_channels = matching_channels or plan.channels
+                channel_count = sum(
+                    max(1, len(channel.permitted_emissions()))
+                    for channel in selected_channels
+                )
             if not channel_count:
                 continue
             if assignment.id in channel_counts:
@@ -521,15 +526,131 @@ def _check_radio_support(
                 continue
             chain = chains.get(assignment.rf_chain_id)
             if chain is None:
+                plan = next(
+                    (
+                        item
+                        for item in reference.channel_plans
+                        if item.id == assignment.channel_plan_id
+                    ),
+                    None,
+                )
+                if plan is None:
+                    continue
+                channels = [
+                    channel
+                    for channel in plan.channels
+                    if assignment.channel_name is None
+                    or channel.name == assignment.channel_name
+                ]
+                for channel in channels:
+                    label = channel.name
+                    station_rx = channel.rx_freq_mhz
+                    can_transmit = (
+                        station_rx is not None
+                        or assignment.usage in {"call", "simplex"}
+                    )
+                    if bands:
+                        endpoints = [("RX", channel.freq_mhz, False)]
+                        if can_transmit:
+                            endpoints.append(
+                                ("TX", station_rx or channel.freq_mhz, True)
+                            )
+                        for direction, freq_mhz, transmit in endpoints:
+                            if not _frequency_in_bands(
+                                freq_mhz, bands, transmit=transmit
+                            ):
+                                supported = ", ".join(
+                                    _band_label(band) for band in bands
+                                )
+                                report.critical(
+                                    (f"channel '{label}'",),
+                                    f"{direction} {freq_mhz} MHz is outside the "
+                                    f"bands supported by {radio_name} ({supported})",
+                                )
+
+                    emissions = channel.permitted_emissions()
+                    channel_modes = [
+                        emission.mode
+                        or (
+                            channel.mode.type
+                            if channel.mode is not None
+                            else mode_from_emission(emission.emission)
+                        )
+                        for emission in emissions
+                    ]
+                    if not emissions:
+                        channel_modes = [
+                            channel.mode.type
+                            if channel.mode is not None
+                            else mode_from_emission(channel.emission)
+                        ]
+                    if mode_set:
+                        for channel_mode in channel_modes:
+                            if (
+                                channel_mode
+                                and str(channel_mode).upper() not in mode_set
+                            ):
+                                report.critical(
+                                    (f"channel '{label}'",),
+                                    f"uses mode {channel_mode}, which "
+                                    f"{radio_name} does not support "
+                                    f"({', '.join(sorted(mode_set))})",
+                                )
+
+                    if bandwidths:
+                        for emission in emissions:
+                            bandwidth_khz = (
+                                emission.bandwidth_khz
+                                or bandwidth_khz_from_emission(emission.emission)
+                            )
+                            if bandwidth_khz is not None and not any(
+                                abs(bandwidth_khz - supported) < 1e-6
+                                for supported in bandwidths
+                            ):
+                                allowed = ", ".join(
+                                    str(value) for value in bandwidths
+                                )
+                                report.critical(
+                                    (f"channel '{label}'",),
+                                    f"uses {bandwidth_khz} kHz bandwidth, "
+                                    f"which {radio_name} does not support "
+                                    f"({allowed} kHz)",
+                                )
+                        if not emissions:
+                            bandwidth_khz = channel.bandwidth_khz
+                            if bandwidth_khz is None:
+                                bandwidth_khz = bandwidth_khz_from_emission(
+                                    channel.emission
+                                )
+                            if bandwidth_khz is not None and not any(
+                                abs(bandwidth_khz - supported) < 1e-6
+                                for supported in bandwidths
+                            ):
+                                allowed = ", ".join(
+                                    str(value) for value in bandwidths
+                                )
+                                report.critical(
+                                    (f"channel '{label}'",),
+                                    f"uses {bandwidth_khz} kHz bandwidth, "
+                                    f"which {radio_name} does not support "
+                                    f"({allowed} kHz)",
+                                )
                 continue
             label = assignment.channel_name or assignment.id
 
             if bands:
-                endpoints = []
-                if getattr(chain, "rx", None) is not None:
-                    endpoints.append(("RX", chain.rx.freq_mhz, False))
-                if getattr(chain, "tx", None) is not None:
-                    endpoints.append(("TX", chain.tx.freq_mhz, True))
+                station_tx = getattr(getattr(chain, "tx", None), "freq_mhz", None)
+                station_rx = getattr(getattr(chain, "rx", None), "freq_mhz", None)
+                can_transmit = (
+                    station_tx is not None
+                    and (
+                        station_rx is not None
+                        or assignment.usage in {"call", "simplex"}
+                    )
+                )
+                endpoints = [("RX", station_tx or station_rx, False)]
+                if can_transmit:
+                    endpoints.append(("TX", station_rx or station_tx, True))
                 for direction, freq_mhz, transmit in endpoints:
                     if freq_mhz is None:
                         continue
