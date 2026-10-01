@@ -226,6 +226,48 @@ def test_placeholder_contact_present_without_fleet_registry() -> None:
     assert len(document["groupLists"]) == 1
 
 
+def test_receive_only_dmr_without_identity_uses_placeholder() -> None:
+    channel = _channel(
+        mode="DMR", tx_frequency_mhz=None, tx_permitted=False,
+        color_code=1, timeslot=1,
+    )
+
+    document = yaml.safe_load(qdmr_yaml_from_resolved(_codeplug((channel,))))
+
+    assert document["radioIDs"] == [
+        {"dmr": {"id": "id1", "name": "UNUSED", "number": 1}}
+    ]
+    assert document["channels"][0]["dmr"]["radioId"] == "id1"
+    assert document["channels"][0]["dmr"]["rxOnly"] is True
+
+
+def test_transmitting_dmr_without_identity_is_rejected() -> None:
+    channel = _channel(mode="DMR", color_code=1, timeslot=1)
+
+    with pytest.raises(ValueError, match="has no dmr_id bound"):
+        qdmr_yaml_from_resolved(_codeplug((channel,)))
+
+
+def test_receive_only_dmr_placeholder_coexists_with_real_identity() -> None:
+    transmitting = _channel(
+        mode="DMR", color_code=1, timeslot=1, dmr_id=3112345,
+        dmr_id_key="operator",
+    )
+    monitoring = _channel(
+        reference="d2", assignment_id="d2", mode="DMR",
+        tx_frequency_mhz=None, tx_permitted=False, color_code=1, timeslot=1,
+    )
+    codeplug = _codeplug((transmitting, monitoring))
+    document = yaml.safe_load(qdmr_yaml_from_resolved(codeplug))
+
+    assert [entry["dmr"]["number"] for entry in document["radioIDs"]] == [
+        3112345, 1,
+    ]
+    assert document["channels"][0]["dmr"]["radioId"] == "id1"
+    assert document["channels"][1]["dmr"]["radioId"] == "id2"
+    assert document["settings"]["defaultID"] == "id1"
+
+
 def test_contacts_group_lists_and_scan_lists_from_profile() -> None:
     dmr = _channel(
         reference="d1",

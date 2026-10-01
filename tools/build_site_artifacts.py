@@ -166,7 +166,7 @@ def build_profile(
     profile_path: Path,
     ssrf_roots: list[Path],
     radio_rows: dict[str, dict],
-    out_dir: Path,
+    source_dir: Path,
 ) -> dict:
     from codeplugger.artifacts import html_reference_from_resolved
     from codeplugger.profile import _load_and_validate_profile, _load_capabilities
@@ -197,6 +197,7 @@ def build_profile(
     resolved_json = codeplug.to_json()
     files[".resolved.json"] = resolved_json
 
+    out_dir = source_dir / radio_id / profile_id
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[dict] = []
     for suffix, text in sorted(files.items()):
@@ -218,6 +219,7 @@ def build_profile(
         "profile_name": profile.get("name", profile_id),
         "radio": radio_id,
         "radio_name": capabilities.get("name"),
+        "dir": f"{radio_id}/{profile_id}",
         "zones": len(codeplug.zones),
         "channels": len(codeplug.channels),
         # Same digest codeplugger-fleet reports, over the same bytes.
@@ -248,10 +250,10 @@ def build_source(source: dict, checkout_root: Path, radio_rows: dict, out_root: 
             profile_path,
             ssrf_roots,
             radio_rows,
-            out_root / source_id / profile_path.parent.name,
+            out_root / source_id,
         )
         entry["profile_path"] = rel
-        entry["dir"] = f"{source_id}/{profile_path.parent.name}"
+        entry["dir"] = f"{source_id}/{entry['dir']}"
         built.append(entry)
 
     return {
