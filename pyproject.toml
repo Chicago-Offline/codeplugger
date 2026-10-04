@@ -11,7 +11,7 @@ dependencies = [
   "jsonschema>=4.20",
   "pyyaml>=6.0.1",
   "tomlkit>=0.13",
-  "ssrf-lite @ git+https://github.com/Chicago-Offline/ssrf-lite.git@a0f99cfe459b64b1e5c7eadd43cb657d2f27e106",
+  "ssrf-lite @ git+https://github.com/Chicago-Offline/ssrf-lite.git@5d2bbb90f4759008531518ac7a8ed0e0741bf5dd",
 ]
 
 [project.scripts]
