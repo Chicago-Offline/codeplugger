@@ -32,6 +32,31 @@ class ProfileValidationError(ValueError):
     """Raised when a profile cannot be resolved into a valid selection."""
 
 
+def installed_ssrf_root() -> Path:
+    """Return the data root shipped inside the installed ``ssrf-lite`` package.
+
+    The package directory doubles as an SSRF root (plans/, systems/,
+    talkgroups/ live next to the Python modules), so a plain ``pip install
+    codeplugger`` is enough to resolve profiles without a sibling checkout.
+    """
+
+    try:
+        import ssrf
+    except ImportError as exc:
+        raise ProfileValidationError(
+            "SSRF-Lite with overlay support must be installed"
+        ) from exc
+    return Path(ssrf.__file__).resolve().parent
+
+
+def default_ssrf_roots(ssrf_roots: Sequence[Path] | None) -> list[Path]:
+    """Fall back to the installed ssrf-lite data when no root was given."""
+
+    if ssrf_roots:
+        return list(ssrf_roots)
+    return [installed_ssrf_root()]
+
+
 _MAX_PROFILE_INHERITANCE_DEPTH = 32
 _PROFILE_INHERITANCE_KEYS = {"extends", "zones_only", "omit_zones"}
 
@@ -1032,8 +1057,11 @@ def main() -> int:
         "--ssrf-root",
         type=Path,
         action="append",
-        required=True,
-        help="SSRF root in precedence order; repeat for overlays",
+        default=None,
+        help=(
+            "SSRF root in precedence order; repeat for overlays "
+            "(default: the data shipped in the installed ssrf-lite package)"
+        ),
     )
     parser.add_argument("--radio-root", type=Path, default=DEFAULT_RADIO_ROOT)
     parser.add_argument(
@@ -1073,7 +1101,7 @@ def main() -> int:
     try:
         profile, documents, instance_metadata, report = _load_and_validate_profile(
             args.profile,
-            args.ssrf_root,
+            default_ssrf_roots(args.ssrf_root),
             radio_root=args.radio_root,
             instance_registry_path=args.instance_registry,
         )

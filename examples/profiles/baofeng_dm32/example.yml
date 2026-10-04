@@ -1,0 +1,57 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_dm32"
+name: "Example DM-32"
+radio: "baofeng_dm32"
+radio_instance: "example_dm32_01"
+# A zone-capable DMR radio. Exports as qdmr YAML for `dmrconf`. The radio's
+# DMR ID comes from the instance registry (examples/instances.yml), never from
+# the profile. Each DMR channel binds an SSRF contact for TX; the contact's
+# default_timeslot (TS1 for simplex TG 99) places the channel on its slot.
+rx_groups:
+  - id: "simplex"
+    name: "Simplex"
+    contacts: ["ct_dmr_simplex"]
+zones:
+  - id: "ham"
+    name: "Ham"
+    assignments:
+      - "us_ham_vhf_call"
+      - "us_ham_uhf_call"
+      - id: "asg_dmr_smpx_446500"
+        contact: "ct_dmr_simplex"
+        rx_group: "simplex"
+      - id: "asg_dmr_smpx_446075"
+        contact: "ct_dmr_simplex"
+        rx_group: "simplex"
+  - id: "murs"
+    name: "MURS"
+    assignments:
+      - "asgn_murs_1"
+      - "asgn_murs_2"
+      - "asgn_murs_3"
+      # Shortened for the 16-character DM-32 name field.
+      - id: "asgn_murs_4"
+        display_name: "MURS 4 Blue Dot"
+      - id: "asgn_murs_5"
+        display_name: "MURS 5 Green Dot"
+  - id: "gmrs"
+    name: "GMRS"
+    assignments:
+      - "asgn_gmrs_01"
+      - "asgn_gmrs_02"
+      - "asgn_gmrs_03"
+      - "asgn_gmrs_04"
+      - "asgn_gmrs_05"
+      - "asgn_gmrs_06"
+      - "asgn_gmrs_07"
+  - id: "weather"
+    name: "Weather"
+    assignments:
+      - "asg_wx1"
+      - "asg_wx2"
+      - "asg_wx3"
+      - "asg_wx4"
+      - "asg_wx5"
+      - "asg_wx6"
+      - "asg_wx7"

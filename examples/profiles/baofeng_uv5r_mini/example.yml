@@ -1,0 +1,38 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_uv5r_mini"
+name: "Example UV-5R Mini"
+radio: "baofeng_uv5r_mini"
+radio_instance: "example_uv5r_mini_01"
+# The UV-5R Mini has no zone concept, so everything goes in one zone and the
+# order here is the channel order on the radio. Exports as CHIRP CSV.
+zones:
+  - id: "main"
+    name: "Main"
+    assignments:
+      - "us_ham_vhf_call"
+      - "us_ham_uhf_call"
+      - "asgn_murs_1"
+      - "asgn_murs_2"
+      - "asgn_murs_3"
+      # SSRF names these "MURS 4 (Blue Dot)" / "MURS 5 (Green Dot)", which is
+      # longer than this radio's 12-character limit. A per-assignment
+      # display_name shortens it for this radio only; the SSRF record is unchanged.
+      - id: "asgn_murs_4"
+        display_name: "MURS 4 Blue"
+      - id: "asgn_murs_5"
+        display_name: "MURS 5 Grn"
+      - "asgn_gmrs_01"
+      - "asgn_gmrs_02"
+      - "asgn_gmrs_03"
+      - "asgn_gmrs_04"
+      - "asgn_gmrs_05"
+      - "asgn_gmrs_06"
+      - "asgn_gmrs_07"
+      - "asg_wx1"
+      - "asg_wx2"
+      - "asg_wx3"
+      - "asg_wx4"
+      - "asg_wx5"
+      - "asg_wx6"
+      - "asg_wx7"
