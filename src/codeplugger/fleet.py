@@ -16,6 +16,7 @@ from .profile import (
     DEFAULT_RADIO_ROOT,
     ProfileValidationError,
     _load_instance_registry,
+    default_ssrf_roots,
 )
 from .resolved import resolve_codeplug
 
@@ -149,8 +150,11 @@ def main() -> int:
         "--ssrf-root",
         type=Path,
         action="append",
-        required=True,
-        help="SSRF root in precedence order; repeat for overlays",
+        default=None,
+        help=(
+            "SSRF root in precedence order; repeat for overlays "
+            "(default: the data shipped in the installed ssrf-lite package)"
+        ),
     )
     parser.add_argument("--radio-root", type=Path, default=DEFAULT_RADIO_ROOT)
     parser.add_argument("--output-format", choices=("summary", "json"), default="summary")
@@ -159,7 +163,7 @@ def main() -> int:
         plan = plan_registry(
             args.instance_registry,
             args.profiles_root,
-            args.ssrf_root,
+            default_ssrf_roots(args.ssrf_root),
             radio_root=args.radio_root,
         )
     except (OSError, ProfileValidationError, ValueError) as exc:

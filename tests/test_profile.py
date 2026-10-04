@@ -1087,6 +1087,44 @@ def test_summary_format_enforces_channel_name_length(monkeypatch, capsys) -> Non
     assert "channel name" in capsys.readouterr().err
 
 
+def test_default_ssrf_roots_prefers_explicit_roots() -> None:
+    from codeplugger.profile import default_ssrf_roots, installed_ssrf_root
+
+    installed = installed_ssrf_root()
+    assert (installed / "plans").is_dir()
+    assert default_ssrf_roots(None) == [installed]
+    assert default_ssrf_roots([]) == [installed]
+    explicit = [Path("/tmp/a"), Path("/tmp/b")]
+    assert default_ssrf_roots(explicit) == explicit
+
+
+def test_cli_resolves_against_installed_ssrf_lite_without_ssrf_root(
+    monkeypatch, capsys
+) -> None:
+    """A plain install must be enough to validate a profile.
+
+    New users should not need a sibling ssrf-lite checkout to run the first
+    documented command; the pinned dependency already ships the data.
+    """
+
+    from codeplugger.profile import main
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asgn_murs_1"], radio="baofeng_uv5r_mini")
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["codeplugger-profile", str(profile), "--output-format", "yaml"],
+        )
+        assert main() == 0
+
+    out = capsys.readouterr().out
+    assert "MURS 1" in out
+    assert "151.82" in out
+
+
 def test_dm32_capabilities_declare_name_limits() -> None:
     """The shipped DM-32 document must carry the field-verified name limits."""
 
@@ -1147,10 +1185,9 @@ def test_uv5r_mini_fixture_profile_validates_end_to_end() -> None:
         _write_ssrf(root / "ssrf")
 
         fixture_profile = (
-            Path(__file__).resolve().parents[1]
-            / "profiles"
-            / "baofeng_uv5r_mini"
-            / "reference.yml"
+            Path(__file__).resolve().parent
+            / "fixtures"
+            / "uv5r_mini_reference.yml"
         )
         loaded = load_and_validate_profile(
             fixture_profile,

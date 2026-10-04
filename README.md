@@ -15,6 +15,31 @@ features is published at
 [chicago-offline.github.io/codeplugger](https://chicago-offline.github.io/codeplugger/)
 (source in `site/`).
 
+## Quick start
+
+The install pulls in `ssrf-lite` with its published RF data, so the shipped
+examples run without any other checkout:
+
+```bash
+git clone https://github.com/Chicago-Offline/codeplugger.git
+cd codeplugger
+uv sync
+
+# Validate an example and print it as CHIRP CSV
+uv run codeplugger-profile examples/profiles/baofeng_uv5r_mini/example.yml \
+  --instance-registry examples/instances.yml \
+  --output-format chirp-csv
+
+# Dry-run every radio in the example registry
+uv run codeplugger-fleet \
+  --instance-registry examples/instances.yml \
+  --profiles-root examples/profiles
+```
+
+When it is time to describe your own radios, copy `examples/` out into its own
+repository and edit from there; [examples/README.md](examples/README.md) walks
+through that. Profiles for real radios do not belong in this repository.
+
 ## Workflow
 
 ```mermaid
@@ -134,7 +159,10 @@ the sequenced plan and what is deliberately deferred.
 Repository directories:
 
 - `radios/`: radio capabilities, constraints, and exporter-specific mappings.
-- `profiles/`: public examples and fixtures, not real user secrets.
+- `examples/`: runnable starter profiles and an instance registry, built only
+  from published `ssrf-lite` data. Copy it to start your own profile
+  repository; see [examples/README.md](examples/README.md).
+- `tests/fixtures/`: synthetic inputs for unit tests, not usable profiles.
 
 ## Profile format
 
@@ -187,12 +215,21 @@ Inheritance cycles, unknown zones, mismatched radios, and excessively deep
 inheritance chains are rejected. Review the fully merged profile with:
 
 ```bash
-uv run codeplugger-profile path/to/profile.yml \
-  --ssrf-root ../ssrf-lite/ssrf \
-  --print-merged-profile
+uv run codeplugger-profile path/to/profile.yml --print-merged-profile
 ```
 
-Validate a profile against authoritative data, overlays, and radio limits:
+Validate a profile against authoritative data and radio limits. With no
+`--ssrf-root`, codeplugger reads the `ssrf-lite` data shipped inside the
+installed dependency, so a plain install is enough for profiles that only
+select published assignments:
+
+```bash
+uv run codeplugger-profile path/to/profile.yml
+```
+
+Pass `--ssrf-root` explicitly, in precedence order, to use a local `ssrf-lite`
+checkout or to layer overlays on top of it. Explicit roots replace the
+installed default rather than extending it:
 
 ```bash
 uv run codeplugger-profile path/to/profile.yml \
@@ -461,7 +498,6 @@ Use `--instance-registry` to enable this join check:
 
 ```bash
 uv run codeplugger-profile path/to/profile.yml \
-  --ssrf-root ../ssrf-lite/ssrf \
   --instance-registry path/to/instances.yml
 ```
 

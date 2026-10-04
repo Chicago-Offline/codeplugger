@@ -1,0 +1,26 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/instance-registry-0.1.schema.json"
+version: "0.1"
+# One entry per physical radio. The key is the instance ID a profile's
+# `radio_instance` must match; `profile` names the profile ID (not the file)
+# that radio should carry. Replace these with your own radios.
+instances:
+  example_uv5r_mini_01:
+    radio: baofeng_uv5r_mini
+    label: "Example UV-5R Mini"
+    profile: example_uv5r_mini
+  example_dm32_01:
+    radio: baofeng_dm32
+    label: "Example DM-32"
+    profile: example_dm32
+    # Placeholder only. Replace with the DMR ID issued to you by RadioID.net
+    # before transmitting on any DMR channel.
+    dmr_id: 1234567
+    dmr_contact_name: "Example DM-32"
+  example_bf888s_01:
+    radio: baofeng_bf888s
+    label: "Example BF-888S"
+    profile: example_bf888s
+  example_uv_pro_01:
+    radio: btech_uv_pro
+    label: "Example UV-Pro"
+    profile: example_uv_pro
