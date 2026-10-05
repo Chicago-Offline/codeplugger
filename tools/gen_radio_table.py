@@ -3,8 +3,8 @@
 
 The row set is authoritative from ``radios/*/capabilities.json``. Presentation
 detail that capabilities.json deliberately does not model (vendor blurb, 'hw'
-badges, third-party import columns, the dmrconf/p64tool backends) comes from
-``site/radios.json``.
+badges, export formats and tool-import support, the dmrconf/p64tool backends)
+comes from ``site/radios.json``.
 
 The point of this script is the failure mode: if a radio is added under
 ``radios/`` and nobody touches the site, generation *fails* instead of quietly

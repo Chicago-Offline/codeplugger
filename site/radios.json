@@ -13,9 +13,9 @@
     "                            capabilities.benlink -> benlink.",
     "",
     "What lives here is what capabilities.json deliberately does not model: the",
-    "vendor blurb, the 'hw' (verified on a physical radio) badges, whether a given",
-    "third-party tool will usefully import our artifacts, and the two headless",
-    "backends that are not described by a capabilities block (dmrconf, p64tool).",
+    "vendor blurb, the 'hw' (verified on a physical radio) badges, available",
+    "export formats and tool-import support, and the two headless backends that",
+    "are not described by a capabilities block (dmrconf, p64tool).",
     "",
     "Cell format: true | false | {\"supported\": bool, \"note\": str, \"hw\": bool}."
   ],
@@ -109,7 +109,7 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "hw": true }
+      "headless": { "supported": true }
     },
     {
       "id": "btech_uv_pro",

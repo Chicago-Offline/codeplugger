@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="codeplugger compiles shared RF data and version-controlled profiles into validated radio codeplugs, and programs supported radios headlessly. Baofeng DM-32, Retevis MateTalk P4, Baofeng UV-5R Mini, Baofeng BF-C50, Baofeng BF-888S, Baofeng W31E, Ailunce HA2, Retevis C64, Vero VR-N76, Yaesu FT-270R / FT-277R / FT-2800M." />
-  <link rel="canonical" href="https://chicago-offline.github.io/codeplugger/" />
+  <meta name="description" content="Build validated radio codeplugs from shared RF data and versioned profiles. Export files or program selected supported radios directly." />
+  <link rel="canonical" href="https://codeplugger.chicagooffline.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="codeplugger — a codeplug compiler for radio fleets" />
-  <meta property="og:description" content="SSRF data plus a profile compiles deterministically into a validated, radio-neutral codeplug. Vendor CPS tools become replaceable backends." />
-  <meta property="og:url" content="https://chicago-offline.github.io/codeplugger/" />
-  <meta property="og:image" content="https://chicago-offline.github.io/codeplugger/logo.svg" />
+  <meta property="og:description" content="Build validated, radio-neutral codeplugs from SSRF data and profiles. Export files or program selected radios directly." />
+  <meta property="og:url" content="https://codeplugger.chicagooffline.com/" />
+  <meta property="og:image" content="https://codeplugger.chicagooffline.com/logo.svg" />
   <meta name="twitter:card" content="summary" />
   <title>codeplugger — a codeplug compiler for radio fleets</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -38,10 +38,9 @@
           <p class="eyebrow">Open source · Chicago Offline</p>
           <h1>Programming a radio should be a build, not a CPS session.</h1>
           <p class="lead">
-            codeplugger compiles shared RF facts and your own version-controlled
-            profile into a validated, radio-neutral codeplug, then exports it or
-            writes it straight to the radio. Vendor CPS tools become replaceable
-            backends instead of the workflow.
+            codeplugger combines shared RF facts with your version-controlled
+            profile to build a validated, radio-neutral codeplug. Export it, or
+            write it directly to a supported radio.
           </p>
           <div class="actions">
             <a class="button primary" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">View on GitHub</a>
@@ -77,7 +76,7 @@
           </article>
           <article>
             <h3>Export or program</h3>
-            <p>Emit CHIRP CSV, qdmr YAML, or P4 TOML; or let a gated backend write the radio directly, verify by read-back, and log the operation.</p>
+            <p>Export CHIRP CSV or qdmr YAML; apply a profile to a decoded P4 baseline for TOML; or use a gated backend to write a supported radio.</p>
           </article>
         </div>
       </div>
@@ -87,11 +86,9 @@
       <div class="wrap">
         <h2>Prebuilt community codeplugs</h2>
         <p class="sub">
-          You do not need to install codeplugger to use what it produces. CI
-          compiles the public community profiles against public RF data on
-          every change and publishes the result: the file your programming tool
-          imports, a printable channel reference, and a SHA-256 you can check.
-          Download it and import it &mdash; no clone, no CLI.
+          CI builds these from public community profiles and RF data as the
+          sources change, then publishes import files, printable references,
+          and SHA-256 checksums. No codeplugger install is needed.
         </p>
         <div class="actions">
           <a class="button primary" href="codeplugs/">Browse the codeplugs</a>
@@ -103,11 +100,9 @@
       <div class="wrap">
         <h2>Supported radios</h2>
         <p class="sub">
-          Each radio is a capabilities definition plus one or more transports: a
-          file another program imports, or a gated backend that writes the radio
-          directly. This table is generated from the checked-in
-          <code>radios/*/capabilities.json</code> at build time, so a radio in
-          the repo cannot be missing here.
+          The table combines radio capabilities with checked-in export and
+          hardware-verification details. Its generator checks that every
+          <code>radios/*/capabilities.json</code> entry has a matching row.
         </p>
         <div class="matrix-scroll">
           <table class="matrix">
@@ -115,7 +110,7 @@
               <tr>
                 <th scope="col">Radio</th>
                 <th scope="col">Modes</th>
-                <th scope="col">CHIRP import <span>CSV</span></th>
+                <th scope="col">CHIRP CSV <span>export</span></th>
                 <th scope="col">qdmr import <span>YAML</span></th>
                 <th scope="col">p64tool import <span>TOML</span></th>
                 <th scope="col">OEM CPS import <span>vendor files</span></th>
@@ -212,7 +207,7 @@
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
                 <td class="no"><span aria-hidden="true">—</span><span class="sr">Not supported</span></td>
-                <td class="yes"><span aria-hidden="true">✓</span> benlink<span class="hw" title="Verified on a physical radio">hw</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> benlink</td>
               </tr>
               <tr>
                 <th scope="row">BTECH UV-Pro <span class="vendor">Dual-band, Bluetooth</span></th>
@@ -316,7 +311,7 @@
         <div class="transports">
           <article>
             <h3>CHIRP CSV</h3>
-            <p>Analog FM channels in profile order, validated against the radio's own limits (bands, name length, bandwidth). Import in CHIRP and upload from there, or let <code>chirp-writer</code> program the radio directly.</p>
+            <p>Analog FM and receive-only AM channels in profile order, checked against radio limits. Import and upload in CHIRP where a driver exists, or use <code>chirp-writer</code> on supported radios.</p>
           </article>
           <article>
             <h3>qdmr YAML</h3>
@@ -324,7 +319,7 @@
           </article>
           <article>
             <h3>p64tool TOML</h3>
-            <p>Merged into a <code>p64tool decode</code> baseline so untouched settings survive, then re-encoded for the P4.</p>
+            <p>Applied to a <code>p64tool decode</code> baseline so untouched settings survive, then re-encoded for the P4.</p>
           </article>
           <article>
             <h3>benlink plan</h3>
@@ -332,15 +327,11 @@
           </article>
           <article>
             <h3>Headless write</h3>
-            <p>Explicit confirmation, known-firmware and detected-radio identity gates, pre-write verify, read-back verification, and an append-only operation log. Four backends: <code>dmrconf</code>, <code>p64tool</code>, <code>chirp-writer</code> for CHIRP-supported analog radios, and <code>benlink</code> for Bluetooth-programmed Benshi handhelds.</p>
+            <p>Writes require explicit confirmation and backend-specific safety checks. Backup and read-back support vary; operations can be logged. Backends: <code>dmrconf</code>, <code>p64tool</code>, <code>chirp-writer</code>, and Bluetooth <code>benlink</code>.</p>
           </article>
         </div>
         <div class="planned">
-          <strong>Next up:</strong> more qdmr-supported radios through capabilities definitions alone
-          (AnyTone AT-D868UV / 878UV / 578UV, TYT MD-UV380 / UV390 and Retevis RT3S on stock firmware,
-          Radioddity GD-77, Baofeng DM-1701), then export-only OEM CPS files starting with AnyTone CPS CSV.
-          OpenGD77 on the MD-UV380 family landed exactly that way: a capabilities file plus the existing
-          <code>dmrconf</code> backend. Adding a radio never touches input resolution.
+          <strong>Planned:</strong> expand radio and export-format coverage without changing core profile resolution.
         </div>
       </div>
     </section>
@@ -360,7 +351,7 @@
           </article>
           <article>
             <h3>Gated radio writes</h3>
-            <p>Explicit confirmation, known-firmware and detected-radio identity checks, pre-write verify, read-back verification, and an append-only operation log for every write.</p>
+            <p>Explicit confirmation, backend-specific identity checks, and write logs; pre-write and read-back verification where available.</p>
           </article>
           <article>
             <h3>Zones, scan lists, RX groups, contacts</h3>
@@ -398,8 +389,7 @@
       <div class="wrap">
         <h2>How the data flows</h2>
         <p class="sub">
-          One pipeline, antenna to programmed radio: measured reception reports
-          keep the database honest, profiles keep the radios yours.
+          Public RF data and overlays feed a profile-based build; export a file or program a supported radio.
         </p>
         <pre class="mermaid">
 flowchart LR
@@ -407,7 +397,9 @@ flowchart LR
   ov["overlays &middot; shared + private"] --> ssrf
   ssrf -- "validated RF data" --> cp["&#9881; codeplugger"]
   prof["&#128100; profiles"] --> cp
-  cp -- "CHIRP &middot; qdmr &middot; dmrconf" --> radios(["&#128251; radios"])
+  cp -- "export: CHIRP CSV &middot; qdmr YAML &middot; P4 TOML &middot; benlink plan" --> files(["radio files"])
+  files --> radios(["&#128251; radios"])
+  cp -- "write: dmrconf &middot; p64tool &middot; chirp-writer &middot; benlink" --> radios
   click rf "https://chicago-offline.github.io/rf-survey/" _blank
   click ssrf "https://chicago-offline.github.io/ssrf-lite/" _blank
   click cp "https://chicago-offline.github.io/codeplugger/" _blank
