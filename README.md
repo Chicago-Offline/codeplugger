@@ -237,6 +237,17 @@ uv run codeplugger-profile path/to/profile.yml \
   --ssrf-root ../chioff-ssrf-test/ssrf
 ```
 
+A root can pin its own place in the merge with a `_root.yml` declaration, in
+which case `--ssrf-root` order no longer matters for it (higher precedence
+wins; duplicate values are rejected):
+
+```yaml
+# ../chioff-ssrf-test/ssrf/_root.yml
+ssrf_root:
+  id: chioff_test_overlay
+  precedence: 100
+```
+
 Inspect the normalized, exporter-neutral codeplug as deterministic YAML or
 JSON:
 

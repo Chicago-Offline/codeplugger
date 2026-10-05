@@ -1098,6 +1098,70 @@ def test_default_ssrf_roots_prefers_explicit_roots() -> None:
     assert default_ssrf_roots(explicit) == explicit
 
 
+def _write_root_declaration(root: Path, root_id: str, precedence: int) -> None:
+    (root / "_root.yml").write_text(
+        yaml.safe_dump({"ssrf_root": {"id": root_id, "precedence": precedence}}),
+        encoding="utf-8",
+    )
+
+
+def _write_overlay(root: Path) -> None:
+    (root / "overrides").mkdir(parents=True)
+    (root / "overrides" / "patch.yml").write_text(
+        yaml.safe_dump(
+            {
+                "ssrf_lite_version": "0.5.3",
+                "overrides": {
+                    "assignments": [
+                        {"id": "asg_one", "patch": {"display_name": "Patched"}}
+                    ]
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_declared_root_precedence_makes_argv_order_irrelevant() -> None:
+    """Roots that declare precedence in ``_root.yml`` resolve the same way
+    regardless of ``--ssrf-root`` order (#5)."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        _write_root_declaration(root / "ssrf", "base", 0)
+        _write_overlay(root / "overlay")
+        _write_root_declaration(root / "overlay", "overlay", 100)
+
+        results = []
+        for roots in ([root / "ssrf", root / "overlay"], [root / "overlay", root / "ssrf"]):
+            codeplug = resolve_codeplug(profile, roots, radio_root=root / "radios")
+            results.append(codeplug.channels[0].display_name)
+
+    assert results == ["Patched", "Patched"]
+
+
+def test_undeclared_overlay_still_depends_on_argv_order() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        _write_overlay(root / "overlay")
+
+        with pytest.raises(ValueError, match="unknown assignments override target"):
+            resolve_codeplug(
+                profile,
+                [root / "overlay", root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
 def test_cli_resolves_against_installed_ssrf_lite_without_ssrf_root(
     monkeypatch, capsys
 ) -> None:
