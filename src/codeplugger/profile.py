@@ -521,6 +521,18 @@ def _frequency_in_bands(
     return False
 
 
+# SSRF splits analog FM by bandwidth (FM/NFM); the capabilities vocabulary does
+# not, because that split is carried by bandwidths_khz and re-derived by the
+# exporters. Collapse before comparing so a narrowband channel is not misread as
+# an unsupported mode.
+_MODE_FAMILY = {"NFM": "FM"}
+
+
+def _mode_family(mode: Any) -> str:
+    upper = str(mode).upper()
+    return _MODE_FAMILY.get(upper, upper)
+
+
 def _check_radio_support(
     report: ValidationReport,
     capabilities: Mapping[str, Any],
@@ -613,7 +625,7 @@ def _check_radio_support(
                         for channel_mode in channel_modes:
                             if (
                                 channel_mode
-                                and str(channel_mode).upper() not in mode_set
+                                and _mode_family(channel_mode) not in mode_set
                             ):
                                 report.critical(
                                     (f"channel '{label}'",),
@@ -689,7 +701,7 @@ def _check_radio_support(
                         )
 
             mode = getattr(getattr(chain, "mode", None), "type", None)
-            if mode_set and mode and str(mode).upper() not in mode_set:
+            if mode_set and mode and _mode_family(mode) not in mode_set:
                 report.critical(
                     (f"channel '{label}'",),
                     f"uses mode {mode}, which "

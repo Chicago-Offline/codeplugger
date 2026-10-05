@@ -1179,6 +1179,75 @@ def test_fm_only_radio_rejects_dmr_assignment_mode() -> None:
             )
 
 
+def _write_fm_only_radio(root: Path, **extra: object) -> None:
+    radio = root / "radios" / "test_radio"
+    radio.mkdir(parents=True)
+    (radio / "capabilities.json").write_text(
+        json.dumps(
+            {
+                "id": "test_radio",
+                "name": "FM-only test radio",
+                "capabilities_version": "0.2",
+                "limits": {
+                    "max_channels": 32,
+                    "max_zones": 1,
+                    "max_channels_per_zone": 32,
+                },
+                "modes": ["FM"],
+                **extra,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_nfm_chain_is_accepted_by_fm_radio() -> None:
+    """SSRF's NFM is a bandwidth split within FM, not a separate mode (#36)."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_ssrf(root / "ssrf")
+        _write_fm_only_radio(root, bandwidths_khz=[12.5, 25.0])
+
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"]["type"] = "NFM"
+        data["rf_chains"][0]["tx"]["emission"] = "11K0F3E"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        loaded = load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["zones"][0]["assignments"] == ["asg_one"]
+
+
+def test_nfm_chain_still_fails_bandwidth_check_on_wideband_only_radio() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_ssrf(root / "ssrf")
+        _write_fm_only_radio(root, bandwidths_khz=[25.0])
+
+        fixture = root / "ssrf" / "systems" / "fixture.yml"
+        data = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+        data["rf_chains"][0]["mode"]["type"] = "NFM"
+        data["rf_chains"][0]["tx"]["emission"] = "11K0F3E"
+        fixture.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        with pytest.raises(ProfileValidationError, match="12.5 kHz bandwidth"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
 def test_uv5r_mini_fixture_profile_validates_end_to_end() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
