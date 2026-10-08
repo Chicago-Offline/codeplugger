@@ -26,6 +26,12 @@
       "description": "Schema version this document targets.",
       "const": "0.2"
     },
+    "zone_banks": {
+      "type": "integer",
+      "description": "Number of channel banks a zone has on this radio. TyT OEM firmware binds one bank per VFO and renders the second display line from bank B, so a dual-bank radio needs both banks populated. Defaults to 1 when absent.",
+      "minimum": 1,
+      "maximum": 2
+    },
     "limits": {
       "type": "object",
       "description": "Hard structural limits enforced against a resolved profile.",

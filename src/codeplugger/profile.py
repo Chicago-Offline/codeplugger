@@ -1195,8 +1195,13 @@ def main() -> int:
             fleet_instances = _load_instance_registry(args.instance_registry)[
                 "instances"
             ]
+        qdmr_caps = _load_capabilities(codeplug.radio_id, args.radio_root)
         print(
-            qdmr_yaml_from_resolved(codeplug, fleet_instances=fleet_instances),
+            qdmr_yaml_from_resolved(
+                codeplug,
+                fleet_instances=fleet_instances,
+                zone_banks=int(qdmr_caps.get("zone_banks", 1)),
+            ),
             end="",
         )
         return 0
