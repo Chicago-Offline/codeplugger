@@ -29,6 +29,20 @@ from ..artifacts import ArtifactStore
 # shows RadioInfo names ("OpenMDUV380") while `detect` prints the display
 # name ("Open MD-UV380"). Values here were captured from real `detect` runs.
 RADIO_NAMES = {
+    # Captured 2026-10-08 from a real `dmrconf detect` run against Eric's
+    # radio (eam_dm1701_01). Note this is the qdmr display name `_name` from
+    # lib/dm1701.cc, NOT the short `--list-radios` label "DM-1701". The
+    # Retevis RT84 is the same hardware and qdmr carries it as alias key
+    # `rt84`; its detected name is unverified here, so it gets no entry.
+    #
+    # Detect on this radio talks to the TyT DFU interface (USB 0483:df11,
+    # descriptor "Digital Radio in USB mode"), not a serial port. The call
+    # prints the Found: line and exit 0, then emits three benign teardown
+    # errors from lib/dfu_libusb.cc ("Cannot get status: Pipe error",
+    # "Cannot write to device", "Cannot leave DFU mode"). Reproduced twice;
+    # the radio stays enumerated and usable afterwards. Do not treat those
+    # lines as a detect failure -- `detect()` only parses the Found: prefix.
+    "dm1701": "Baofeng DM-1701",
     "dm32uv": "DM-32UV",
     # OpenGD77 firmware on TYT MD-UV380 hardware (Retevis RT3S included).
     "openuv380": "Open MD-UV380",
