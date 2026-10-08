@@ -308,18 +308,28 @@ def _contacts(
                 }
             }
         )
+    # Deduplicate fleet contacts by (name, number) — multiple radio instances
+    # belonging to the same operator share the same dmr_id and dmr_contact_name,
+    # which would emit one identical PrivateCall entry per instance without this.
+    seen_fleet: set[tuple[str, int]] = set()
     for instance in (fleet_instances or {}).values():
         dmr_id = instance.get("dmr_id")
         if dmr_id is None:
             continue
+        name = str(instance.get("dmr_contact_name", dmr_id))
+        number = int(dmr_id)
+        key = (name, number)
+        if key in seen_fleet:
+            continue
+        seen_fleet.add(key)
         contacts.append(
             {
                 "dmr": {
                     "id": f"cont{len(contacts) + 1}",
-                    "name": str(instance.get("dmr_contact_name", dmr_id)),
+                    "name": name,
                     "ring": False,
                     "type": "PrivateCall",
-                    "number": int(dmr_id),
+                    "number": number,
                 }
             }
         )
