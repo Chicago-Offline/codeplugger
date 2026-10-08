@@ -95,7 +95,7 @@ requires-dist = [
     { name = "benlink", marker = "extra == 'benlink'", git = "https://github.com/emuehlstein/benlink.git?rev=n76-support" },
     { name = "jsonschema", specifier = ">=4.20" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "ssrf-lite", git = "https://github.com/Chicago-Offline/ssrf-lite.git?rev=5d2bbb90f4759008531518ac7a8ed0e0741bf5dd" },
+    { name = "ssrf-lite", git = "https://github.com/Chicago-Offline/ssrf-lite.git?rev=194f7f397803a55310c187ced994f12f42b2d05e" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]
 provides-extras = ["benlink"]
@@ -794,7 +794,7 @@ wheels = [
 [[package]]
 name = "ssrf-lite"
 version = "0.10.1"
-source = { git = "https://github.com/Chicago-Offline/ssrf-lite.git?rev=5d2bbb90f4759008531518ac7a8ed0e0741bf5dd#5d2bbb90f4759008531518ac7a8ed0e0741bf5dd" }
+source = { git = "https://github.com/Chicago-Offline/ssrf-lite.git?rev=194f7f397803a55310c187ced994f12f42b2d05e#194f7f397803a55310c187ced994f12f42b2d05e" }
 dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
