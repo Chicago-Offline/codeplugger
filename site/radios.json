@@ -37,7 +37,7 @@
       "qdmr_yaml": true,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "dmrconf" }
+      "headless": { "supported": true, "backend": "dmrconf", "hw": true }
     },
     {
       "id": "retevis_matetalk_p4",
