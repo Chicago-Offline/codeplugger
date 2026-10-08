@@ -2,6 +2,7 @@
   "id": "baofeng_dm1701",
   "name": "Baofeng DM-1701",
   "capabilities_version": "0.2",
+  "zone_banks": 2,
   "limits": {
     "max_channels": 3000,
     "max_zones": 250,

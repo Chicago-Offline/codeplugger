@@ -614,3 +614,25 @@ def test_dmrconf_verify_accepts_analog_only_codeplug(tmp_path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+def test_zone_banks_mirrors_channels_into_bank_b() -> None:
+    """A dual-bank radio gets the zone list in both VFO banks.
+
+    TyT OEM firmware renders the second display line from bank B and
+    shows "Unprogram." when it is empty (hardware-confirmed on a
+    Baofeng DM-1701). Single-bank radios must keep B empty.
+    """
+
+    channels = (
+        _channel(reference="a1", display_name="SIMPLEX 1"),
+        _channel(reference="a2", display_name="SIMPLEX 2"),
+    )
+    codeplug = _codeplug(channels)
+
+    single = yaml.safe_load(qdmr_yaml_from_resolved(codeplug))
+    assert len(single["zones"][0]["A"]) == 2
+    assert single["zones"][0]["B"] == []
+
+    dual = yaml.safe_load(qdmr_yaml_from_resolved(codeplug, zone_banks=2))
+    assert dual["zones"][0]["A"] == single["zones"][0]["A"]
+    assert dual["zones"][0]["B"] == dual["zones"][0]["A"]

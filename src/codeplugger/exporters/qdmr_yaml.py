@@ -83,7 +83,12 @@ CONTACT_TYPES = {
     "all": "AllCall",
 }
 
-QDMR_ROOT_EXTENSION_KEYS = {"settings", "contacts", "positioning"}
+QDMR_ROOT_EXTENSION_KEYS = {
+    "settings",
+    "contacts",
+    "positioning",
+    "tytExtension",
+}
 
 
 def _mapping(value: Any, *, label: str) -> Mapping[str, Any]:
@@ -449,11 +454,17 @@ def qdmr_yaml_from_resolved(
     *,
     analog_bandwidth_khz: float | None = None,
     fleet_instances: Mapping[str, Mapping[str, Any]] | None = None,
+    zone_banks: int = 1,
 ) -> str:
     """Return a qdmr extensible-codeplug YAML document.
 
     DMR channels that can transmit require a radio identity. Receive-only
     channels without one use the UNUSED placeholder radio ID.
+
+    zone_banks is the number of channel banks a zone has on the target
+    radio, taken from its capabilities document. Codeplugger models a
+    zone as a single list, so on a two-bank radio that list is mirrored
+    into both banks; see the zone construction below for why.
     """
 
     radio_ids, id_by_key = _collect_radio_ids(codeplug)
@@ -503,15 +514,24 @@ def qdmr_yaml_from_resolved(
         _apply_channel_extension(channel, next(iter(record.values())))
         channels.append(record)
 
-    zones = [
-        {
-            "id": f"zone{index + 1}",
-            "name": zone.name,
-            "A": [channel_ids[ref] for ref in zone.channel_references],
-            "B": [],
-        }
-        for index, zone in enumerate(codeplug.zones)
-    ]
+    # qdmr models a zone as two channel banks, A and B, each bound to one
+    # VFO. Single-bank radios (OpenGD77 and friends) leave B empty. On a
+    # dual-bank radio an empty B is not cosmetic: the TyT OEM firmware
+    # renders the second display line from bank B and shows "Unprogram."
+    # when it is empty. Hardware-confirmed on a Baofeng DM-1701 on
+    # 2026-10-08. Codeplugger models a zone as one list, so mirror it into
+    # both banks and give the second VFO the same channels.
+    zones = []
+    for index, zone in enumerate(codeplug.zones):
+        bank_a = [channel_ids[ref] for ref in zone.channel_references]
+        zones.append(
+            {
+                "id": f"zone{index + 1}",
+                "name": zone.name,
+                "A": bank_a,
+                "B": list(bank_a) if zone_banks >= 2 else [],
+            }
+        )
 
     document: dict[str, Any] = {
         "version": QDMR_CONFIG_VERSION,
@@ -535,6 +555,11 @@ def qdmr_yaml_from_resolved(
         if settings is not None:
             _merge_mapping(
                 document["settings"], _mapping(settings, label="qdmr settings")
+            )
+        tyt_extension = qdmr_extension.get("tytExtension")
+        if tyt_extension is not None:
+            document["tytExtension"] = deepcopy(
+                dict(_mapping(tyt_extension, label="qdmr tytExtension"))
             )
         for collection in ("contacts", "positioning"):
             values = qdmr_extension.get(collection)
