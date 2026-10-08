@@ -1,0 +1,41 @@
+{
+  "id": "baofeng_dm1701",
+  "name": "Baofeng DM-1701",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 3000,
+    "max_zones": 250,
+    "max_channels_per_zone": 64,
+    "max_scan_lists": 250,
+    "max_channels_per_scan_list": 31,
+    "max_rx_group_lists": 250,
+    "max_talkgroups_per_rx_group_list": 32,
+    "max_contacts": 10000,
+    "max_dmr_ids": 1,
+    "max_channel_name_chars": 16,
+    "max_zone_name_chars": 16,
+    "max_scan_list_name_chars": 16,
+    "max_contact_name_chars": 16
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136,
+      "max_mhz": 174
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400,
+      "max_mhz": 480
+    }
+  ],
+  "modes": [
+    "FM",
+    "DMR"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "notes": "Baofeng DM-1701 running OEM firmware, programmed through the dmrconf backend with radio key dm1701. The Retevis RT84 is the same hardware under a different badge and appears in qdmr as the alias key rt84; one entry covers both. Every limit here was read from qdmr v0.15.1 source, lib/dm1701_limits.cc (the DM1701Limits constructor), which is the exact table dmrconf verify enforces, so a profile that passes codeplugger validation is checked against the same numbers the writer will apply: channels 1-3000, zones 1-250, scan lists 0-250, group lists 1-250 with RadioLimitGroupCallRefList(1, 32) talkgroups each, and DMR contacts 1-10000. max_channels_per_zone is 64 because a zone on this family has two channel banks, A and B, each a RadioLimitRefList(0, 64) bound to one VFO; codeplugger models a zone as a single list, so 64 is the safe per-zone figure and a 128-channel zone would only fit by splitting across both banks. max_channels_per_scan_list is 31, from RadioLimitRefList(0, 31); this is a different and larger figure than the DM-32UV's 15, so do not carry DM-32UV scan-list habits over. max_dmr_ids is 1: the radioIDs list is DMRRadioID 1-1, a single radio ID, unlike the AnyTone radios that hold several. All four name fields are RadioLimitString(1, 16) Unicode. Band edges 136-174 and 400-480 MHz are declared identically for the rxFrequency and txFrequency limits of both FMChannel and DMRChannel, so the radio is dual-band for transmit across both ranges and can carry MURS and GMRS as well as the amateur bands. Note that the UHF ceiling here is 480 MHz, while the OpenGD77 limits used by the baofeng_dm1701_opengd77 entry stop at 470 MHz; the two files are deliberately different and must not be cross-copied. Bandwidths are the Narrow and Wide members of the FMChannel bandwidth enum. There is no AM mode and therefore no rx_only band. Several real capabilities of the radio have no schema field yet and are recorded here instead: a call-sign database of 122197 entries, DMR APRS positioning systems 0-16, color code 0-16, transmit power Low/Mid/High on DMR channels but only Low/High on FM channels, and both basic and AES encryption key slots. NOT BENCH-VERIFIED: as of 2026-10-08 no codeplug has been written to a physical DM-1701 through this path. These numbers are source-derived, not hardware-derived, and the site row carries no hw flag until a write and read-back diff passes on Eric's radio."
+}

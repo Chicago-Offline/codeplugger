@@ -1,0 +1,38 @@
+{
+  "id": "baofeng_dm1701_opengd77",
+  "name": "Baofeng DM-1701 (OpenGD77)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 1024,
+    "max_zones": 68,
+    "max_channels_per_zone": 80,
+    "max_scan_lists": 0,
+    "max_rx_group_lists": 76,
+    "max_talkgroups_per_rx_group_list": 32,
+    "max_contacts": 1024,
+    "max_channel_name_chars": 16,
+    "max_zone_name_chars": 16,
+    "max_contact_name_chars": 16
+  },
+  "bands": [
+    {
+      "name": "VHF",
+      "min_mhz": 136,
+      "max_mhz": 174
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400,
+      "max_mhz": 470
+    }
+  ],
+  "modes": [
+    "FM",
+    "DMR"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "notes": "Baofeng DM-1701 after reflashing to OpenGD77, which is a different radio as far as the toolchain is concerned: the OEM TyT codeplug format is gone and the radio enumerates as an OpenGD77 device. Program it with the dmrconf backend using radio key openuv380 (qdmr calls this OpenMDUV380); the OpenGD77 build for this hardware is the shared MDUV380/DM1701/RT3S/RT84 STM32 target, which is why this entry and retevis_rt3s_opengd77 carry identical limits. Those limits come from qdmr v0.15.1 lib/opengd77_limits.cc: 1024 channels, 68 zones of up to 80 channels, 76 RX group lists of 32 talkgroups, 1024 contacts, and 16-character names throughout. max_scan_lists is 0 on purpose and is not a placeholder: OpenGD77 has no scan-list object at all, it scans by zone, so any profile that defines scan lists must not be built for this entry. The UHF ceiling is 470 MHz rather than the 480 MHz the OEM firmware accepts, because OpenGD77Limits declares 400-470 and qdmr rejects anything above it on this key; do not raise it to match the OEM file. Capacities here are far smaller than OEM in every dimension that matters for a large codeplug, most sharply contacts at 1024 against 10000 and channels at 1024 against 3000, so flashing OpenGD77 onto a radio already carrying a full OEM codeplug is a capacity downgrade and the profile has to be rebuilt, not reused. Two dmrconf quirks apply on this key and are already handled in the backend: dmrconf verify --radio=openuv380 segfaults in 0.15.1 because cli/verify.cc constructs the radio without a device and the OpenUV380 constructor dereferences it, so the backend substitutes the opengd77 key for verification, which is equivalent because both share the one OpenGD77Limits singleton; and a device write auto-detects the model, so the wrapper never passes --radio when writing to hardware. NOT BENCH-VERIFIED: as of 2026-10-08 Eric's DM-1701 is still on OEM firmware and nothing has been written through this path, so the site row carries no hw flag. The plan is to prove the OEM path first, then flash OpenGD77 and re-test."
+}

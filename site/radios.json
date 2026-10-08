@@ -31,6 +31,15 @@
       "headless": { "supported": true, "backend": "dmrconf", "hw": true }
     },
     {
+      "id": "baofeng_dm1701",
+      "vendor": "DM-1701 / RT84",
+      "chirp_csv": false,
+      "qdmr_yaml": true,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true, "backend": "dmrconf" }
+    },
+    {
       "id": "retevis_matetalk_p4",
       "vendor": "UHF DMR",
       "chirp_csv": false,
@@ -101,6 +110,15 @@
       "p64_toml": false,
       "oem_cps": false,
       "headless": { "supported": true, "backend": "dmrconf", "hw": true }
+    },
+    {
+      "id": "baofeng_dm1701_opengd77",
+      "vendor": "MD-UV380 family, OpenGD77",
+      "chirp_csv": false,
+      "qdmr_yaml": true,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true, "backend": "dmrconf" }
     },
     {
       "id": "vero_vrn76",
