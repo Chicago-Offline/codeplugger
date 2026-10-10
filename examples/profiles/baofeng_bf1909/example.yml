@@ -1,0 +1,29 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_bf1909"
+name: "Example BF-1909"
+radio: "baofeng_bf1909"
+radio_instance: "example_bf1909_01"
+# A 16-position radio with no display: the list position is the knob position.
+# There is no name field, so channel names only appear in the generated
+# reference document. Exports as CHIRP CSV.
+zones:
+  - id: "knob"
+    name: "Knob"
+    assignments:
+      - "asgn_gmrs_01"
+      - "asgn_gmrs_02"
+      - "asgn_gmrs_03"
+      - "asgn_gmrs_04"
+      - "asgn_gmrs_05"
+      - "asgn_gmrs_06"
+      - "asgn_gmrs_07"
+      - "asgn_gmrs_15"
+      - "asgn_gmrs_16"
+      - "asgn_gmrs_17"
+      - "asgn_gmrs_18"
+      - "asgn_gmrs_19"
+      - "asgn_gmrs_20"
+      - "asgn_gmrs_21"
+      - "asgn_gmrs_22"
+      - "us_ham_uhf_call"

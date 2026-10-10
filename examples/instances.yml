@@ -20,6 +20,10 @@ instances:
     radio: baofeng_bf888s
     label: "Example BF-888S"
     profile: example_bf888s
+  example_bf1909_01:
+    radio: baofeng_bf1909
+    label: "Example BF-1909"
+    profile: example_bf1909
   example_uv_pro_01:
     radio: btech_uv_pro
     label: "Example UV-Pro"

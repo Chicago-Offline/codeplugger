@@ -76,6 +76,15 @@
       "headless": { "supported": true }
     },
     {
+      "id": "baofeng_bf1909",
+      "vendor": "UHF, no display",
+      "chirp_csv": true,
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "oem_cps": false,
+      "headless": { "supported": true }
+    },
+    {
       "id": "baofeng_w31e",
       "vendor": "UHF, no display",
       "chirp_csv": true,
