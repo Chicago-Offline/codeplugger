@@ -7,6 +7,8 @@ on:
       - "site/**"
       - "radios/**"
       - "src/**"
+      # The use-case codeplugs are published from here, not from a source repo.
+      - "examples/**"
       - "tools/gen_radio_table.py"
       - "tools/build_site_artifacts.py"
       - ".github/workflows/pages.yml"

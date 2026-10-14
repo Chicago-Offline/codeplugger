@@ -32,11 +32,50 @@ build = _load_builder()
 def test_every_configured_source_is_well_formed():
     for source in build.load_sources():
         assert source["id"]
-        assert source["checkout"]
-        assert source["ssrf_roots"], f"{source['id']}: needs at least one SSRF root"
         assert source["profiles"], f"{source['id']}: lists no profiles"
+        if source.get("checkout") is None:
+            # In-repo source: profiles ship here and use the installed SSRF data.
+            assert "ssrf_roots" not in source, (
+                f"{source['id']}: an in-repo source cannot name SSRF checkouts"
+            )
+        else:
+            assert source["ssrf_roots"], f"{source['id']}: needs at least one SSRF root"
         for rel in source["profiles"]:
             assert not Path(rel).is_absolute(), f"{rel} must be repo-relative"
+
+
+def test_in_repo_source_profiles_exist():
+    """An in-repo source has no checkout to hide a typo behind."""
+    for source in build.load_sources():
+        if source.get("checkout") is not None:
+            continue
+        for rel in source["profiles"]:
+            assert (REPO_ROOT / rel).is_file(), f"{source['id']}: no profile at {rel}"
+
+
+def test_in_repo_source_builds_without_a_checkout(tmp_path, monkeypatch):
+    """It must resolve against the installed ssrf-lite, not a cloned path."""
+
+    seen: dict = {}
+
+    def fake_build_profile(profile_path, ssrf_roots, radio_rows, source_dir):
+        seen["ssrf_roots"] = ssrf_roots
+        seen["profile_path"] = profile_path
+        return {"profile_id": "p", "radio": "radio_a", "dir": "radio_a/p"}
+
+    monkeypatch.setattr(build, "build_profile", fake_build_profile)
+    source = {
+        "id": "use-cases",
+        "name": "Use cases",
+        "profiles": ["examples/profiles/baofeng_bf888s/gmrs.yml"],
+    }
+
+    result = build.build_source(source, tmp_path / "no-checkouts", {}, tmp_path / "out")
+
+    assert result["profiles"][0]["dir"] == "use-cases/radio_a/p"
+    assert list(result["revisions"]) == ["codeplugger"]
+    assert seen["profile_path"] == REPO_ROOT / "examples/profiles/baofeng_bf888s/gmrs.yml"
+    assert all(root.is_dir() for root in seen["ssrf_roots"])
 
 
 def test_configured_profiles_name_a_known_radio_directory():

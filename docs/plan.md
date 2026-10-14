@@ -48,9 +48,10 @@ Working today:
   critical issue in one run.
 - Profile policy beyond plain channel lists: RX group lists, scan lists
   (membership only), per-assignment TX contact, profile inheritance
-  (`extends`, with `zones_only`/`omit_zones` variants and
-  `--print-merged-profile` for review), and namespaced `extensions` at the
-  profile and assignment level for exporter-native settings.
+  (`extends`, with `zones_only`/`omit_zones` variants, radio-agnostic
+  abstract base profiles, and `--print-merged-profile` for review), and
+  namespaced `extensions` at the profile and assignment level for
+  exporter-native settings.
 - Multi-identity DMR IDs: a registry instance may carry several `dmr_ids`
   (for example a licensed ID and an unregistered simplex ID) with a
   `default_dmr_id`; profiles bind one per zone or per assignment. Both the
@@ -60,15 +61,18 @@ Working today:
 - Registry-driven fleet dry run (`codeplugger-fleet`): resolves every
   registered radio, validates, and reports deterministic codeplug hashes.
 - Retevis MateTalk P4: TOML export against a `p64tool decode` baseline,
-  fleet-registry contacts, and a gated `p64tool` write backend with
-  read-back verification.
+  fleet-registry contacts, and a gated `p64tool` write backend with a
+  mandatory pre-write backup and read-back verification.
 - Baofeng DM-32: qdmr YAML export (`exporters/qdmr_yaml.py`, every default
   named and reviewed; DM-32UV structural minimums satisfied by explicit
   unused placeholders; profile `extensions.qdmr` for qdmr-native settings,
   contacts, and DMR APRS) and a gated `dmrconf` write backend
   (`backends/dmrconf.py`) mirroring the `p64tool` safety pattern:
   read-only `detect`/`read`/`verify`, explicit confirmation, pre-write
-  verify gate, detected-radio identity gate, optional read-back archiving,
+  verify gate, detected-radio identity gate, a mandatory pre-write backup
+  and post-write read-back (neither path may already exist; the read-back
+  is an archived image, not a diff -- dmrconf takes YAML in and returns a
+  device image, so there is nothing to compare it against), and
   operation-log auditing. `dmrconf verify --radio=dm32uv` passes on
   generated output and `encode`/`decode` round-trips it (skip-if-uninstalled
   tests keep this checked). **Hardware acceptance passed (2026-09):** a
@@ -285,7 +289,12 @@ single maintainer's forks:
    rather than a bench surprise, and the published hashes make the
    deterministic-build claim something anyone can check locally. Shared
    profiles are instance-agnostic, so no personal DMR IDs are involved
-   (qdmr output carries the `UNUSED` placeholder ID). Remaining: add the
+   (qdmr output carries the `UNUSED` placeholder ID). A source may also omit
+   `checkout` and ship in this repository, resolving against the pinned
+   `ssrf-lite` package with nothing cloned; the `use-cases` source publishes
+   the `examples/usecases/` codeplugs (GMRS, PMR446, MURS, marine VHF, and
+   the combined set) that way, which is what lets someone buy a supported
+   radio and download a file for it. Remaining: add the
    other shared profiles (BF-888S, then the P4 once it has a
    source-buildable export), give the generated radio table a column
    linking each radio to its codeplug, and have the source repositories

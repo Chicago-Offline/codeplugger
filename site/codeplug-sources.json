@@ -12,6 +12,9 @@
     "way a developer with the usual ~/src/ layout runs the builder with no",
     "flags, and CI passes the directory it cloned into.",
     "",
+    "A source with no 'checkout' ships in this repository and resolves against",
+    "the ssrf-lite revision pyproject.toml pins, so it needs nothing cloned.",
+    "",
     "ssrf_roots are listed in precedence order, same as repeated --ssrf-root.",
     "",
     "Which file formats a profile produces is NOT listed here. It comes from",
@@ -19,6 +22,20 @@
     "export column in the support table and then fail to offer the file."
   ],
   "sources": [
+    {
+      "id": "use-cases",
+      "name": "Use-case starter codeplugs",
+      "description": "Buy a supported radio and make it behave like the radio you wanted: a GMRS handheld, a PMR446 handheld, a MURS handheld, a marine VHF receiver, or all of them at once. Built from published ssrf-lite data only, with no personal DMR IDs. GMRS needs an FCC licence and the marine channels are receive-only; see the reference sheet in each download.",
+      "repo": "https://github.com/Chicago-Offline/codeplugger",
+      "profiles": [
+        "examples/profiles/baofeng_bf888s/gmrs.yml",
+        "examples/profiles/baofeng_bf1909/pmr446.yml",
+        "examples/profiles/baofeng_uv5r_mini/marine.yml",
+        "examples/profiles/btech_uv_pro/murs.yml",
+        "examples/profiles/btech_uv_pro/multiservice.yml",
+        "examples/profiles/baofeng_dm32/multiservice.yml"
+      ]
+    },
     {
       "id": "chioff-shared",
       "name": "Chicago Offline community net",

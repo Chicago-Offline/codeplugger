@@ -230,13 +230,31 @@ def build_profile(
 
 
 def build_source(source: dict, checkout_root: Path, radio_rows: dict, out_root: Path) -> dict:
+    from codeplugger.profile import installed_ssrf_root
+
     source_id = source["id"]
     where = f"source {source_id!r}"
-    profiles_dir = resolve_checkout(checkout_root, source["checkout"], where=where)
-    ssrf_roots = [
-        resolve_checkout(checkout_root, root["checkout"], where=where) / root["path"]
-        for root in source["ssrf_roots"]
-    ]
+    checkout = source.get("checkout")
+    if checkout is None:
+        # Profiles that ship in this repository and resolve against the
+        # ssrf-lite revision pyproject.toml pins, so CI publishes them with
+        # nothing cloned and the quick start and the downloads cannot drift.
+        profiles_dir = REPO_ROOT
+        ssrf_roots = [installed_ssrf_root()]
+        revisions = {"codeplugger": git_revision(REPO_ROOT)}
+    else:
+        profiles_dir = resolve_checkout(checkout_root, checkout, where=where)
+        ssrf_roots = [
+            resolve_checkout(checkout_root, root["checkout"], where=where) / root["path"]
+            for root in source["ssrf_roots"]
+        ]
+        revisions = {
+            checkout: git_revision(profiles_dir),
+            **{
+                root["checkout"]: git_revision(checkout_root / root["checkout"])
+                for root in source["ssrf_roots"]
+            },
+        }
     for root in ssrf_roots:
         if not root.is_dir():
             raise BuildError(f"{where}: no SSRF root at {root}")
@@ -261,13 +279,7 @@ def build_source(source: dict, checkout_root: Path, radio_rows: dict, out_root: 
         "name": source["name"],
         "description": source.get("description"),
         "repo": source.get("repo"),
-        "revisions": {
-            source["checkout"]: git_revision(profiles_dir),
-            **{
-                root["checkout"]: git_revision(checkout_root / root["checkout"])
-                for root in source["ssrf_roots"]
-            },
-        },
+        "revisions": revisions,
         "profiles": built,
     }
 
