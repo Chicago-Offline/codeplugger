@@ -19,34 +19,84 @@ def _fake_run(calls: list[list[str]], stdout_by_command: dict[str, str]):
     return fake_run
 
 
-def test_write_verifies_detects_then_writes(
-    monkeypatch: pytest.MonkeyPatch,
+def test_write_verifies_detects_backs_up_then_writes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(
         "codeplugger.backends.dmrconf.subprocess.run",
         _fake_run(calls, {"detect": "Found: DM-32UV\n", "write": "done\n"}),
     )
+    backup = tmp_path / "pre_write.bin"
+    read_back = tmp_path / "post_write.bin"
 
     output = Dmrconf().write(
-        Path("codeplug.yaml"), radio_key="dm32uv", confirm=True
+        Path("codeplug.yaml"),
+        radio_key="dm32uv",
+        backup=backup,
+        read_back=read_back,
+        confirm=True,
     )
 
     assert output == "done\n"
     assert calls == [
         ["dmrconf", "verify", "--yaml", "--radio=dm32uv", "codeplug.yaml"],
         ["dmrconf", "detect"],
+        ["dmrconf", "read", "--bin", str(backup)],
         ["dmrconf", "write", "--yaml", "codeplug.yaml"],
+        ["dmrconf", "read", "--bin", str(read_back)],
     ]
 
 
-def test_write_refuses_without_confirm() -> None:
+def test_write_refuses_to_overwrite_an_earlier_session(tmp_path: Path) -> None:
+    backup = tmp_path / "pre_write.bin"
+    backup.write_bytes(b"earlier session")
+
+    with pytest.raises(DmrconfError, match="already exists"):
+        Dmrconf().write(
+            Path("codeplug.yaml"),
+            radio_key="dm32uv",
+            backup=backup,
+            read_back=tmp_path / "post_write.bin",
+            confirm=True,
+        )
+
+
+def test_write_backs_up_only_after_the_identity_gate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A full device read is slow; never spend one on the wrong radio."""
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "codeplugger.backends.dmrconf.subprocess.run",
+        _fake_run(calls, {"detect": "Found: OpenGD77\n"}),
+    )
+
+    with pytest.raises(DmrconfError, match="refusing to write"):
+        Dmrconf().write(
+            Path("codeplug.yaml"),
+            radio_key="dm32uv",
+            backup=tmp_path / "pre_write.bin",
+            read_back=tmp_path / "post_write.bin",
+            confirm=True,
+        )
+
+    assert [command[1] for command in calls] == ["verify", "detect"]
+
+
+def test_write_refuses_without_confirm(tmp_path: Path) -> None:
     with pytest.raises(DmrconfError, match="confirm=True"):
-        Dmrconf().write(Path("codeplug.yaml"), radio_key="dm32uv")
+        Dmrconf().write(
+            Path("codeplug.yaml"),
+            radio_key="dm32uv",
+            backup=tmp_path / "pre_write.bin",
+            read_back=tmp_path / "post_write.bin",
+        )
 
 
 def test_write_refuses_mismatched_radio(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(
@@ -56,21 +106,29 @@ def test_write_refuses_mismatched_radio(
 
     with pytest.raises(DmrconfError, match="refusing to write"):
         Dmrconf().write(
-            Path("codeplug.yaml"), radio_key="dm32uv", confirm=True
+            Path("codeplug.yaml"),
+            radio_key="dm32uv",
+            backup=tmp_path / "pre_write.bin",
+            read_back=tmp_path / "post_write.bin",
+            confirm=True,
         )
 
     assert ["dmrconf", "write", "--yaml", "codeplug.yaml"] not in calls
 
 
-def test_write_refuses_unknown_radio_key() -> None:
+def test_write_refuses_unknown_radio_key(tmp_path: Path) -> None:
     with pytest.raises(DmrconfError, match="no known device name"):
         Dmrconf().write(
-            Path("codeplug.yaml"), radio_key="unknownradio", confirm=True
+            Path("codeplug.yaml"),
+            radio_key="unknownradio",
+            backup=tmp_path / "pre_write.bin",
+            read_back=tmp_path / "post_write.bin",
+            confirm=True,
         )
 
 
 def test_write_openuv380_verifies_under_opengd77_standin(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     # qdmr 0.15.1 segfaults on `verify --radio=openuv380` (no-device radio
     # construction dereferences the device handle), so verification runs
@@ -83,35 +141,33 @@ def test_write_openuv380_verifies_under_opengd77_standin(
     )
 
     output = Dmrconf().write(
-        Path("codeplug.yaml"), radio_key="openuv380", confirm=True
+        Path("codeplug.yaml"),
+        radio_key="openuv380",
+        backup=tmp_path / "pre_write.bin",
+        read_back=tmp_path / "post_write.bin",
+        confirm=True,
     )
 
     assert output == "done\n"
-    assert calls == [
-        ["dmrconf", "verify", "--yaml", "--radio=opengd77", "codeplug.yaml"],
-        ["dmrconf", "detect"],
-        ["dmrconf", "write", "--yaml", "codeplug.yaml"],
+    assert [command[1] for command in calls] == [
+        "verify",
+        "detect",
+        "read",
+        "write",
+        "read",
+    ]
+    assert calls[0] == [
+        "dmrconf",
+        "verify",
+        "--yaml",
+        "--radio=opengd77",
+        "codeplug.yaml",
     ]
 
 
-def test_write_can_archive_read_back(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[list[str]] = []
-    monkeypatch.setattr(
-        "codeplugger.backends.dmrconf.subprocess.run",
-        _fake_run(calls, {"detect": "Found: DM-32UV\n"}),
-    )
-
-    Dmrconf().write(
-        Path("codeplug.yaml"),
-        radio_key="dm32uv",
-        confirm=True,
-        read_back=Path("post_write.yaml"),
-    )
-
-    assert calls[-1] == ["dmrconf", "read", "--yaml", "post_write.yaml"]
-
-
-def test_verify_failure_blocks_write(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_verify_failure_blocks_write(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **_: object) -> object:
@@ -132,7 +188,11 @@ def test_verify_failure_blocks_write(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(DmrconfError, match="too many"):
         Dmrconf().write(
-            Path("codeplug.yaml"), radio_key="dm32uv", confirm=True
+            Path("codeplug.yaml"),
+            radio_key="dm32uv",
+            backup=tmp_path / "pre_write.bin",
+            read_back=tmp_path / "post_write.bin",
+            confirm=True,
         )
 
     assert len(calls) == 1
@@ -158,11 +218,16 @@ def test_operations_are_audited(
     store = ArtifactStore(tmp_path / "profiles", "baofeng_dm32", "dm32_01")
 
     Dmrconf(artifact_store=store).write(
-        tmp_path / "codeplug.yaml", radio_key="dm32uv", confirm=True
+        tmp_path / "codeplug.yaml",
+        radio_key="dm32uv",
+        backup=tmp_path / "pre_write.bin",
+        read_back=tmp_path / "post_write.bin",
+        confirm=True,
     )
 
     log = store.log_path.read_text(encoding="utf-8")
     assert '"operation": "verify"' in log
     assert '"operation": "detect"' in log
+    assert '"operation": "read"' in log
     assert '"operation": "write"' in log
     assert '"status": "success"' in log

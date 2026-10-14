@@ -149,19 +149,27 @@ class Dmrconf:
         codeplug: Path,
         *,
         radio_key: str,
+        backup: Path,
+        read_back: Path,
         expected_name: str | None = None,
         confirm: bool = False,
         verify_first: bool = True,
-        read_back: Path | None = None,
         init_codeplug: bool = False,
     ) -> str:
         """Write a codeplug, requiring an explicit caller safety token.
 
         Gates, in order: ``confirm=True``; a headless ``verify`` against
         ``radio_key`` (dmrconf's own write-time check does not abort, see
-        module docstring); ``detect`` must report the expected device name.
-        ``read_back`` optionally archives the post-write device state for
-        the operation log.
+        module docstring); ``detect`` must report the expected device name;
+        and a full ``read`` into ``backup`` before anything is overwritten.
+        Neither ``backup`` nor ``read_back`` may already exist, so one
+        session cannot destroy the record of an earlier one.
+
+        ``read_back`` is an archived post-write image, not a verification:
+        dmrconf takes YAML in and gives a device image back, so there is
+        nothing to diff it against the way the CHIRP backend can. It proves
+        the radio still reads after the write and gives a recovery and audit
+        artifact; it does not prove the write was correct.
         """
 
         if not confirm:
@@ -173,6 +181,9 @@ class Dmrconf:
                 f"no known device name for radio key '{radio_key}'; "
                 "pass expected_name explicitly"
             )
+        for label, path in (("backup", backup), ("read_back", read_back)):
+            if path.exists():
+                raise DmrconfError(f"{label} path '{path}' already exists")
         if verify_first:
             self.verify(codeplug, radio_key=radio_key)
         detected = self.detect()
@@ -181,11 +192,12 @@ class Dmrconf:
                 f"connected radio is '{detected}', expected '{expected_name}'; "
                 "refusing to write"
             )
+        # After the identity gate, so a long read is never spent on the wrong radio.
+        self.read(backup)
         args = ["write", *_format_args(codeplug)]
         if init_codeplug:
             args.append("--init-codeplug")
         args.append(str(codeplug))
         output = self._run(args, artifacts=(codeplug,))
-        if read_back is not None:
-            self.read(read_back)
+        self.read(read_back)
         return output

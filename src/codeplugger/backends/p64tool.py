@@ -74,6 +74,7 @@ class P64Tool:
         self,
         port: str,
         *,
+        backup: Path,
         config: Path | None = None,
         from_dump: Path | None = None,
         confirm: bool = False,
@@ -84,11 +85,16 @@ class P64Tool:
         """Write a P4 config, requiring an explicit caller safety token.
 
         The wrapper requires ``confirm=True`` before passing p64tool's
-        ``--yes`` safety flag to the subprocess.
+        ``--yes`` safety flag to the subprocess, and takes a full raw ``read``
+        into ``backup`` first; the path must not already exist. ``verify`` is
+        p64tool's own post-write read-back check and stays on by default.
         """
 
         if not confirm:
             raise P64ToolError("refusing to write without confirm=True")
+        if backup.exists():
+            raise P64ToolError(f"backup path '{backup}' already exists")
+        self.read(port, backup, verbose=verbose)
         args = ["write", "--port", port]
         if config is not None:
             args.append(str(config))
@@ -101,5 +107,7 @@ class P64Tool:
         if verbose:
             args.append("--verbose")
         args.append("--yes")
-        artifacts = tuple(path for path in (config, from_dump) if path is not None)
+        artifacts = tuple(
+            path for path in (config, from_dump, backup) if path is not None
+        )
         return self._run(args, artifacts=artifacts)
