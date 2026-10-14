@@ -48,7 +48,8 @@
       ],
       "profiles": [
         "profiles/baofeng_dm32/chioff_shared.yml",
-        "profiles/baofeng_uv5r_mini/chioff_shared.yml"
+        "profiles/baofeng_uv5r_mini/chioff_shared.yml",
+        "profiles/baofeng_bf888s/chioff_shared.yml"
       ]
     }
   ]
