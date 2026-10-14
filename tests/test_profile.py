@@ -132,6 +132,96 @@ def _write_instance_registry(root: Path, instances: dict[str, dict]) -> Path:
     return path
 
 
+def _write_repeater_ssrf(root: Path, *, station_tx: float, station_rx: float) -> None:
+    """Write one repeater chain, station-centric: tx is what the repeater radiates."""
+
+    systems = root / "systems"
+    systems.mkdir(parents=True)
+    (systems / "fixture.yml").write_text(
+        yaml.safe_dump(
+            {
+                "ssrf_lite_version": "0.5.3",
+                "organizations": [{"id": "org_test", "name": "Test"}],
+                "stations": [{"id": "stn_test", "organization_id": "org_test"}],
+                "antennas": [{"id": "ant_test", "station_id": "stn_test"}],
+                "rf_chains": [
+                    {
+                        "id": "chain_rpt",
+                        "station_id": "stn_test",
+                        "antenna_id": "ant_test",
+                        "tx": {"freq_mhz": station_tx, "emission": "20K0F3E"},
+                        "rx": {"freq_mhz": station_rx},
+                        "mode": {"type": "FM"},
+                    }
+                ],
+                "assignments": [
+                    {
+                        "id": "asg_rpt",
+                        "rf_chain_id": "chain_rpt",
+                        "usage": "repeater",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _repeater_warnings(root: Path, *, station_tx: float, station_rx: float) -> list[str]:
+    from codeplugger.resolved import build_codeplug
+    from codeplugger.validation import Severity
+
+    profile = root / "profile.yml"
+    _write_profile(profile, ["asg_rpt"])
+    _write_radio(root / "radios")
+    _write_repeater_ssrf(root / "ssrf", station_tx=station_tx, station_rx=station_rx)
+
+    loaded, documents, instance, report = _load_and_validate_profile(
+        profile, [root / "ssrf"], radio_root=root / "radios"
+    )
+    build_codeplug(
+        loaded, documents, instance, radio_root=root / "radios", report=report
+    )
+    return [
+        issue.format()
+        for issue in report.issues
+        if issue.severity is Severity.WARNING
+    ]
+
+
+def test_reversed_gmrs_repeater_pair_warns() -> None:
+    """The ChiOff shared net shipped this inverted for weeks; catch it here."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Authored radio-centric by mistake: the repeater's 'tx' is its input.
+        warnings = _repeater_warnings(
+            Path(tmp), station_tx=467.550, station_rx=462.550
+        )
+
+    assert any("looks reversed" in warning for warning in warnings), warnings
+
+
+def test_correct_gmrs_repeater_pair_is_silent() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        warnings = _repeater_warnings(
+            Path(tmp), station_tx=462.550, station_rx=467.550
+        )
+
+    assert not any("reversed" in warning for warning in warnings), warnings
+
+
+def test_negative_offset_repeater_is_not_flagged() -> None:
+    """A 2 m repeater transmits below what it receives; that is normal."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        warnings = _repeater_warnings(
+            Path(tmp), station_tx=146.940, station_rx=146.340
+        )
+
+    assert not any("reversed" in warning for warning in warnings), warnings
+
+
 def test_profile_resolves_ordered_assignment_ids() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

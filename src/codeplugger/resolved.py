@@ -200,6 +200,45 @@ def _bandwidth_khz(source: Any | None) -> float | None:
     return bandwidth_khz_from_emission(getattr(source, "emission", None))
 
 
+# 47 CFR 95.1763 fixes the GMRS repeater pairs: the eight 462.550-462.725
+# channels are outputs and their 467.550-467.725 twins are the inputs. No
+# other service in this data set uses these frequencies split.
+_GMRS_REPEATER_OUTPUT_MHZ = (462.5500, 462.7250)
+_GMRS_REPEATER_INPUT_MHZ = (467.5500, 467.7250)
+
+
+def _within(mhz: float, span: tuple[float, float]) -> bool:
+    return span[0] <= mhz <= span[1]
+
+
+def _check_repeater_orientation(
+    report: ValidationReport, channel: "ResolvedChannel"
+) -> None:
+    """Warn when a GMRS repeater channel would transmit on the output.
+
+    Deliberately limited to GMRS. A general "transmit should be above
+    receive" rule would be wrong constantly: 2 m repeaters below 147 MHz and
+    most 70 cm repeaters use negative offsets, and a reverse split is a
+    legitimate thing to want. GMRS is the case where the direction is a
+    regulatory fact rather than a convention, so it is the only one worth
+    asserting. A warning, not a critical: the operator may know better.
+    """
+
+    tx = channel.tx_frequency_mhz
+    rx = channel.rx_frequency_mhz
+    if tx is None or rx is None or tx == rx:
+        return
+    if _within(tx, _GMRS_REPEATER_OUTPUT_MHZ) and _within(
+        rx, _GMRS_REPEATER_INPUT_MHZ
+    ):
+        report.warning(
+            (f"channel '{channel.display_name}'",),
+            f"transmits on {tx} MHz and receives on {rx} MHz; GMRS repeater "
+            "outputs are 462 MHz and inputs are 467 MHz, so this pair looks "
+            "reversed and would key the repeater's output",
+        )
+
+
 def _select_timeslot(
     timeslots: Sequence[int],
     override: int | None,
@@ -616,6 +655,7 @@ def build_codeplug(
                     "channel",
                     resolved_channel.display_name,
                 )
+                _check_repeater_orientation(report, resolved_channel)
             channels.extend(resolved_channels)
             assignment_channel_refs[assignment_id] = tuple(
                 channel.reference for channel in resolved_channels
