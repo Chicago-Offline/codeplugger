@@ -1,0 +1,179 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "usecase_multiservice"
+name: "Multi-Service (GMRS + MURS + Marine VHF + PMR446 + WX)"
+# Abstract base profile: it names no radio and no radio_instance, so it is not
+# programmable on its own. Every other file in this directory carves a use case
+# out of it with `zones_only`, and the profiles under ../profiles/ bind one of
+# those use cases to a specific radio.
+#
+# Everything here comes from the plans shipped in `ssrf-lite`, so these resolve
+# with nothing but the installed dependency.
+#
+# Channel names are shortened only where the longest SSRF name would not fit the
+# tightest radio in this repository (10 characters, BTECH UV-Pro). Shortening
+# here rather than per radio is what keeps one base usable on all of them.
+#
+# Licensing is yours to sort out: GMRS needs an FCC licence, marine VHF needs
+# type-accepted equipment (and these radios are not), and PMR446 is European.
+# Program a zone only where you are allowed to use it.
+zones:
+  # GMRS 01-07 and 15-22. `ssrf-lite` marks these simplex, so they transmit.
+  # Repeater pairs are deliberately absent: GMRS repeater offsets are
+  # site-specific and belong in an SSRF overlay, not in a national plan.
+  - id: "gmrs"
+    name: "GMRS"
+    assignments:
+      - "asgn_gmrs_01"
+      - "asgn_gmrs_02"
+      - "asgn_gmrs_03"
+      - "asgn_gmrs_04"
+      - "asgn_gmrs_05"
+      - "asgn_gmrs_06"
+      - "asgn_gmrs_07"
+      - "asgn_gmrs_15"
+      - "asgn_gmrs_16"
+      - "asgn_gmrs_17"
+      - "asgn_gmrs_18"
+      - "asgn_gmrs_19"
+      - "asgn_gmrs_20"
+      - "asgn_gmrs_21"
+      - "asgn_gmrs_22"
+  # The 467 MHz interstitials are FRS-only. `ssrf-lite` marks them
+  # receive-only, so these resolve without a transmit frequency.
+  - id: "gmrs_frs"
+    name: "FRS RX"
+    assignments:
+      - "asgn_gmrs_08"
+      - "asgn_gmrs_09"
+      - "asgn_gmrs_10"
+      - "asgn_gmrs_11"
+      - "asgn_gmrs_12"
+      - "asgn_gmrs_13"
+      - "asgn_gmrs_14"
+  - id: "murs"
+    name: "MURS"
+    assignments:
+      - "asgn_murs_1"
+      - "asgn_murs_2"
+      - "asgn_murs_3"
+      - id: "asgn_murs_4"
+        display_name: "MURS 4 Blu"
+      - id: "asgn_murs_5"
+        display_name: "MURS 5 Grn"
+  - id: "pmr446"
+    name: "PMR446"
+    assignments:
+      - "asgn_pmr446_01"
+      - "asgn_pmr446_02"
+      - "asgn_pmr446_03"
+      - "asgn_pmr446_04"
+      - "asgn_pmr446_05"
+      - "asgn_pmr446_06"
+      - "asgn_pmr446_07"
+      - "asgn_pmr446_08"
+      - "asgn_pmr446_09"
+      - "asgn_pmr446_10"
+      - "asgn_pmr446_11"
+      - "asgn_pmr446_12"
+      - "asgn_pmr446_13"
+      - "asgn_pmr446_14"
+      - "asgn_pmr446_15"
+      - "asgn_pmr446_16"
+  # Marine VHF is split into two zones so it fits radios that cap a zone at 30
+  # channels. Marine A carries every channel a boater actually needs - 16
+  # (distress), 09 (hailing), 13 (bridge-to-bridge), 22A (USCG liaison) - so a
+  # single-zone radio can take this zone alone and still be useful.
+  #
+  # Ch 70 is digital selective calling and Ch 87B/88B are AIS; all three carry
+  # data, not voice, and are left out on purpose.
+  #
+  # Most of these are not marked simplex in `ssrf-lite`, so they resolve
+  # receive-only. That is the right default here: none of the radios in this
+  # repository are type-accepted for the marine service.
+  - id: "marine_a"
+    name: "Marine A"
+    assignments:
+      - id: "us_marine_vhf_ch01a"
+        display_name: "Ch 01A"
+      - id: "us_marine_vhf_ch05a"
+        display_name: "Ch 05A"
+      - "us_marine_vhf_ch06"
+      - id: "us_marine_vhf_ch07a"
+        display_name: "Ch 07A"
+      - "us_marine_vhf_ch08"
+      - "us_marine_vhf_ch09"
+      - "us_marine_vhf_ch10"
+      - "us_marine_vhf_ch11"
+      - "us_marine_vhf_ch12"
+      - "us_marine_vhf_ch13"
+      - "us_marine_vhf_ch14"
+      - "us_marine_vhf_ch15"
+      - id: "us_marine_vhf_ch16"
+        display_name: "Ch 16 Dist"
+      - "us_marine_vhf_ch17"
+      - id: "us_marine_vhf_ch18a"
+        display_name: "Ch 18A"
+      - id: "us_marine_vhf_ch19a"
+        display_name: "Ch 19A"
+      - "us_marine_vhf_ch20"
+      - id: "us_marine_vhf_ch20a"
+        display_name: "Ch 20A"
+      - id: "us_marine_vhf_ch21a"
+        display_name: "Ch 21A"
+      - id: "us_marine_vhf_ch22a"
+        display_name: "Ch 22A"
+      - id: "us_marine_vhf_ch23a"
+        display_name: "Ch 23A"
+      - "us_marine_vhf_ch24"
+      - "us_marine_vhf_ch25"
+      - "us_marine_vhf_ch26"
+      - "us_marine_vhf_ch27"
+      - "us_marine_vhf_ch28"
+  - id: "marine_b"
+    name: "Marine B"
+    assignments:
+      - "us_marine_vhf_ch60"
+      - id: "us_marine_vhf_ch63a"
+        display_name: "Ch 63A"
+      - id: "us_marine_vhf_ch64a"
+        display_name: "Ch 64A"
+      - id: "us_marine_vhf_ch65a"
+        display_name: "Ch 65A"
+      - id: "us_marine_vhf_ch66a"
+        display_name: "Ch 66A"
+      - "us_marine_vhf_ch67"
+      - "us_marine_vhf_ch68"
+      - "us_marine_vhf_ch69"
+      - "us_marine_vhf_ch71"
+      - "us_marine_vhf_ch72"
+      - "us_marine_vhf_ch73"
+      - "us_marine_vhf_ch74"
+      - "us_marine_vhf_ch77"
+      - id: "us_marine_vhf_ch78a"
+        display_name: "Ch 78A"
+      - id: "us_marine_vhf_ch79a"
+        display_name: "Ch 79A"
+      - id: "us_marine_vhf_ch80a"
+        display_name: "Ch 80A"
+      - id: "us_marine_vhf_ch81a"
+        display_name: "Ch 81A"
+      - id: "us_marine_vhf_ch82a"
+        display_name: "Ch 82A"
+      - id: "us_marine_vhf_ch83a"
+        display_name: "Ch 83A"
+      - "us_marine_vhf_ch84"
+      - "us_marine_vhf_ch85"
+      - "us_marine_vhf_ch86"
+      - "us_marine_vhf_ch87"
+      - "us_marine_vhf_ch88"
+  - id: "weather"
+    name: "Weather"
+    assignments:
+      - "asg_wx1"
+      - "asg_wx2"
+      - "asg_wx3"
+      - "asg_wx4"
+      - "asg_wx5"
+      - "asg_wx6"
+      - "asg_wx7"

@@ -1,0 +1,12 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "usecase_pmr446"
+name: "PMR446 Radio"
+# Abstract base profile: makes any UHF radio behave like a European PMR446
+# handheld - the 16 licence-exempt analogue channels, in order.
+#
+# PMR446 is licence-exempt in CEPT countries only, at 0.5 W ERP with an
+# integral antenna. A higher-power radio on these frequencies is not PMR446.
+extends: "multiservice.yml"
+zones_only:
+  - "pmr446"

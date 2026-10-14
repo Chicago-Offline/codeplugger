@@ -1,0 +1,9 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_bf1909_pmr446"
+name: "Example BF-1909 PMR446"
+radio: "baofeng_bf1909"
+radio_instance: "example_bf1909_pmr446_01"
+# 16 knob positions, 16 PMR446 channels: the channel number is the position,
+# with nothing left over. Exports as CHIRP CSV.
+extends: "../../usecases/pmr446.yml"

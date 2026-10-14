@@ -1,0 +1,18 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "usecase_marine"
+name: "Marine VHF Radio"
+# Abstract base profile: makes any VHF radio listen like a marine set. Marine A
+# holds the channels that matter (16 distress, 09 hailing, 13 bridge-to-bridge,
+# 22A USCG liaison), Marine B the rest of the US plan, so a radio that only
+# supports one zone can take Marine A alone.
+#
+# Receive only, by design: marine VHF transmission requires type-accepted
+# equipment, and none of the radios in this repository are. The duplex channels
+# are the exception - `ssrf-lite` carries both sides of those pairs, so they
+# resolve with a ship-station transmit frequency.
+extends: "multiservice.yml"
+zones_only:
+  - "marine_a"
+  - "marine_b"
+  - "weather"

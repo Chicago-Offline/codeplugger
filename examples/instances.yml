@@ -28,3 +28,32 @@ instances:
     radio: btech_uv_pro
     label: "Example UV-Pro"
     profile: example_uv_pro
+  # One radio per use case from examples/usecases/, to show the same base
+  # layout landing on different hardware.
+  example_bf888s_gmrs_01:
+    radio: baofeng_bf888s
+    label: "Example BF-888S (GMRS)"
+    profile: example_bf888s_gmrs
+  example_bf1909_pmr446_01:
+    radio: baofeng_bf1909
+    label: "Example BF-1909 (PMR446)"
+    profile: example_bf1909_pmr446
+  example_uv5r_mini_marine_01:
+    radio: baofeng_uv5r_mini
+    label: "Example UV-5R Mini (Marine)"
+    profile: example_uv5r_mini_marine
+  example_uv_pro_murs_01:
+    radio: btech_uv_pro
+    label: "Example UV-Pro (MURS)"
+    profile: example_uv_pro_murs
+  example_uv_pro_multiservice_01:
+    radio: btech_uv_pro
+    label: "Example UV-Pro (Multi-Service)"
+    profile: example_uv_pro_multiservice
+  example_dm32_multiservice_01:
+    radio: baofeng_dm32
+    label: "Example DM-32 (Multi-Service)"
+    profile: example_dm32_multiservice
+    # Placeholder only, same as example_dm32_01 above.
+    dmr_id: 1234567
+    dmr_contact_name: "Example DM-32"

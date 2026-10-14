@@ -160,7 +160,9 @@ Repository directories:
 
 - `radios/`: radio capabilities, constraints, and exporter-specific mappings.
 - `examples/`: runnable starter profiles and an instance registry, built only
-  from published `ssrf-lite` data. Copy it to start your own profile
+  from published `ssrf-lite` data. `examples/usecases/` holds radio-agnostic
+  base profiles (GMRS, MURS, PMR446, marine VHF, and the combined set) that the
+  per-radio profiles bind to hardware. Copy it to start your own profile
   repository; see [examples/README.md](examples/README.md).
 - `tests/fixtures/`: synthetic inputs for unit tests, not usable profiles.
 
@@ -195,11 +197,14 @@ intentionally excludes selectors, scan lists, contacts, button mappings, and
 exporter settings until the explicit-ID workflow is proven end to end.
 
 Profiles may inherit from another profile in the same directory or a relative
-path. The child must target the same `radio`; its `id` and optional
-`radio_instance` are never inherited. Scalar values in the child replace the
-parent. Lists of objects with an `id` are merged by ID, with child fields
-patching matching objects and new objects appended. Use `zones_only` or
-`omit_zones` for a child variant that keeps only part of the parent's zones:
+path. A parent that names a `radio` constrains the child to that radio; a
+parent that names none is an abstract base, reusable on any radio that can
+hold it, and the child supplies both `radio` and `radio_instance`. The child's
+`id` and optional `radio_instance` are never inherited. Scalar values in the
+child replace the parent. Lists of objects with an `id` are merged by ID, with
+child fields patching matching objects and new objects appended. Use
+`zones_only` or `omit_zones` for a child variant that keeps only part of the
+parent's zones:
 
 ```yaml
 version: "0.1"
@@ -210,6 +215,11 @@ radio_instance: "dm32_white_01"
 extends: "dm32_base.yml"
 zones_only: ["reference"]
 ```
+
+`examples/usecases/` uses abstract bases to describe a radio by what it is for
+-- a GMRS handheld, a MURS handheld, a PMR446 handheld, a marine VHF set, or
+all of them at once -- so the same zone layout can be programmed onto any
+radio with the capacity for it.
 
 Inheritance cycles, unknown zones, mismatched radios, and excessively deep
 inheritance chains are rejected. Review the fully merged profile with:
@@ -337,8 +347,10 @@ contact. Contact and RX-group indices must refer to records already present in
 the baseline; the exporter does not invent talkgroup semantics.
 
 The external `p64tool` backend wrapper provides read-only `info`, `read`, and
-`roundtrip` operations plus an explicit `confirm=True` write operation. It
-always uses p64tool's known-firmware gate and read-back verification by default.
+`roundtrip` operations plus an explicit `confirm=True` write operation. The
+write takes a mandatory raw backup first, refusing a path that already exists,
+and always uses p64tool's known-firmware gate and read-back verification by
+default.
 
 ## Radio artifacts and operation logs
 

@@ -1,0 +1,10 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "usecase_murs"
+name: "MURS Radio"
+# Abstract base profile: makes any VHF radio behave like a MURS handheld.
+# Five licence-free channels plus NOAA weather.
+extends: "multiservice.yml"
+zones_only:
+  - "murs"
+  - "weather"

@@ -1,0 +1,16 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_uv_pro_multiservice"
+name: "Example UV-Pro Multi-Service"
+radio: "btech_uv_pro"
+radio_instance: "example_uv_pro_multiservice_01"
+# The UV-Pro has six regions and 30 channels per region, which is what decides
+# the cut: five zones, the FRS receive zone dropped, and PMR446 left out
+# because this radio is a US one. Exports as a benlink plan.
+extends: "../../usecases/multiservice.yml"
+zones_only:
+  - "gmrs"
+  - "murs"
+  - "marine_a"
+  - "marine_b"
+  - "weather"

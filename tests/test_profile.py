@@ -205,6 +205,63 @@ def test_next_channel_spacer_cannot_move_backwards() -> None:
             )
 
 
+def test_abstract_base_profile_binds_radio_in_the_child() -> None:
+    """A base that names no radio is reusable; the child supplies both facts.
+
+    This is what lets one zone layout be programmed onto any radio that can
+    hold it, instead of being copied per radio.
+    """
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profiles = root / "profiles"
+        profiles.mkdir()
+        (profiles / "usecase.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "usecase",
+                    "name": "Use case",
+                    "zones": [
+                        {
+                            "id": "reference",
+                            "name": "Reference",
+                            "assignments": ["asg_one"],
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        child = profiles / "child.yml"
+        child.write_text(
+            yaml.safe_dump(
+                {
+                    "version": "0.1",
+                    "id": "child_profile",
+                    "name": "Child profile",
+                    "radio": "test_radio",
+                    "radio_instance": "child_instance",
+                    "extends": "usecase.yml",
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        loaded = load_and_validate_profile(
+            child,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["radio"] == "test_radio"
+    assert [zone["id"] for zone in loaded["zones"]] == ["reference"]
+
+
 def test_profile_inherits_and_filters_zones() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -404,6 +461,7 @@ def test_profile_inheritance_requires_child_instance_and_parent_file() -> None:
                     "version": "0.1",
                     "id": "child",
                     "name": "Child",
+                    "radio": "test_radio",
                     "extends": "missing.yml",
                     "zones": [
                         {

@@ -1,0 +1,9 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_uv_pro_murs"
+name: "Example UV-Pro MURS"
+radio: "btech_uv_pro"
+radio_instance: "example_uv_pro_murs_01"
+# The smallest useful codeplug in this directory: five licence-free MURS
+# channels and the weather receive zone. Exports as a benlink plan.
+extends: "../../usecases/murs.yml"

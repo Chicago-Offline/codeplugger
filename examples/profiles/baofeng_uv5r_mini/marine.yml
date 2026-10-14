@@ -1,0 +1,11 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_uv5r_mini_marine"
+name: "Example UV-5R Mini Marine"
+radio: "baofeng_uv5r_mini"
+radio_instance: "example_uv5r_mini_marine_01"
+# The UV-5R Mini has no zone concept, so the base's Marine A zone - the one
+# that carries 16, 09, 13 and 22A - is taken on its own. Exports as CHIRP CSV.
+extends: "../../usecases/marine.yml"
+zones_only:
+  - "marine_a"

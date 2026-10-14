@@ -1,0 +1,14 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "usecase_gmrs"
+name: "GMRS Radio"
+# Abstract base profile: makes any UHF radio behave like a bubble-pack GMRS
+# handheld. 15 transmit channels, the 7 FRS-only interstitials as receive, and
+# the NOAA weather channels.
+#
+# GMRS requires an FCC licence (no exam, covers your immediate family).
+extends: "multiservice.yml"
+zones_only:
+  - "gmrs"
+  - "gmrs_frs"
+  - "weather"

@@ -1,0 +1,12 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_bf888s_gmrs"
+name: "Example BF-888S GMRS"
+radio: "baofeng_bf888s"
+radio_instance: "example_bf888s_gmrs_01"
+# A $20 UHF knob radio turned into a GMRS handheld. 16 positions is not enough
+# for the FRS and weather zones, and the radio has one bank, so only the 15
+# transmit channels are kept. Exports as CHIRP CSV.
+extends: "../../usecases/gmrs.yml"
+zones_only:
+  - "gmrs"

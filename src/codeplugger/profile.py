@@ -134,7 +134,7 @@ def _load_profile_with_inheritance(
         if not isinstance(extends, str) or not extends:
             raise ProfileValidationError(f"{profile_path}: 'extends' must be a path")
         parent_path = (profile_path.parent / extends).resolve()
-        if "radio_instance" not in profile:
+        if "radio" in profile and "radio_instance" not in profile:
             raise ProfileValidationError(
                 f"{profile_path}: child profiles must define 'radio_instance'"
             )
@@ -146,11 +146,20 @@ def _load_profile_with_inheritance(
             raise ProfileValidationError(
                 f"{profile_path}: could not load parent profile '{extends}': {exc}"
             ) from exc
-        if "radio" in profile and profile["radio"] != parent.get("radio"):
-            raise ProfileValidationError(
-                f"{profile_path}: profile radio '{profile.get('radio')}' does not "
-                f"match parent radio '{parent.get('radio')}'"
-            )
+        # A parent that names no radio is an abstract base: a reusable zone
+        # layout that binds to a radio, and therefore to an instance, only in
+        # the profile that finally names one.
+        parent_radio = parent.get("radio")
+        if parent_radio is not None:
+            if "radio" in profile and profile["radio"] != parent_radio:
+                raise ProfileValidationError(
+                    f"{profile_path}: profile radio '{profile.get('radio')}' does not "
+                    f"match parent radio '{parent_radio}'"
+                )
+            if "radio_instance" not in profile:
+                raise ProfileValidationError(
+                    f"{profile_path}: child profiles must define 'radio_instance'"
+                )
         parent.pop("id", None)
         parent.pop("radio_instance", None)
         child = {

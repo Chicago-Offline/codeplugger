@@ -1,0 +1,10 @@
+$schema: "https://raw.githubusercontent.com/Chicago-Offline/codeplugger/main/schemas/profile-0.1.schema.json"
+version: "0.1"
+id: "example_dm32_multiservice"
+name: "Example DM-32 Multi-Service"
+radio: "baofeng_dm32"
+radio_instance: "example_dm32_multiservice_01"
+# The whole base, unfiltered: GMRS, FRS receive, MURS, PMR446, both marine
+# zones and weather, 100 channels across 7 zones. The DM-32 has the zone count
+# and the 16-character name field to take all of it. Exports as qdmr YAML.
+extends: "../../usecases/multiservice.yml"
