@@ -14,6 +14,12 @@ Usage::
 
     python tools/gen_radio_table.py            # rewrite site/index.html
     python tools/gen_radio_table.py --check    # exit 1 if the file is stale
+
+Pass ``--codeplugs site/codeplugs/index.json`` to link each radio to the
+codeplugs published for it. That manifest only exists after
+``tools/build_site_artifacts.py`` has run, so the links are generated at deploy
+time and never committed: a link is only written for a codeplug that was
+actually built, which is what stops the table offering a download that 404s.
 """
 
 from __future__ import annotations
@@ -86,6 +92,23 @@ def load_rows() -> list[dict]:
     if not isinstance(rows, list) or not rows:
         raise GenError(f"{RADIOS_JSON} has no 'rows' list")
     return rows
+
+
+def load_codeplugs(path: Path) -> dict[str, list[dict]]:
+    """Index published codeplugs by radio, preserving manifest order."""
+
+    try:
+        manifest = json.loads(path.read_text())
+    except OSError as exc:
+        raise GenError(f"could not read the codeplug manifest: {exc}") from exc
+
+    by_radio: dict[str, list[dict]] = {}
+    for source in manifest.get("sources", []):
+        for entry in source.get("profiles", []):
+            by_radio.setdefault(entry["radio"], []).append(entry)
+    if not by_radio:
+        raise GenError(f"{path} lists no codeplugs")
+    return by_radio
 
 
 # --------------------------------------------------------------------------
@@ -195,7 +218,20 @@ def render_cell(cell: dict) -> str:
     return f'<td class="{cls}">{body}</td>'
 
 
-def render_row(cap: dict, row: dict) -> list[str]:
+def render_codeplug_link(entries: list[dict]) -> str:
+    """Link a radio to the codeplugs built for it on the downloads page.
+
+    The anchor is the profile ID, which is the ``id`` the downloads page gives
+    each card. Several codeplugs land on the first one; they sit together in
+    the same source section, so the rest are a scroll away.
+    """
+
+    anchor = entries[0]["profile_id"]
+    label = "Codeplug" if len(entries) == 1 else f"{len(entries)} codeplugs"
+    return f'<a class="codeplug" href="codeplugs/#{anchor}">{label}</a>'
+
+
+def render_row(cap: dict, row: dict, codeplugs: dict[str, list[dict]]) -> list[str]:
     radio_id = cap["id"]
     vendor = row.get("vendor")
     if not vendor:
@@ -241,10 +277,12 @@ def render_row(cap: dict, row: dict) -> list[str]:
         )
 
     name = cap["name"]
+    entries = codeplugs.get(radio_id)
+    download = f" {render_codeplug_link(entries)}" if entries else ""
     lines = [
         f"{ROW_INDENT}<tr>",
         f'{CELL_INDENT}<th scope="row">{name} '
-        f'<span class="vendor">{vendor}</span></th>',
+        f'<span class="vendor">{vendor}</span>{download}</th>',
         f'{CELL_INDENT}<td class="modes">{derive_modes(cap)}</td>',
     ]
     lines += [CELL_INDENT + render_cell(cells[c]) for c in ARTIFACT_COLUMNS]
@@ -258,9 +296,10 @@ def render_row(cap: dict, row: dict) -> list[str]:
 # --------------------------------------------------------------------------
 
 
-def build_tbody() -> str:
+def build_tbody(codeplugs: dict[str, list[dict]] | None = None) -> str:
     caps = load_capabilities()
     rows = load_rows()
+    codeplugs = codeplugs or {}
 
     seen: list[str] = []
     for row in rows:
@@ -286,13 +325,20 @@ def build_tbody() -> str:
             + ", ".join(orphaned)
         )
 
+    unknown = sorted(set(codeplugs) - set(caps))
+    if unknown:
+        raise GenError(
+            "the codeplug manifest publishes radios with no capabilities.json: "
+            + ", ".join(unknown)
+        )
+
     lines: list[str] = []
     for row in rows:
-        lines += render_row(caps[row["id"]], row)
+        lines += render_row(caps[row["id"]], row, codeplugs)
     return "\n".join(lines)
 
 
-def render_index(current: str) -> str:
+def render_index(current: str, codeplugs: dict[str, list[dict]] | None = None) -> str:
     try:
         head, rest = current.split(BEGIN_MARKER, 1)
         _, tail = rest.split(END_MARKER, 1)
@@ -301,7 +347,9 @@ def render_index(current: str) -> str:
             f"{INDEX_HTML} is missing the {BEGIN_MARKER} / {END_MARKER} markers"
         ) from exc
 
-    return f"{head}{BEGIN_MARKER}\n{build_tbody()}\n{ROW_INDENT}{END_MARKER}{tail}"
+    return (
+        f"{head}{BEGIN_MARKER}\n{build_tbody(codeplugs)}\n{ROW_INDENT}{END_MARKER}{tail}"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -311,10 +359,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="exit 1 if site/index.html is not what the generator would write",
     )
+    parser.add_argument(
+        "--codeplugs",
+        type=Path,
+        default=None,
+        help="codeplugs/index.json from tools/build_site_artifacts.py; links "
+        "each radio to the codeplugs published for it",
+    )
     args = parser.parse_args(argv)
 
+    if args.check and args.codeplugs is not None:
+        parser.error("--check compares against the committed table, which has no links")
+
+    codeplugs = load_codeplugs(args.codeplugs) if args.codeplugs else None
     current = INDEX_HTML.read_text()
-    updated = render_index(current)
+    updated = render_index(current, codeplugs)
 
     if args.check:
         if current != updated:

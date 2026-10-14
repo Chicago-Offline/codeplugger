@@ -294,10 +294,14 @@ single maintainer's forks:
    `ssrf-lite` package with nothing cloned; the `use-cases` source publishes
    the `examples/usecases/` codeplugs (GMRS, PMR446, MURS, marine VHF, and
    the combined set) that way, which is what lets someone buy a supported
-   radio and download a file for it. Remaining: add the
+   radio and download a file for it. The support table links each radio to
+   the codeplugs built for it: `gen_radio_table.py --codeplugs` reads the
+   manifest `build_site_artifacts.py` writes, so the deploy runs the builder
+   first and a link only exists for a file that exists. The links are a
+   deploy-time artifact and never committed, which is why `--check` refuses
+   a manifest. Remaining: add the
    other shared profiles (BF-888S, then the P4 once it has a
-   source-buildable export), give the generated radio table a column
-   linking each radio to its codeplug, and have the source repositories
+   source-buildable export), and have the source repositories
    trigger a rebuild on push instead of relying on the nightly run.
 2. **Upstream the forks the project is pinned to.** Three write paths
    currently depend on code that lives only in a personal fork or a local

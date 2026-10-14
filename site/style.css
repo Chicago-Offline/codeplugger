@@ -175,6 +175,7 @@ section > .wrap > p.sub { margin: 0 0 2rem; color: var(--text-dim); max-width: 7
 .matrix tbody tr:hover { background: var(--bg-hover); }
 .matrix tbody th { font-weight: 600; white-space: nowrap; }
 .matrix tbody th .vendor { display: block; color: var(--text-dim); font-weight: 400; font-size: 0.8rem; }
+.matrix tbody th .codeplug { display: inline-block; margin-top: 0.25rem; font-weight: 400; font-size: 0.78rem; }
 .matrix .modes { color: var(--text-dim); white-space: nowrap; }
 .matrix .yes { color: var(--ok); white-space: nowrap; }
 .matrix .no { color: var(--text-dim); }

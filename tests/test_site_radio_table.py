@@ -124,3 +124,71 @@ def test_site_rows_use_known_columns():
     for row in data["rows"]:
         extra = set(row) - allowed
         assert not extra, f"{row.get('id')}: unknown key(s) {sorted(extra)}"
+
+
+def _manifest(*entries: dict) -> dict:
+    return {"sources": [{"id": "s", "profiles": list(entries)}]}
+
+
+def test_codeplug_links_only_appear_for_radios_that_have_one():
+    tbody = gen.build_tbody(
+        {"baofeng_bf888s": [{"profile_id": "example_bf888s_gmrs", "radio": "baofeng_bf888s"}]}
+    )
+
+    assert 'href="codeplugs/#example_bf888s_gmrs">Codeplug</a>' in tbody
+    assert tbody.count('class="codeplug"') == 1
+
+
+def test_several_codeplugs_for_one_radio_are_counted():
+    tbody = gen.build_tbody(
+        {
+            "baofeng_dm32": [
+                {"profile_id": "first", "radio": "baofeng_dm32"},
+                {"profile_id": "second", "radio": "baofeng_dm32"},
+            ]
+        }
+    )
+
+    assert 'href="codeplugs/#first">2 codeplugs</a>' in tbody
+
+
+def test_table_without_a_manifest_has_no_links():
+    """The committed table must stay link-free; links are a deploy-time thing."""
+    assert "codeplug" not in gen.build_tbody()
+
+
+def test_manifest_naming_an_unknown_radio_is_an_error():
+    with pytest.raises(gen.GenError, match="acme_xyz1"):
+        gen.build_tbody({"acme_xyz1": [{"profile_id": "p", "radio": "acme_xyz1"}]})
+
+
+def test_load_codeplugs_indexes_by_radio(tmp_path):
+    path = tmp_path / "index.json"
+    path.write_text(
+        json.dumps(
+            _manifest(
+                {"profile_id": "a", "radio": "radio_one"},
+                {"profile_id": "b", "radio": "radio_two"},
+            )
+        )
+    )
+
+    assert gen.load_codeplugs(path) == {
+        "radio_one": [{"profile_id": "a", "radio": "radio_one"}],
+        "radio_two": [{"profile_id": "b", "radio": "radio_two"}],
+    }
+
+
+def test_empty_manifest_is_an_error(tmp_path):
+    path = tmp_path / "index.json"
+    path.write_text(json.dumps({"sources": []}))
+
+    with pytest.raises(gen.GenError, match="no codeplugs"):
+        gen.load_codeplugs(path)
+
+
+def test_check_refuses_a_manifest(capsys):
+    """--check compares against the committed file, which never has links."""
+    with pytest.raises(SystemExit):
+        gen.main(["--check", "--codeplugs", "site/codeplugs/index.json"])
+    assert "--check" in capsys.readouterr().err

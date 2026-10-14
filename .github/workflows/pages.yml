@@ -76,16 +76,17 @@ jobs:
 
       - run: pip install .
 
-      # Build the radio table from radios/*/capabilities.json. Fails the deploy
-      # if a radio is missing its site row, rather than shipping a short table.
-      - name: Generate radio table
-        run: python3 tools/gen_radio_table.py
-
       # Also the project's end-to-end integration test: a profile that stops
       # resolving, or an SSRF change that breaks a radio limit, fails here
       # instead of at a bench session.
       - name: Build community codeplugs
         run: python3 tools/build_site_artifacts.py --checkout-root checkouts
+
+      # Build the radio table from radios/*/capabilities.json. Fails the deploy
+      # if a radio is missing its site row, rather than shipping a short table.
+      # Runs after the codeplugs so each row can link to the files that exist.
+      - name: Generate radio table
+        run: python3 tools/gen_radio_table.py --codeplugs site/codeplugs/index.json
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
