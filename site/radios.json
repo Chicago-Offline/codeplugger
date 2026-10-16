@@ -19,7 +19,6 @@
     "",
     "Cell format: true | false | {\"supported\": bool, \"note\": str, \"hw\": bool}."
   ],
-
   "rows": [
     {
       "id": "baofeng_dm32",
@@ -28,7 +27,11 @@
       "qdmr_yaml": true,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "dmrconf", "hw": true }
+      "headless": {
+        "supported": true,
+        "backend": "dmrconf",
+        "hw": true
+      }
     },
     {
       "id": "baofeng_dm1701",
@@ -37,7 +40,11 @@
       "qdmr_yaml": true,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "dmrconf", "hw": true }
+      "headless": {
+        "supported": true,
+        "backend": "dmrconf",
+        "hw": true
+      }
     },
     {
       "id": "retevis_matetalk_p4",
@@ -46,7 +53,11 @@
       "qdmr_yaml": false,
       "p64_toml": true,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "p64tool", "hw": true }
+      "headless": {
+        "supported": true,
+        "backend": "p64tool",
+        "hw": true
+      }
     },
     {
       "id": "baofeng_uv5r_mini",
@@ -55,7 +66,9 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "baofeng_bf_c50",
@@ -64,7 +77,10 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": false, "note": "no CHIRP driver" }
+      "headless": {
+        "supported": false,
+        "note": "no CHIRP driver"
+      }
     },
     {
       "id": "baofeng_bf888s",
@@ -73,7 +89,9 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "baofeng_bf1909",
@@ -82,7 +100,9 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "baofeng_w31e",
@@ -91,7 +111,9 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "ailunce_ha2",
@@ -100,16 +122,23 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "retevis_c64",
       "vendor": "Dual-band analog",
-      "chirp_csv": { "supported": true, "hw": true },
+      "chirp_csv": {
+        "supported": true,
+        "hw": true
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "retevis_rt3s_opengd77",
@@ -118,7 +147,11 @@
       "qdmr_yaml": true,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "dmrconf", "hw": true }
+      "headless": {
+        "supported": true,
+        "backend": "dmrconf",
+        "hw": true
+      }
     },
     {
       "id": "baofeng_dm1701_opengd77",
@@ -127,7 +160,10 @@
       "qdmr_yaml": true,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "backend": "dmrconf" }
+      "headless": {
+        "supported": true,
+        "backend": "dmrconf"
+      }
     },
     {
       "id": "vero_vrn76",
@@ -136,7 +172,9 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "btech_uv_pro",
@@ -145,52 +183,81 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_ft270",
       "vendor": "2 m submersible",
-      "chirp_csv": { "supported": true, "note": "as VX-170" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "as VX-170"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_ft270_mars",
       "vendor": "TX-modded variant",
-      "chirp_csv": { "supported": true, "note": "as VX-170" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "as VX-170"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_ft277",
       "vendor": "70 cm submersible",
-      "chirp_csv": { "supported": true, "note": "as VX-177", "hw": true },
+      "chirp_csv": {
+        "supported": true,
+        "note": "as VX-177",
+        "hw": true
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_ft277_mars",
       "vendor": "TX-modded variant",
-      "chirp_csv": { "supported": true, "note": "as VX-177" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "as VX-177"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_ft2800m",
       "vendor": "2 m mobile",
-      "chirp_csv": { "supported": true, "hw": true },
+      "chirp_csv": {
+        "supported": true,
+        "hw": true
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true, "hw": true }
+      "headless": {
+        "supported": true,
+        "hw": true
+      }
     },
     {
       "id": "yaesu_ft2800m_mars",
@@ -199,34 +266,69 @@
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "yaesu_vx6r",
       "vendor": "Tri-band submersible",
-      "chirp_csv": { "supported": true, "note": "as VX-6" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "as VX-6"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "tyt_th9800",
       "vendor": "Quad-band mobile",
-      "chirp_csv": { "supported": true, "note": "experimental driver" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "experimental driver"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
     },
     {
       "id": "tyt_th9800_mars",
       "vendor": "TX-modded variant",
-      "chirp_csv": { "supported": true, "note": "experimental driver" },
+      "chirp_csv": {
+        "supported": true,
+        "note": "experimental driver"
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
-      "headless": { "supported": true }
+      "headless": {
+        "supported": true
+      }
+    },
+    {
+      "id": "quansheng_uvk5_f4hwn",
+      "vendor": "Quansheng UV-K5 (F4HWN)",
+      "chirp_csv": true,
+      "qdmr_yaml": false,
+      "p64_toml": false,
+      "neonplug": false,
+      "benlink_plan": false,
+      "dmrconf": false,
+      "hw": true,
+      "note": "F4HWN custom firmware; armel/uv-k5-chirp-driver driver (out-of-tree, pinned to v4.3)",
+      "headless": {
+        "supported": true,
+        "backend": "chirp-writer",
+        "hw": true
+      },
+      "oem_cps": false
     }
   ]
 }

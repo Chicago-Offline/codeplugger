@@ -1,0 +1,68 @@
+{
+  "id": "quansheng_uvk5_f4hwn",
+  "name": "Quansheng UV-K5 (F4HWN)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 200,
+    "max_zones": 1,
+    "max_channels_per_zone": 200,
+    "max_channel_name_chars": 10
+  },
+  "bands": [
+    {
+      "name": "HF/VHF low RX",
+      "min_mhz": 18,
+      "max_mhz": 108,
+      "rx_only": true
+    },
+    {
+      "name": "Airband",
+      "min_mhz": 108,
+      "max_mhz": 137,
+      "rx_only": true
+    },
+    {
+      "name": "VHF",
+      "min_mhz": 137,
+      "max_mhz": 174
+    },
+    {
+      "name": "VHF high RX",
+      "min_mhz": 174,
+      "max_mhz": 350,
+      "rx_only": true
+    },
+    {
+      "name": "UHF low RX",
+      "min_mhz": 350,
+      "max_mhz": 400,
+      "rx_only": true
+    },
+    {
+      "name": "UHF",
+      "min_mhz": 400,
+      "max_mhz": 470
+    },
+    {
+      "name": "UHF high RX",
+      "min_mhz": 470,
+      "max_mhz": 1300,
+      "rx_only": true
+    }
+  ],
+  "modes": [
+    "FM",
+    "AM"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "chirp": {
+    "driver": "Quansheng_UV-K5_egzumer_+_f4hwn",
+    "model": "Quansheng UV-K5 (egzumer + f4hwn)",
+    "clone_mode": "on_demand",
+    "driver_upstream": false
+  },
+  "notes": "CUSTOM-FIRMWARE radio id. This entry describes a UV-K5 running F4HWN (an egzumer fork), NOT stock firmware -- stock is a separate id, because custom builds change the TX span, the channel count and the settings surface, and a stock image will not load in the custom driver. Change instances.yml `radio` at the same time you flash or a build validates against the wrong limits. Figures probed from the driver's get_features() on 2026-10-16 with the radio on the cable (firmware string 'F4HWN v4.3'): memory_bounds (1, 200) -> max_channels 200; valid_name_length 10. max_zones 1 is a profile-0.1 compatibility shim -- the K5 has no zone concept and the chirp_csv exporter has no zone handling, so a profile's zones are ordering only and flatten into one channel list. Bands are the driver's valid_bands verbatim, with TX allowed only in 137-174 and 400-470 where the BK4819 PA actually delivers; every other span is marked rx_only so validation cannot accept a TX assignment in a receive-only range. modes is a HARDWARE CLAIM per the schema, matching the other capabilities files in this repo. The driver also advertises USB (SSB RX), which the schema's modes enum (AM/FM/DMR) cannot express -- SSB is receive-only on this radio and is recorded here rather than silently dropped. bandwidths_khz 12.5/25 corresponds to the driver's NFM/FM. driver_upstream is false: the driver is armel/uv-k5-chirp-driver uvk5_egzumer_f4hwn_ver_4_3_0.py, NOT in released CHIRP, and is pinned to F4HWN v4.3 -- reflashing to another F4HWN version needs a matching driver revision. It imports wx at module level for settings dialogs only (no wx in the transfer path), so headless use needs a wx stub in sys.modules. NOTE: CHIRP's bundled uvk5.py cannot program this radio at all -- it dispatches on firmware prefix and 'F4HWN v4.3' matches none, falling through to UVK5RestrictedRadio whose sync_out() refuses the upload."
+}

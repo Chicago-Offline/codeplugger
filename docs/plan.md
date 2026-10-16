@@ -45,7 +45,10 @@ Working today:
   overlays, profile schema 0.1, radio capability limits including
   firmware-dependent limits, optional instance-registry join checks,
   severity-graded validation (hint/warning/critical) that reports every
-  critical issue in one run.
+  critical issue in one run. Checks stay service-specific where a general
+  rule would misfire: a reversed GMRS repeater pair warns because 47 CFR
+  95.1763 fixes those eight pairs, but no offset-direction rule is applied
+  to ham bands, where negative offsets and reverse splits are normal.
 - Profile policy beyond plain channel lists: RX group lists, scan lists
   (membership only), per-assignment TX contact, profile inheritance
   (`extends`, with `zones_only`/`omit_zones` variants, radio-agnostic
@@ -271,8 +274,9 @@ to install, and making the ecosystem the project depends on outlast a
 single maintainer's forks:
 
 1. **Serve prebuilt community codeplugs from the site.** **Landed
-   2026-09-21 for the DM-32.** The Pages workflow checks out `ssrf-lite` at
-   the revision `pyproject.toml` pins the package to, plus
+   2026-09-21 for the DM-32; every shared profile with a source-buildable
+   export is published as of 2026-10-14.** The Pages workflow checks out
+   `ssrf-lite` at the revision `pyproject.toml` pins the package to, plus
    `chioff-ssrf-shared` and `chioff-codeplugger-profiles-shared`, and
    `tools/build_site_artifacts.py` resolves every profile listed in
    `site/codeplug-sources.json` and publishes per profile: the export files
@@ -299,10 +303,12 @@ single maintainer's forks:
    manifest `build_site_artifacts.py` writes, so the deploy runs the builder
    first and a link only exists for a file that exists. The links are a
    deploy-time artifact and never committed, which is why `--check` refuses
-   a manifest. Remaining: add the
-   other shared profiles (BF-888S, then the P4 once it has a
-   source-buildable export), and have the source repositories
-   trigger a rebuild on push instead of relying on the nightly run.
+   a manifest. The published set is now the `use-cases` source plus the
+   DM-32, UV-5R Mini and BF-888S shared profiles. Remaining: the P4, which
+   stays unpublishable until its export can be built without a device read;
+   and the source repositories still have to send the `sources-changed`
+   `repository_dispatch` this workflow already accepts, so a profile or SSRF
+   change waits for the nightly run today.
 2. **Upstream the forks the project is pinned to.** Three write paths
    currently depend on code that lives only in a personal fork or a local
    checkout, each a single-maintainer bus factor:
@@ -379,9 +385,9 @@ single maintainer's forks:
 
 Known gaps:
 
-- Only the DM-32 shared profile is published as a download so far; the
-  other shared profiles and the per-radio links in the support table are
-  the remainder of item 1 above.
+- The P4 has no publishable codeplug, because its only export needs a
+  `p64tool decode` baseline read off a device; and source-repository
+  pushes do not yet trigger a rebuild. Both are the remainder of item 1.
 - Three write paths depend on unmerged fork branches or local checkouts
   (benlink regions, qdmr DM-32UV extension, CHIRP BF-C50 driver); tracked
   by item 2 above.
