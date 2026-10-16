@@ -484,8 +484,27 @@ flowchart LR
     <section id="start">
       <div class="wrap">
         <h2>Quick start</h2>
-        <p class="sub">Clone codeplugger next to <code>ssrf-lite</code> and a profile repository, then use <code>uv</code>.</p>
+        <p class="sub">Clone codeplugger and use <code>uv</code>. The install brings its own RF data, so a use case needs nothing else; profiles of your own want <code>ssrf-lite</code> and a profile repository checked out alongside.</p>
         <div class="start">
+          <div>
+            <h3>Program a new radio</h3>
+<pre><code><span class="c"># what is supported, and what can go on it</span>
+uv run codeplugger radios
+uv run codeplugger use-cases
+
+<span class="c"># compile, without touching hardware</span>
+uv run codeplugger build \
+  --radio baofeng_bf888s --use-case gmrs
+
+<span class="c"># or a community group's channels, by name</span>
+uv run codeplugger build \
+  --radio baofeng_bf888s --profile chioff
+
+<span class="c"># then write it, gated by the backend</span>
+uv run codeplugger program \
+  --radio baofeng_bf888s --use-case gmrs \
+  --port /dev/cu.usbserial-10 --confirm</code></pre>
+          </div>
           <div>
             <h3>Validate a profile</h3>
 <pre><code>uv run codeplugger-profile path/to/profile.yml \

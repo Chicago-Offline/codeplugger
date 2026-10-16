@@ -41,6 +41,40 @@ step between the resolved codeplug and the hardware.
 
 Working today:
 
+- One command from a boxed radio to a programmed one (`codeplugger`):
+  `radios`, `use-cases` and `profiles` list what is supported, `build`
+  compiles a use case or a community profile onto a radio, and `program`
+  writes it through whichever of the four backends that radio's
+  capabilities declare. No profile, no instance registry and no format
+  knowledge required, which is the gap between "codeplugger supports your
+  radio" and "you can use codeplugger". Fitting
+  does what the committed per-radio example profiles do by hand: drop the
+  assignments the radio physically cannot use, then whole zones in the
+  order the use case ranks them, until the result fits. It reaches the same
+  answers those profiles do (15 channels in one zone for a BF-888S GMRS
+  handheld, 26 for a UV-5R Mini marine set), but every drop is printed and
+  has to be accepted before a radio is touched, and `--zones` takes the
+  decision back. `--profile` takes a file, a directory, a git URL, or the
+  name of a registered collection (`--radio baofeng_bf888s --profile
+  chioff`), resolved from the same `site/codeplug-sources.json` the
+  downloads are built from, so anything the site publishes can also be
+  programmed directly; `--radio` picks the profile inside the collection,
+  and two candidates for one radio is a question rather than a guess. The
+  registry stays a reviewed allowlist -- being listed is what gets a
+  collection published as downloads -- but it is not a gate on use: a git
+  URL is cloned once into a cache and its profiles are found by content
+  (schema 0.1 with a `radio`), so a group can hand out a URL before anyone
+  reviews anything. Only git's ordinary transports are accepted, because
+  `ext::` would let a URL run commands. A repository the registry already
+  knows by URL is treated as the registered entry, which is what supplies
+  the SSRF overlay its profiles select from; a bare directory with the same
+  name borrows only the overlay. Nothing here is a second code path:
+  the synthesized profile faces the same schema, limit and radio-support
+  checks as a hand-written one, and writes go through the backends'
+  existing confirm / backup / read-back gates. Which exporter and backend a
+  radio uses is derived from its `capabilities.json` blocks (`chirp`,
+  `benlink`, `dmrconf`, `p64tool`), so adding a radio stays a capabilities
+  file.
 - Profile resolution and validation (`codeplugger-profile`): SSRF roots plus
   overlays, profile schema 0.1, radio capability limits including
   firmware-dependent limits, optional instance-registry join checks,
@@ -385,6 +419,11 @@ single maintainer's forks:
 
 Known gaps:
 
+- `codeplugger program` has not driven a physical radio yet. It wires the
+  same four backends the bench work verified, but the wiring itself (port
+  handling, backup and read-back paths, the operation log it opens) has
+  only been exercised against stubbed subprocesses. Run it once per
+  backend before the site tells anyone to.
 - The P4 has no publishable codeplug, because its only export needs a
   `p64tool decode` baseline read off a device; and source-repository
   pushes do not yet trigger a rebuild. Both are the remainder of item 1.

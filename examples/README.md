@@ -32,7 +32,17 @@ is not programmable on its own - and each is carved out of
 | A marine VHF set | `usecases/marine.yml` | Marine A, Marine B, Weather |
 | All of them at once | `usecases/multiservice.yml` | all seven |
 
-To put one on a radio, write a profile that names the radio, the registry
+The quickest way to use one is not to write a profile at all:
+
+```bash
+uv run codeplugger build --radio baofeng_bf888s --use-case gmrs
+```
+
+That does the fitting below automatically — it drops what the radio cannot
+receive, then whole zones in the order the base ranks them — and prints every
+drop before it writes anything.
+
+To keep the result, write a profile that names the radio, the registry
 instance, and the base to extend:
 
 ```yaml
