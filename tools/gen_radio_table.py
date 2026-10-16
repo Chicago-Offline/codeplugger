@@ -3,8 +3,8 @@
 
 The row set is authoritative from ``radios/*/capabilities.json``. Presentation
 detail that capabilities.json deliberately does not model (vendor blurb, 'hw'
-badges, export formats and tool-import support, the dmrconf/p64tool backends)
-comes from ``site/radios.json``.
+badges, export formats and tool-import support) comes from
+``site/radios.json``.
 
 The point of this script is the failure mode: if a radio is added under
 ``radios/`` and nobody touches the site, generation *fails* instead of quietly
@@ -45,7 +45,12 @@ HW_BADGE = '<span class="hw" title="Verified on a physical radio">hw</span>'
 
 # Backends that a capabilities block implies. If a radio declares one of these
 # blocks it is the backend, and site/radios.json is not allowed to disagree.
-BLOCK_BACKENDS = {"chirp": "chirp-writer", "benlink": "benlink"}
+BLOCK_BACKENDS = {
+    "chirp": "chirp-writer",
+    "benlink": "benlink",
+    "dmrconf": "dmrconf",
+    "p64tool": "p64tool",
+}
 
 ARTIFACT_COLUMNS = ("chirp_csv", "qdmr_yaml", "p64_toml", "oem_cps")
 

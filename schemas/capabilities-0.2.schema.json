@@ -272,6 +272,38 @@
           "description": "Firmware version of the unit these limits were actually read from, as reported by GetDeviceInfo. Limits are per-unit on this family, so this records what was measured rather than what is claimed."
         }
       }
+    },
+    "dmrconf": {
+      "type": "object",
+      "description": "How the `dmrconf` backend addresses this radio. Present only for radios qdmr can program; omit for a DMR radio that still needs its OEM CPS, so the backend refuses rather than writing a codeplug qdmr would build for a different model.",
+      "required": [
+        "radio_key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "radio_key": {
+          "type": "string",
+          "description": "qdmr radio key, as accepted by `dmrconf verify --radio=<key>` (e.g. `dm32uv`, `dm1701`, `openuv380`). The backend maps it to the device name `dmrconf detect` reports and refuses to write when the connected radio reports anything else.",
+          "pattern": "^[a-z0-9]+$"
+        },
+        "requires_fork": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the declared behavior needs a qdmr build that is not released yet, so a write may fail against a packaged dmrconf."
+        }
+      }
+    },
+    "p64tool": {
+      "type": "object",
+      "description": "How the `p64tool` backend addresses this radio. The P4 has no from-scratch encoder: a codeplug is produced by editing a baseline decoded from a device, which is why this block records that requirement rather than a model string.",
+      "additionalProperties": false,
+      "properties": {
+        "baseline_required": {
+          "type": "boolean",
+          "default": true,
+          "description": "True when an export needs a `p64tool decode` baseline read from a physical radio. A radio that needs one cannot be built from published data alone, and the build fails rather than publishing a guess."
+        }
+      }
     }
   },
   "$defs": {

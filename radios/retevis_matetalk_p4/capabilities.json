@@ -16,5 +16,8 @@
   ],
   "modes": ["FM", "DMR"],
   "bandwidths_khz": [12.5, 25.0],
+  "p64tool": {
+    "baseline_required": true
+  },
   "notes": "UHF-only: the radio has no VHF band, so MURS (151/154 MHz) and 2m cannot be programmed. Bandwidth is selectable wide/narrow; the Features page of the user manual states 'Wideband/Narrowband Selectable'."
 }
