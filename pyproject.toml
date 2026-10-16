@@ -15,6 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
+codeplugger = "codeplugger.cli:main"
 codeplugger-profile = "codeplugger.profile:main"
 codeplugger-fleet = "codeplugger.fleet:main"
 

@@ -909,15 +909,39 @@ def _load_and_validate_profile(
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
 ) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None, ValidationReport]:
-    """Load a profile and its validated, overlay-resolved SSRF documents.
+    """Load a profile and its validated, overlay-resolved SSRF documents."""
 
-    Raises on the first structural failure (unreadable input, schema error,
-    registry mismatch). Limit and radio-support findings are collected into a
-    severity-graded report instead, so one failed run surfaces every critical
-    issue at once; the report also carries non-fatal hints and warnings.
+    return _validate_profile(
+        _load_profile_with_inheritance(profile_path),
+        ssrf_roots,
+        source=profile_path,
+        schema_path=schema_path,
+        radio_root=radio_root,
+        instance_registry_path=instance_registry_path,
+    )
+
+
+def _validate_profile(
+    profile: dict[str, Any],
+    ssrf_roots: Sequence[Path],
+    *,
+    source: Path | str,
+    schema_path: Path = DEFAULT_SCHEMA_PATH,
+    radio_root: Path = DEFAULT_RADIO_ROOT,
+    instance_registry_path: Path | None = None,
+) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None, ValidationReport]:
+    """Validate an already-loaded profile against SSRF data and radio limits.
+
+    Split from :func:`_load_and_validate_profile` so a profile built in memory
+    -- the use-case profiles the CLI synthesizes for a radio -- faces exactly
+    the same checks as one read off disk. ``source`` only labels errors.
+
+    Raises on the first structural failure (schema error, registry mismatch).
+    Limit and radio-support findings are collected into a severity-graded
+    report instead, so one failed run surfaces every critical issue at once;
+    the report also carries non-fatal hints and warnings.
     """
 
-    profile = _load_profile_with_inheritance(profile_path)
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     schema_errors = sorted(
         Draft202012Validator(schema).iter_errors(profile),
@@ -925,7 +949,7 @@ def _load_and_validate_profile(
     )
     if schema_errors:
         raise ProfileValidationError(
-            f"{profile_path}: {_format_schema_errors(schema_errors)}"
+            f"{source}: {_format_schema_errors(schema_errors)}"
         )
 
     capabilities = _load_capabilities(profile["radio"], radio_root)
