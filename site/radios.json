@@ -318,11 +318,6 @@
       "chirp_csv": true,
       "qdmr_yaml": false,
       "p64_toml": false,
-      "neonplug": false,
-      "benlink_plan": false,
-      "dmrconf": false,
-      "hw": true,
-      "note": "F4HWN custom firmware; armel/uv-k5-chirp-driver driver (out-of-tree, pinned to v4.3)",
       "headless": {
         "supported": true,
         "backend": "chirp-writer",
