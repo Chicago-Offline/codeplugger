@@ -12,6 +12,8 @@ on:
       - "tools/gen_radio_table.py"
       - "tools/build_site_artifacts.py"
       - ".github/workflows/pages.yml"
+      # Carries the ssrf-lite pin the build checks out.
+      - "pyproject.toml"
   workflow_dispatch:
   # Profiles and SSRF data live in other repositories, so a change there has to
   # be able to rebuild the published codeplugs. Those repos can trigger this
