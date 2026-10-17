@@ -96,7 +96,10 @@
     {
       "id": "baofeng_bf1909",
       "vendor": "UHF, no display",
-      "chirp_csv": true,
+      "chirp_csv": {
+        "supported": true,
+        "hw": true
+      },
       "qdmr_yaml": false,
       "p64_toml": false,
       "oem_cps": false,
@@ -320,8 +323,7 @@
       "p64_toml": false,
       "headless": {
         "supported": true,
-        "backend": "chirp-writer",
-        "hw": true
+        "backend": "chirp-writer"
       },
       "oem_cps": false
     }
