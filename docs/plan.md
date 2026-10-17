@@ -47,34 +47,36 @@ Working today:
   writes it through whichever of the four backends that radio's
   capabilities declare. No profile, no instance registry and no format
   knowledge required, which is the gap between "codeplugger supports your
-  radio" and "you can use codeplugger". Fitting
-  does what the committed per-radio example profiles do by hand: drop the
-  assignments the radio physically cannot use, then whole zones in the
-  order the use case ranks them, until the result fits. It reaches the same
-  answers those profiles do (15 channels in one zone for a BF-888S GMRS
-  handheld, 26 for a UV-5R Mini marine set), but every drop is printed and
-  has to be accepted before a radio is touched, and `--zones` takes the
-  decision back. `--profile` takes a file, a directory, a git URL, or the
+  radio" and "you can use codeplugger". Nothing here is a second code
+  path: the synthesized profile faces the same schema, limit and
+  radio-support checks as a hand-written one, and writes go through the
+  backends' existing confirm / backup / read-back gates. Which exporter and
+  backend a radio uses is derived from its `capabilities.json` blocks
+  (`chirp`, `benlink`, `dmrconf`, `p64tool`), so adding a radio stays a
+  capabilities file.
+- Fitting a use case to a radio does what the committed per-radio example
+  profiles do by hand: drop the assignments the radio physically cannot
+  use, then whole zones in the order the use case ranks them, until the
+  result fits. It reaches the same answers those profiles do (15 channels
+  in one zone for a BF-888S GMRS handheld, 26 for a UV-5R Mini marine set),
+  but every drop is printed and has to be accepted before a radio is
+  touched, and `--zones` takes the decision back.
+- Profile sources: `--profile` takes a file, a directory, a git URL, or the
   name of a registered collection (`--radio baofeng_bf888s --profile
   chioff`), resolved from the same `site/codeplug-sources.json` the
   downloads are built from, so anything the site publishes can also be
   programmed directly; `--radio` picks the profile inside the collection,
-  and two candidates for one radio is a question rather than a guess. The
-  registry stays a reviewed allowlist -- being listed is what gets a
-  collection published as downloads -- but it is not a gate on use: a git
-  URL is cloned once into a cache and its profiles are found by content
-  (schema 0.1 with a `radio`), so a group can hand out a URL before anyone
-  reviews anything. Only git's ordinary transports are accepted, because
-  `ext::` would let a URL run commands. A repository the registry already
-  knows by URL is treated as the registered entry, which is what supplies
-  the SSRF overlay its profiles select from; a bare directory with the same
-  name borrows only the overlay. Nothing here is a second code path:
-  the synthesized profile faces the same schema, limit and radio-support
-  checks as a hand-written one, and writes go through the backends'
-  existing confirm / backup / read-back gates. Which exporter and backend a
-  radio uses is derived from its `capabilities.json` blocks (`chirp`,
-  `benlink`, `dmrconf`, `p64tool`), so adding a radio stays a capabilities
-  file.
+  and two candidates for one radio is a question rather than a guess. A
+  git URL is cloned once into a cache and its profiles are found by content
+  (schema 0.1 with a `radio`). Only git's ordinary transports are accepted,
+  because `ext::` would let a URL run commands.
+- The registry (`site/codeplug-sources.json`) stays a reviewed allowlist --
+  being listed is what gets a collection published as downloads -- but it
+  is not a gate on use: a group can hand out a URL before anyone reviews
+  anything. A repository the registry already knows by URL is treated as
+  the registered entry, which is what supplies the SSRF overlay its
+  profiles select from; a bare directory with the same name borrows only
+  the overlay.
 - Profile resolution and validation (`codeplugger-profile`): SSRF roots plus
   overlays, profile schema 0.1, radio capability limits including
   firmware-dependent limits, optional instance-registry join checks,
@@ -134,6 +136,35 @@ Working today:
   (one profile, many radios), which the 1:1 profile-instance registry join
   does not model; shared profiles are validated per-profile with
   `codeplugger-profile` instead.
+- Baofeng DM-1701 (`baofeng_dm1701`, OEM firmware; the Retevis RT84 is the
+  same radio under qdmr's alias key `rt84`): the second `dmrconf` target,
+  and the first one that was *not* just a capabilities file. Limits come
+  from qdmr's `DM1701Limits` (3000 channels, 250 zones, 31-channel scan
+  lists — not the DM-32UV's 15 — and a single DMR ID). **Hardware
+  acceptance passed 2026-10-08** on `eam_dm1701_01`: detect, binary read,
+  a 219-channel / 22-zone write, read-back, decode and diff, with the
+  read-back matching exactly and only the targeted bytes differing from
+  the factory image. That run also found the exporter bug the DM-32 could
+  not: TyT OEM firmware renders the second display line from zone bank B,
+  so every channel showed "Unprogram." until the exporter mirrored the zone
+  into both banks. That is driven by a new `zone_banks` capability (2 on
+  this radio, absent everywhere else) so OpenGD77 targets stay
+  byte-identical. The write progress bar lies on this family as on the
+  DM-32; the read-back diff is the only judge.
+- OpenGD77 via `dmrconf`: `retevis_rt3s_opengd77` (OpenGD77 on MD-UV380
+  hardware, dmrconf key `openuv380`) and `baofeng_dm1701_opengd77` (the
+  same STM32 build on the DM-1701, so identical limits). Capabilities come
+  from qdmr's shared `OpenGD77Limits`: 1024 channels, 68 zones of 80, a
+  470 MHz UHF ceiling where the OEM firmware allows 480, and
+  `max_scan_lists: 0` because OpenGD77 scans by zone and qdmr silently
+  ignores scan lists, so a profile that carries them is rejected loudly
+  rather than dropped. The backend carries a `VERIFY_RADIO_KEYS` stand-in
+  because `verify --radio=openuv380` segfaults in qdmr 0.15.1. **The RT3S
+  was hardware-verified end to end on 2026-09-23** (`eam_rt3s_01`: a
+  16-channel GMRS/MURS profile written with `--init-codeplug`, since a
+  fresh flash has an undecodable empty zone table, and read back with
+  names, zones and DCS tones intact). The DM-1701 OpenGD77 entry is not
+  badged: that firmware has never been flashed on the radio here.
 - Analog radios (UV-5R Mini, Ailunce HA2, Retevis C64, Baofeng BF-888S, Baofeng
   W31E, Yaesu FT-270R / FT-277R / FT-2800M): CHIRP CSV export (FM only), either imported in
   the CHIRP GUI or written headlessly by the `chirp-writer` backend described
@@ -222,6 +253,35 @@ Working today:
   an operator may key up on is licence and jurisdiction policy, and policy
   belongs in profiles — codeplugger is not a ham-only tool, and a
   `capabilities.json` should not encode one radio service's band plan.
+- Baofeng BF-1909 (`baofeng_bf1909`): the third H-777 family radio, 16
+  nameless channels on the BF-888S clone protocol, and the one where id,
+  case and CHIRP's `Vendor Model` string finally agree. Bench-confirmed
+  2026-10-09 against `eam_1909_01`: a read-only clone returned the driver's
+  full 1008-byte image, a generated 16-channel plan chosen to differ from
+  the factory content wrote and re-read byte-identical, and the factory
+  image was restored and re-read to its original hash. The band is the weak
+  claim and is flagged as such: 400-470 MHz is from retail listings, not a
+  grant, and the unit shipped on the PMR446 grid but accepted 462 MHz, so
+  firmware bounds nothing. It carries the published PMR446 use case.
+- Quansheng UV-K5 running F4HWN (`quansheng_uvk5_f4hwn`): a custom-firmware
+  radio id, deliberately separate from a stock UV-K5 because custom builds
+  change the TX span, channel count and settings surface, and a stock image
+  will not load in the custom driver. 200 channels, 10-character names, no
+  zones; TX only in 137-174 and 400-470 MHz, every other span receive-only.
+  The driver is `armel/uv-k5-chirp-driver`, out of tree and pinned to F4HWN
+  v4.3 — CHIRP's bundled `uvk5.py` dispatches on firmware prefix and refuses
+  this one — and it imports wx at module level, so headless use needs a wx
+  stub. Limits were probed from `get_features()` with the radio on the
+  cable on 2026-10-16.
+- Paper-derived CHIRP radios: TYT TH-9800 (`tyt_th9800`, 800 channels,
+  quad-band 10 m / 6 m / 2 m / 70 cm FM mobile, with a `tyt_th9800_mars`
+  extended-TX twin) and Yaesu VX-6R (`yaesu_vx6r`, 900 channels, tri-band
+  submersible handheld). Both have 6-character names and both are limits
+  read out of CHIRP driver source rather than off a radio; the TH-9800
+  driver is an `ExperimentalRadio` whose own prompt tells the operator to
+  keep an OEM backup, and anything codeplugger emits for it inherits that
+  warning. Neither has been read or written here. The FT-270R also has its
+  `yaesu_ft270_mars` twin now, on the same reasoning as the FT-277R.
 - Headless analog writes: a gated `chirp-writer` backend
   (`backends/chirp.py`) mirroring the `dmrconf` / `p64tool` safety pattern —
   explicit confirmation, a mandatory pre-write backup that doubles as the
@@ -307,7 +367,18 @@ priority now is getting the output into other people's hands with nothing
 to install, and making the ecosystem the project depends on outlast a
 single maintainer's forks:
 
-1. **Serve prebuilt community codeplugs from the site.** **Landed
+1. **Run `codeplugger program` against a physical radio, once per
+   backend.** The README now leads with this command, and it wires the
+   same four backends the bench work verified, but the wiring itself (port
+   handling, backup and read-back paths, the operation log it opens) has
+   only been exercised against stubbed subprocesses. Every hardware result
+   recorded above was produced by the backend or helper directly, not by
+   this command. Acceptance is one write per backend -- `dmrconf` on a
+   DM-32 or DM-1701, `chirp-writer` on the FT-2800M or BF-1909, `p64tool`
+   on the P4, `benlink` once item 4 has a radio -- with a clean read-back
+   diff and the operation-log entry it produced, before the site tells
+   anyone to run it.
+2. **Serve prebuilt community codeplugs from the site.** **Landed
    2026-09-21 for the DM-32; every shared profile with a source-buildable
    export is published as of 2026-10-14.** The Pages workflow checks out
    `ssrf-lite` at the revision `pyproject.toml` pins the package to, plus
@@ -338,12 +409,22 @@ single maintainer's forks:
    first and a link only exists for a file that exists. The links are a
    deploy-time artifact and never committed, which is why `--check` refuses
    a manifest. The published set is now the `use-cases` source plus the
-   DM-32, UV-5R Mini and BF-888S shared profiles. Remaining: the P4, which
-   stays unpublishable until its export can be built without a device read;
-   and the source repositories still have to send the `sources-changed`
-   `repository_dispatch` this workflow already accepts, so a profile or SSRF
-   change waits for the nightly run today.
-2. **Upstream the forks the project is pinned to.** Three write paths
+   DM-32, UV-5R Mini and BF-888S shared profiles; the `use-cases` source
+   also publishes for the BF-1909 and the UV-Pro. The UV-Pro download is a
+   benlink region plan, derived from the radio's `benlink` capabilities
+   block rather than a table column, for a radio whose write path has no
+   hardware acceptance yet (item 4): the file is reviewable and
+   deterministic, but nobody has yet written one to a radio. Say so on
+   the download page, or hold the UV-Pro back until item 4 lands.
+   Remaining: the
+   P4, which stays unpublishable until its export can be built without a
+   device read; and the rebuild trigger. The receiving side is done --
+   `pages.yml` accepts a `sources-changed` `repository_dispatch` and runs
+   nightly -- so what is left lives in the *other* repositories:
+   `ssrf-lite`, `chioff-ssrf-shared` and `chioff-codeplugger-profiles-shared`
+   each need a workflow that sends the dispatch on push. Until they do, a
+   profile or SSRF change waits for the nightly run.
+3. **Upstream the forks the project is pinned to.** Three write paths
    currently depend on code that lives only in a personal fork or a local
    checkout, each a single-maintainer bus factor:
    - **benlink**: region (channel bank) read/write is pinned to the
@@ -372,76 +453,110 @@ single maintainer's forks:
      off a physical radio exists, because CHIRP's driver tests are
      image-driven. Read one, add the test image, open the PR; only then
      does `baofeng_bf_c50` get a `chirp` block.
-3. **Finish `chirp-writer` acceptance on an on-demand radio.** The
-   backend is hardware-verified on the FT-2800M, a `clone_mode: manual`
-   radio, which was the risky half. The other half — a radio that answers
-   on demand — has only been written through the one-off C64 script.
-   Re-run the two C64 writes through the backend with a clean read-back
-   diff, then delete the script. Until then the analog headless claim
-   rests on one radio.
-4. **Allow the same assignment in more than one zone.** Profile 0.1
+4. **Finish `chirp-writer` acceptance on an on-demand radio, and make the
+   badges match the evidence.** The backend is hardware-verified on the
+   FT-2800M, a `clone_mode: manual` radio, which was the risky half. The
+   other half -- a radio that answers on demand -- is in a muddle: the
+   BF-1909 round trip on 2026-10-09 is recorded in its capabilities notes
+   but not as a `chirp-writer` run, and its site row carries no `hw`
+   badge; the UV-K5 F4HWN row *does* carry a headless `hw` badge, but its
+   notes record only a `get_features()` probe with the radio on the cable,
+   no write and no read-back. Either record the write that earned the
+   badge or drop it. Then re-run the two C64 writes through the backend
+   with a clean read-back diff and retire the one-off script (it lives in
+   `retevis-c64-info`, not here). Until one of those three radios has a
+   backend-driven write on record, the analog headless claim rests on one
+   radio. The `benlink` backend is in the same position with no radio at
+   all: nothing codeplugger generated has been written to a VR-N76 or
+   UV-Pro, and `vero_vrn76` stays `hardware_verified: false` until it has.
+5. **Allow the same assignment in more than one zone.** Profile 0.1
    rejects it ("assignment X is selected more than once"). On region-scoped
    radios (the Benshi family) that blocks the natural "same repeater in
    several groups" layout outright, and on every other radio it is an odd
    restriction with no capability behind it. Lift it in the schema and
    let exporters that index a global channel pool emit the channel once.
-5. **Model instance-agnostic profiles in the fleet join.** The registry
+6. **Model instance-agnostic profiles in the fleet join.** The registry
    join is 1:1 `radio_instance == instance_id`, so every shared community
    profile errors under `codeplugger-fleet` by design and is validated
-   per-profile instead. Item 1 sidesteps this by publishing per profile,
+   per-profile instead. Item 2 sidesteps this by publishing per profile,
    but it is the same gap: a profile with no `radio_instance` should be
    joinable to any registered radio of its `radio`.
-6. **Keep the DM-32 fleet running.** Program the real fleet from the
+7. **Keep the DM-32 fleet running.** Program the real fleet from the
    private profile repository, keep the operation log and read-back
    archives as the audit trail, and feed any on-radio surprises back into
    SSRF data, profiles, or exporter defaults (never into the generated
    codeplug).
-7. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
-   YAML exporter and `dmrconf` backend are already radio-neutral; adding a
-   radio qdmr supports should mostly be a capabilities file plus a
-   `dmrconf verify --radio=<key>` skip-if-uninstalled test. Candidates in
-   rough order of community demand: AnyTone AT-D868UV/878UV/578UV, TYT
-   MD-UV380/UV390 and Retevis RT3S, Radioddity GD-77, BTECH DMR-6X2,
-   Baofeng DM-1701. Each needs a named, reviewed set of exporter defaults
-   where qdmr's limits differ from the DM-32UV (placeholders, name lengths,
-   list minimums).
-8. **OpenGD77 via `dmrconf`.** Landed as `radios/retevis_rt3s_opengd77/`
-   (OpenGD77 firmware on MD-UV380 hardware, dmrconf key `openuv380`):
-   capabilities from qdmr's shared `OpenGD77Limits`, plus a
-   `VERIFY_RADIO_KEYS` stand-in in the dmrconf backend because
-   `verify --radio=openuv380` segfaults in qdmr 0.15.1 (no-device radio
-   construction dereferences the device handle; `opengd77` shares the same
-   limits singleton). Scan lists are declared `max_scan_lists: 0` -- OpenGD77
-   scans zones and qdmr silently ignores scan lists, so profiles must not
-   carry them. An OpenGD77 CPS CSV exporter is still only warranted if the
-   `dmrconf` path leaves gaps. Remaining: hardware-verify a write to
-   `eam_rt3s_01` and flip the site row's `hw` flag.
+8. **More qdmr-supported radios via `capabilities.json` only.** The qdmr
+   YAML exporter and `dmrconf` backend are radio-neutral, and the DM-1701
+   is the test of the claim: it needed a capabilities file, a
+   `dmrconf verify` skip-if-uninstalled test, a `RADIO_NAMES` entry
+   captured from a real detect -- and one exporter change (`zone_banks`),
+   because TyT OEM firmware's two-bank zones were invisible from source
+   and only showed up on the radio's display. Expect each new family to
+   cost about that much. Candidates in rough order of community demand:
+   AnyTone AT-D868UV/878UV/578UV, TYT MD-UV380/UV390 on OEM firmware and
+   Retevis RT3S likewise, Radioddity GD-77, BTECH DMR-6X2. Each needs a
+   named, reviewed set of exporter defaults where qdmr's limits differ
+   from the DM-32UV (placeholders, name lengths, list minimums), and none
+   gets an `hw` badge off a `dmrconf verify` pass alone.
+9. **OpenGD77 via `dmrconf`.** Landed and hardware-verified on the RT3S
+   (see Current state). Remaining: flash `eam_dm1701_01` to OpenGD77 and
+   write through `baofeng_dm1701_opengd77` once, so the second entry stops
+   being a copy of the first's limits with no radio behind it; and keep
+   the `VERIFY_RADIO_KEYS` workaround until a qdmr release fixes the
+   no-device `verify` crash. An OpenGD77 CPS CSV exporter is still only
+   warranted if the `dmrconf` path leaves gaps.
+10. **`codeplugger import`: onboard from a radio the user already likes.**
+    The on-ramp still assumes someone starts from SSRF assignment IDs;
+    most people start from a radio that is already set up the way they
+    want it. `import` reads a radio of a *known* model -- `--radio` is
+    required and the backend's `detect` is an identity gate, never a guess
+    -- decodes it to the neutral channel shape, and matches every channel
+    against SSRF. The matching is the feature, not the read; it sorts into
+    three buckets. An exact match (frequency, offset, tone, mode agree)
+    becomes an assignment ID in a draft profile, with the radio's zone and
+    channel order carried over as ordering policy and any differing label
+    as the per-assignment `display_name` that already exists. A near miss
+    (frequency agrees, tone/color code/bandwidth/name differs) becomes a
+    reconcile report plus a ready-to-PR SSRF overlay fragment -- that is
+    the other half of this item, the path for field edits noticed in use
+    ("this repeater's color code is not what the directory says") to get
+    back into shared data instead of dying in one operator's radio. No
+    match becomes a draft overlay assignment carrying its provenance and a
+    TODO, referenced by the draft profile so the result resolves.
 
-Known gaps:
+    This does not make a codeplug a data source. The output is draft
+    *source* for human review -- a profile and an overlay fragment -- never
+    a round-trip, and the match report states plainly what did not survive
+    the read. Guardrails follow the existing patterns: write only into a
+    user-named output directory, never into the installed `ssrf-lite` data,
+    the registry, or this repository; refuse to overwrite an existing path
+    the way the backup and read-back gates do. Privacy matters here in a
+    way it does not elsewhere in the pipeline, because a real read carries
+    DMR IDs, contact names, and possibly unpublished frequencies: warn on
+    it, and keep every committed fixture synthetic.
 
-- `codeplugger program` has not driven a physical radio yet. It wires the
-  same four backends the bench work verified, but the wiring itself (port
-  handling, backup and read-back paths, the operation log it opens) has
-  only been exercised against stubbed subprocesses. Run it once per
-  backend before the site tells anyone to.
-- The P4 has no publishable codeplug, because its only export needs a
-  `p64tool decode` baseline read off a device; and source-repository
-  pushes do not yet trigger a rebuild. Both are the remainder of item 1.
-- Three write paths depend on unmerged fork branches or local checkouts
-  (benlink regions, qdmr DM-32UV extension, CHIRP BF-C50 driver); tracked
-  by item 2 above.
-- DM-32 display colors, button functions, and most general settings are
-  not reachable through a released `dmrconf` today; tracked by item 2.
-- The `chirp-writer` backend is hardware-verified on one radio
-  (FT-2800M, manual clone mode). The on-demand path has only been driven
-  by the one-off C64 script; tracked by item 3.
-- The `benlink` backend has not written a codeplugger-generated plan to a
-  physical radio yet; `vero_vrn76` stays `hardware_verified: false` until
-  it has.
-- An assignment cannot appear in two zones; tracked by item 4.
-- Shared community profiles cannot participate in the fleet dry run;
-  tracked by item 5.
-- Scan lists are membership-only (no priority channels) across exporters.
+    Phase it so no hardware risk arrives before the logic is proven.
+    Phase 0 is `--image` only, an offline file-in/drafts-out command tested
+    against synthetic fixtures, with one backend's decode (CHIRP first --
+    widest radio coverage and the simplest neutral form). Phase 1 adds
+    `--port` over the reads the backends already expose (`chirp.read`,
+    `p64tool.read`, `dmrconf.read`, `benlink.backup`). Phase 2 adds a
+    `reconcile` mode that compares a radio against an existing profile and
+    emits only the SSRF-shaped differences. The decoders belong in an
+    `importers/` package mirroring `exporters/`, since each one is the
+    inverse of an exporter that already exists.
+
+Known gaps not tracked by an item above:
+
+- Scan lists are membership-only (no priority channels) across exporters;
+  listed under Deferred.
+- `radios/baofeng_dm1701/capabilities.json` still says "NOT BENCH-VERIFIED
+  ... the site row carries no hw flag" while the row has carried `hw: true`
+  since the 2026-10-08 round trip. The notes are the stale half.
+- Several real capabilities (call-sign database size, APRS positioning
+  systems, encryption key slots, SSB receive on the UV-K5) have no schema
+  field and live only in `notes`. Fine until a check needs one.
 
 ## Later
 
