@@ -224,6 +224,7 @@ def build_profile(
         "channels": len(codeplug.channels),
         # Same digest codeplugger-fleet reports, over the same bytes.
         "resolved_sha256": hashlib.sha256(resolved_json.encode("utf-8")).hexdigest(),
+        "write_unverified": capabilities.get("benlink", {}).get("hardware_verified") is False,
         "warnings": [issue.format() for issue in report.non_critical()],
         "files": written,
     }
@@ -322,6 +323,11 @@ STRINGS = {
         "file": "File",
         "purpose": "What it is for",
         "resolved_sha": "Resolved codeplug SHA-256",
+        "write_unverified": (
+            "Not yet written to a physical radio. The file is deterministic and "
+            "reviewable, but no codeplugger-generated plan has been programmed "
+            "into this model; keep the backup the backend takes."
+        ),
         "zone": ("zone", "zones"),
         "channel": ("channel", "channels"),
         "formats": {
@@ -356,6 +362,12 @@ STRINGS = {
         "file": "Archivo",
         "purpose": "Para qué sirve",
         "resolved_sha": "SHA-256 del codeplug resuelto",
+        "write_unverified": (
+            "Aún no se ha escrito en una radio física. El archivo es determinista "
+            "y revisable, pero ningún plan generado por codeplugger se ha "
+            "programado en este modelo; conserva la copia de seguridad que toma "
+            "el backend."
+        ),
         "zone": ("zona", "zonas"),
         "channel": ("canal", "canales"),
         "formats": {
@@ -410,7 +422,12 @@ def render_profile_card(entry: dict, lang: str = "en", files: str = "") -> str:
         f'{plural(entry["zones"], s["zone"])} · '
         f'{plural(entry["channels"], s["channel"])} · '
         f'<code>{esc(entry["profile_id"])}</code></p>'
-        '<div class="matrix-scroll"><table class="matrix"><thead><tr>'
+        + (
+            f'<p class="caution">{s["write_unverified"]}</p>'
+            if entry.get("write_unverified")
+            else ""
+        )
+        + '<div class="matrix-scroll"><table class="matrix"><thead><tr>'
         f"<th>{s['file']}</th><th>{s['purpose']}</th><th>SHA-256</th>"
         "</tr></thead><tbody>"
         + "".join(rows)

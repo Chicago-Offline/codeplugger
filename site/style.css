@@ -213,6 +213,7 @@ section > .wrap > p.sub { margin: 0 0 2rem; color: var(--text-dim); max-width: 7
 .codeplugs article { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; }
 .codeplugs h3 { margin: 0 0 0.35rem; font-size: 1rem; color: var(--text); }
 .codeplugs .matrix { min-width: 420px; }
+.codeplugs .caution { margin: 0 0 0.9rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--warn); background: var(--warn-dim); font-size: 0.85rem; }
 .meta { margin: 0.5rem 0 0; color: var(--text-dim); font-size: 0.85rem; overflow-wrap: anywhere; }
 .codeplugs article > .meta:first-of-type { margin: 0 0 0.9rem; }
 

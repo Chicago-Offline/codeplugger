@@ -258,3 +258,12 @@ def test_language_without_source_translation_falls_back_to_english():
     manifest["sources"][0].pop("i18n")
     page = build.render_page(manifest, "es")
     assert "Shared net" in page and "English blurb." in page
+
+
+def test_unverified_write_path_is_flagged_on_the_card():
+    manifest = json.loads(json.dumps(_MANIFEST))
+    assert 'class="caution"' not in build.render_page(manifest, "en")
+    manifest["sources"][0]["profiles"][0]["write_unverified"] = True
+    for lang in build.STRINGS:
+        page = build.render_page(manifest, lang)
+        assert f'<p class="caution">{build.STRINGS[lang]["write_unverified"]}</p>' in page
