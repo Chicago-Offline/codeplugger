@@ -35,6 +35,25 @@ def test_committed_index_html_is_generated():
     )
 
 
+@pytest.mark.parametrize("lang", sorted(gen.PAGES))
+def test_every_language_page_is_generated(lang):
+    """Each translated landing page carries a current table in its language."""
+    path = gen.PAGES[lang]
+    current = path.read_text()
+    assert current == gen.render_index(current, lang=lang), (
+        f"{path.relative_to(REPO_ROOT)} is stale -- run: python tools/gen_radio_table.py"
+    )
+    assert f'<html lang="{lang}">' in current
+    assert gen.STRINGS[lang]["hw"] in current
+
+
+def test_spanish_table_has_no_english_generator_strings():
+    tbody = gen.build_tbody(lang="es")
+    assert "Not supported" not in tbody
+    assert "Verified on a physical radio" not in tbody
+    assert gen.STRINGS["es"]["not_supported"] in tbody
+
+
 def test_every_radio_has_a_site_row():
     caps = gen.load_capabilities()
     listed = {row["id"] for row in gen.load_rows()}

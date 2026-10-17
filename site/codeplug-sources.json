@@ -19,13 +19,23 @@
     "",
     "Which file formats a profile produces is NOT listed here. It comes from",
     "the radio's row in site/radios.json, so a radio cannot advertise an",
-    "export column in the support table and then fail to offer the file."
+    "export column in the support table and then fail to offer the file.",
+    "",
+    "'i18n' holds per-language overrides of 'name' and 'description' for the",
+    "translated downloads pages; a language without an entry falls back to",
+    "the English text."
   ],
   "sources": [
     {
       "id": "use-cases",
       "name": "Use-case starter codeplugs",
       "description": "Buy a supported radio and make it behave like the radio you wanted: a GMRS handheld, a PMR446 handheld, a MURS handheld, a marine VHF receiver, or all of them at once. Built from published ssrf-lite data only, with no personal DMR IDs. GMRS needs an FCC licence and the marine channels are receive-only; see the reference sheet in each download.",
+      "i18n": {
+        "es": {
+          "name": "Codeplugs iniciales por caso de uso",
+          "description": "Compra una radio compatible y haz que se comporte como la radio que querías: un portátil GMRS, un portátil PMR446, un portátil MURS, un receptor VHF marino, o todos a la vez. Compilados solo con datos publicados de ssrf-lite, sin IDs DMR personales. GMRS requiere una licencia de la FCC y los canales marinos son solo de recepción; consulta la hoja de referencia en cada descarga."
+        }
+      },
       "repo": "https://github.com/Chicago-Offline/codeplugger",
       "profiles": [
         "examples/profiles/baofeng_bf888s/gmrs.yml",
@@ -40,6 +50,12 @@
       "id": "chioff-shared",
       "name": "Chicago Offline community net",
       "description": "Shared GMRS and MURS channels for the Chicago Offline community net. Instance-agnostic: no personal DMR IDs, no per-operator settings.",
+      "i18n": {
+        "es": {
+          "name": "Red comunitaria de Chicago Offline",
+          "description": "Canales GMRS y MURS compartidos de la red comunitaria de Chicago Offline. Independientes de la instancia: sin IDs DMR personales, sin ajustes por operador."
+        }
+      },
       "repo": "https://github.com/Chicago-Offline/chioff-codeplugger-profiles-shared",
       "checkout": "chioff-codeplugger-profiles-shared",
       "ssrf_roots": [
