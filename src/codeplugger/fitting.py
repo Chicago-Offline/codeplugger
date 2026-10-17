@@ -145,6 +145,7 @@ def fit_use_case(
 
     drops: list[Drop] = []
     kept_zones: list[dict[str, Any]] = []
+    kept_ids: set[str] = set()
     total_channels = 0
 
     for zone in candidates:
@@ -153,6 +154,7 @@ def fit_use_case(
         assignments: list[Any] = []
         zone_drops: list[Drop] = []
         zone_channels = 0
+        new_channels = 0
         for assignment in zone["assignments"]:
             if _spacer_target(assignment) is not None:
                 assignments.append(assignment)
@@ -187,6 +189,8 @@ def fit_use_case(
                 continue
             assignments.append(assignment)
             zone_channels += counts[assignment_id]
+            if assignment_id not in kept_ids:
+                new_channels += counts[assignment_id]
 
         if not zone_channels:
             # The whole zone went, so say that once instead of listing every
@@ -233,14 +237,14 @@ def fit_use_case(
                 )
             )
             continue
-        if total_channels + zone_channels > limits["max_channels"]:
+        if total_channels + new_channels > limits["max_channels"]:
             drops.append(
                 Drop(
                     kind="zone",
                     id=zone_id,
                     name=zone_name,
                     reason=(
-                        f"needs {zone_channels} more channels; "
+                        f"needs {new_channels} more channels; "
                         f"{limit_source} is {limits['max_channels']} and "
                         f"{total_channels} are already used"
                     ),
@@ -249,7 +253,10 @@ def fit_use_case(
             continue
 
         kept_zones.append({**zone, "assignments": assignments})
-        total_channels += zone_channels
+        kept_ids.update(
+            _assignment_id(a) for a in assignments if _spacer_target(a) is None
+        )
+        total_channels += new_channels
 
     if not kept_zones:
         raise ProfileValidationError(

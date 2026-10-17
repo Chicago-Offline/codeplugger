@@ -295,6 +295,64 @@ def test_next_channel_spacer_cannot_move_backwards() -> None:
             )
 
 
+def _write_two_zone_profile(path: Path, first: list, second: list) -> None:
+    _write_profile(path, first)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["zones"].append({"id": "second", "name": "Second", "assignments": second})
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def test_assignment_in_two_zones_is_one_channel() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_two_zone_profile(
+            profile, ["asg_one", "asg_two"], ["asg_two", "asg_one"]
+        )
+        _write_radio(root / "radios", extra_limits={"max_zones": 2})
+        _write_ssrf(root / "ssrf")
+
+        codeplug = resolve_codeplug(
+            profile, [root / "ssrf"], radio_root=root / "radios"
+        )
+
+    assert [channel.channel_number for channel in codeplug.channels] == [1, 2]
+    assert codeplug.zones[0].channel_references == ("asg_one", "asg_two")
+    assert codeplug.zones[1].channel_references == ("asg_two", "asg_one")
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(codeplug))))
+    assert [row["Location"] for row in rows] == ["1", "2"]
+
+
+def test_assignment_twice_in_one_zone_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one", {"id": "asg_one", "display_name": "One"}])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="more than once in zone"):
+            load_and_validate_profile(
+                profile, [root / "ssrf"], radio_root=root / "radios"
+            )
+
+
+def test_assignment_in_two_zones_must_ask_for_the_same_channel() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_two_zone_profile(
+            profile, ["asg_one"], [{"id": "asg_one", "display_name": "Other"}]
+        )
+        _write_radio(root / "radios", extra_limits={"max_zones": 2})
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError, match="different settings"):
+            load_and_validate_profile(
+                profile, [root / "ssrf"], radio_root=root / "radios"
+            )
+
+
 def test_abstract_base_profile_binds_radio_in_the_child() -> None:
     """A base that names no radio is reusable; the child supplies both facts.
 
@@ -2135,6 +2193,27 @@ def test_zone_dmr_id_wins_over_instance_default() -> None:
 
     assert resolved.channels[0].dmr_id_key == "family"
     assert resolved.channels[0].dmr_id == 123
+
+
+def test_assignment_in_zones_with_different_dmr_ids_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_two_zone_profile(profile, ["asg_dmr"], ["asg_dmr"])
+        data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        data["zones"][1]["dmr_id"] = "family"
+        profile.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        _write_radio(root / "radios", extra_limits={"max_zones": 2})
+        _write_dmr_ssrf(root / "ssrf")
+        registry = _write_dmr_registry(root, default_dmr_id="ham")
+
+        with pytest.raises(ProfileValidationError, match="different settings"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+            )
 
 
 def test_instance_default_dmr_id_used_absent_overrides() -> None:

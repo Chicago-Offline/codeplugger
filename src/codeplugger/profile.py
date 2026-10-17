@@ -233,6 +233,23 @@ def _assignment_id(value: Any) -> str:
     return value["id"] if isinstance(value, dict) else value
 
 
+def _occurrence_settings(value: Any, zone: Mapping[str, Any]) -> dict[str, Any]:
+    """What one zone entry asks of its channel, for comparing repeat entries.
+
+    An assignment listed in several zones is one channel, so every entry has
+    to ask for the same channel: same per-assignment settings, same DMR ID.
+    """
+
+    settings = (
+        {key: item for key, item in value.items() if key != "id"}
+        if isinstance(value, dict)
+        else {}
+    )
+    if "dmr_id" not in settings and zone.get("dmr_id") is not None:
+        settings["dmr_id"] = zone["dmr_id"]
+    return settings
+
+
 def _spacer_target(value: Any) -> int | None:
     """Return a spacer entry's jump target, or None for a real assignment."""
 
@@ -990,6 +1007,7 @@ def _validate_profile(
 
     zone_ids: set[str] = set()
     selected: set[str] = set()
+    first_occurrence: dict[str, tuple[str, dict[str, Any]]] = {}
     total_channels = 0
     next_channel_number = 1
     for zone in zones:
@@ -998,6 +1016,7 @@ def _validate_profile(
         zone_ids.add(zone["id"])
         _check_name_length(report, limits, "max_zone_name_chars", "zone", zone["name"])
         zone_channel_count = 0
+        zone_selected: set[str] = set()
         for assignment in zone["assignments"]:
             spacer_target = _spacer_target(assignment)
             if spacer_target is not None:
@@ -1027,14 +1046,32 @@ def _validate_profile(
                     f"'{assignment_id}'",
                 )
                 continue
-            if assignment_id in selected:
+            if assignment_id in zone_selected:
                 report.critical(
                     (),
-                    f"assignment '{assignment_id}' is selected more than once",
+                    f"assignment '{assignment_id}' is listed more than once "
+                    f"in zone '{zone['name']}'",
                 )
                 continue
-            selected.add(assignment_id)
+            zone_selected.add(assignment_id)
             zone_channel_count += channel_counts[assignment_id]
+            settings = _occurrence_settings(assignment, zone)
+            if assignment_id in selected:
+                # A repeat is the same channel shown in another zone: it takes
+                # no new channel number, but it must ask for the same channel.
+                first_zone, first_settings = first_occurrence[assignment_id]
+                if settings != first_settings:
+                    report.critical(
+                        (),
+                        f"assignment '{assignment_id}' is in zones "
+                        f"'{first_zone}' and '{zone['name']}' with different "
+                        "settings; an assignment in several zones is one "
+                        "channel, so its settings (and DMR ID) must match",
+                    )
+                continue
+            selected.add(assignment_id)
+            first_occurrence[assignment_id] = (zone["name"], settings)
+            total_channels += channel_counts[assignment_id]
             next_channel_number += channel_counts[assignment_id]
         if zone_channel_count > limits["max_channels_per_zone"]:
             report.critical(
@@ -1042,7 +1079,6 @@ def _validate_profile(
                 f"zone '{zone['name']}' expands to {zone_channel_count} channels; "
                 f"{limit_source} is {limits['max_channels_per_zone']}",
             )
-        total_channels += zone_channel_count
 
     # Spacers leave empty slots behind, so the radio's ceiling applies to the
     # highest channel number reached, not to how many channels are filled.

@@ -414,8 +414,9 @@ single maintainer's forks:
    benlink region plan, derived from the radio's `benlink` capabilities
    block rather than a table column, for a radio whose write path has no
    hardware acceptance yet (item 4): the file is reviewable and
-   deterministic, but nobody has yet written one to a radio. Say so on
-   the download page, or hold the UV-Pro back until item 4 lands.
+   deterministic, but nobody has yet written one to a radio, and the
+   download card says so for any `benlink` radio not marked
+   `hardware_verified`.
    Remaining: the
    P4, which stays unpublishable until its export can be built without a
    device read; and the rebuild trigger. The receiving side is done --
@@ -456,25 +457,28 @@ single maintainer's forks:
 4. **Finish `chirp-writer` acceptance on an on-demand radio, and make the
    badges match the evidence.** The backend is hardware-verified on the
    FT-2800M, a `clone_mode: manual` radio, which was the risky half. The
-   other half -- a radio that answers on demand -- is in a muddle: the
-   BF-1909 round trip on 2026-10-09 is recorded in its capabilities notes
-   but not as a `chirp-writer` run, and its site row carries no `hw`
-   badge; the UV-K5 F4HWN row *does* carry a headless `hw` badge, but its
-   notes record only a `get_features()` probe with the radio on the cable,
-   no write and no read-back. Either record the write that earned the
-   badge or drop it. Then re-run the two C64 writes through the backend
-   with a clean read-back diff and retire the one-off script (it lives in
-   `retevis-c64-info`, not here). Until one of those three radios has a
-   backend-driven write on record, the analog headless claim rests on one
+   other half -- a radio that answers on demand -- has no backend-driven
+   write on record. The badges now match the evidence: the BF-1909 round
+   trip on 2026-10-09 went through the CHIRP driver directly, so its row
+   carries a CHIRP `hw` badge and no headless one; the UV-K5 F4HWN's
+   headless badge is dropped, because its notes record only a
+   `get_features()` probe, no write and no read-back. Next: run
+   `chirp-writer` on the BF-1909 or UV-K5 with a clean read-back diff and
+   badge the headless column, and re-run the two C64 writes through the
+   backend and retire the one-off script (it lives in
+   `retevis-c64-info`, not here). Until then the analog headless claim rests on one
    radio. The `benlink` backend is in the same position with no radio at
    all: nothing codeplugger generated has been written to a VR-N76 or
    UV-Pro, and `vero_vrn76` stays `hardware_verified: false` until it has.
-5. **Allow the same assignment in more than one zone.** Profile 0.1
-   rejects it ("assignment X is selected more than once"). On region-scoped
-   radios (the Benshi family) that blocks the natural "same repeater in
-   several groups" layout outright, and on every other radio it is an odd
-   restriction with no capability behind it. Lift it in the schema and
-   let exporters that index a global channel pool emit the channel once.
+5. **Allow the same assignment in more than one zone.** **Landed
+   2026-10-16.** A repeat is the same channel shown in another zone: it
+   takes no new channel number and counts once against `max_channels`
+   (and in use-case fitting), but against each zone's
+   `max_channels_per_zone`. Every occurrence must ask for the same channel
+   -- identical per-assignment settings and effective DMR ID -- or the
+   profile is rejected; listing one assignment twice in one zone still is.
+   Global-pool exporters (CHIRP, qdmr, P4) emit the channel once; the
+   benlink plan gives it a slot in each region.
 6. **Model instance-agnostic profiles in the fleet join.** The registry
    join is 1:1 `radio_instance == instance_id`, so every shared community
    profile errors under `codeplugger-fleet` by design and is validated
@@ -551,9 +555,6 @@ Known gaps not tracked by an item above:
 
 - Scan lists are membership-only (no priority channels) across exporters;
   listed under Deferred.
-- `radios/baofeng_dm1701/capabilities.json` still says "NOT BENCH-VERIFIED
-  ... the site row carries no hw flag" while the row has carried `hw: true`
-  since the 2026-10-08 round trip. The notes are the stale half.
 - Several real capabilities (call-sign database size, APRS positioning
   systems, encryption key slots, SSB receive on the UV-K5) have no schema
   field and live only in `notes`. Fine until a check needs one.

@@ -590,6 +590,10 @@ def build_codeplug(
                 if isinstance(assignment_value, dict)
                 else assignment_value
             )
+            if assignment_id in assignment_channel_refs:
+                # Validation guarantees a repeat asks for the same channel.
+                channel_references.extend(assignment_channel_refs[assignment_id])
+                continue
             document, assignment = assignments[assignment_id]
             display_name_override = (
                 assignment_value.get("display_name")

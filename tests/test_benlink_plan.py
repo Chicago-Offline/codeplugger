@@ -82,6 +82,26 @@ def test_zones_become_regions_with_one_based_slots() -> None:
     assert [c["name"] for c in plan["regions"][0]["channels"]] == ["2m Call", "70cm"]
 
 
+def test_channel_shared_by_two_zones_takes_a_slot_in_each_region() -> None:
+    call = _channel("a", "2m Call")
+    codeplug = ResolvedCodeplug(
+        radio_id="vero_vrn76",
+        radio_instance_id="n76_tan",
+        radio_instance=None,
+        channels=(call,),
+        zones=(
+            ResolvedZone(id="z0", name="Ham", channel_references=("a",)),
+            ResolvedZone(id="z1", name="Travel", channel_references=("a",)),
+        ),
+    )
+
+    plan = benlink_plan_from_resolved(codeplug, capabilities=CAPABILITIES)
+
+    assert [
+        [c["name"] for c in region["channels"]] for region in plan["regions"]
+    ] == [["2m Call"], ["2m Call"]]
+
+
 def test_radio_identity_comes_from_capabilities() -> None:
     codeplug = _codeplug([("Ham", [_channel("a", "2m Call")])])
 
