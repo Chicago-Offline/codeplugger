@@ -104,7 +104,8 @@
       "p64_toml": false,
       "oem_cps": false,
       "headless": {
-        "supported": true
+        "supported": true,
+        "hw": true
       }
     },
     {

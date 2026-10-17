@@ -262,7 +262,13 @@ Working today:
   image was restored and re-read to its original hash. The band is the weak
   claim and is flagged as such: 400-470 MHz is from retail listings, not a
   grant, and the unit shipped on the PMR446 grid but accepted 462 MHz, so
-  firmware bounds nothing. It carries the published PMR446 use case.
+  firmware bounds nothing. It carries the published PMR446 use case. On
+  2026-10-16 it became the first radio programmed end to end by
+  `codeplugger program` over `chirp-writer`: the GMRS and then the PMR446
+  use case, each with a clean read-back diff and an operation-log entry,
+  which also surfaced a post-upload grace period the GUI never sees (the
+  radio refuses a new handshake for about 2.5 s while it commits the
+  upload; the helper's read-back now retries).
 - Quansheng UV-K5 running F4HWN (`quansheng_uvk5_f4hwn`): a custom-firmware
   radio id, deliberately separate from a stock UV-K5 because custom builds
   change the TX span, channel count and settings surface, and a stock image
@@ -302,9 +308,10 @@ Working today:
   directions with a deliberately distinguishable payload each way, checked on
   the radio's own display and corroborated by each run's pre-write backup
   capturing exactly what the previous run left. A headless read separately
-  reproduced an intended codeplug with zero mismatches. Remaining acceptance
-  work is the on-demand path — re-running the two C64 writes through the
-  backend rather than the one-off script.
+  reproduced an intended codeplug with zero mismatches. **The on-demand path
+  landed 2026-10-16 on the BF-1909**, driven by `codeplugger program` rather
+  than the helper (see item 1). Remaining acceptance work is re-running the
+  two C64 writes through the backend rather than the one-off script.
 - Benshi Bluetooth radios (`vero_vrn76`, `btech_uv_pro`): a region-plan JSON
   export (`exporters/benlink_plan.py`) and a gated write backend
   (`backends/benlink.py`) built on
@@ -368,16 +375,20 @@ to install, and making the ecosystem the project depends on outlast a
 single maintainer's forks:
 
 1. **Run `codeplugger program` against a physical radio, once per
-   backend.** The README now leads with this command, and it wires the
-   same four backends the bench work verified, but the wiring itself (port
-   handling, backup and read-back paths, the operation log it opens) has
-   only been exercised against stubbed subprocesses. Every hardware result
-   recorded above was produced by the backend or helper directly, not by
-   this command. Acceptance is one write per backend -- `dmrconf` on a
-   DM-32 or DM-1701, `chirp-writer` on the FT-2800M or BF-1909, `p64tool`
-   on the P4, `benlink` once item 4 has a radio -- with a clean read-back
-   diff and the operation-log entry it produced, before the site tells
-   anyone to run it.
+   backend.** The README leads with this command, and it wires the same
+   four backends the bench work verified, but until 2026-10-16 the wiring
+   itself (port handling, backup and read-back paths, the operation log it
+   opens) had only been exercised against stubbed subprocesses; every
+   hardware result recorded above was produced by the backend or helper
+   directly. **`chirp-writer` done 2026-10-16 on the BF-1909**: two
+   consecutive `--confirm` runs (GMRS, then PMR446), each with a 0-byte
+   read-back diff and a `write success` operation-log entry, each run's
+   backup matching what the previous run left. The first attempts failed
+   at the read-back gate with the write already on the radio, which is
+   exactly the class of bug this item exists to find (see item 4).
+   Remaining: `dmrconf` on a DM-32 or DM-1701, `p64tool` on the P4,
+   `benlink` once item 4 has a radio -- each one write with a clean
+   read-back diff and the operation-log entry it produced.
 2. **Serve prebuilt community codeplugs from the site.** **Landed
    2026-09-21 for the DM-32; every shared profile with a source-buildable
    export is published as of 2026-10-14.** The Pages workflow checks out
@@ -462,21 +473,28 @@ single maintainer's forks:
      image-driven. Read one, add the test image, open the PR; only then
      does `baofeng_bf_c50` get a `chirp` block.
 4. **Finish `chirp-writer` acceptance on an on-demand radio, and make the
-   badges match the evidence.** The backend is hardware-verified on the
-   FT-2800M, a `clone_mode: manual` radio, which was the risky half. The
-   other half -- a radio that answers on demand -- has no backend-driven
-   write on record. The badges now match the evidence: the BF-1909 round
-   trip on 2026-10-09 went through the CHIRP driver directly, so its row
-   carries a CHIRP `hw` badge and no headless one; the UV-K5 F4HWN's
-   headless badge is dropped, because its notes record only a
-   `get_features()` probe, no write and no read-back. Next: run
-   `chirp-writer` on the BF-1909 or UV-K5 with a clean read-back diff and
-   badge the headless column, and re-run the two C64 writes through the
-   backend and retire the one-off script (it lives in
-   `retevis-c64-info`, not here). Until then the analog headless claim rests on one
-   radio. The `benlink` backend is in the same position with no radio at
-   all: nothing codeplugger generated has been written to a VR-N76 or
-   UV-Pro, and `vero_vrn76` stays `hardware_verified: false` until it has.
+   badges match the evidence.** **On-demand half landed 2026-10-16.** The
+   backend was hardware-verified on the FT-2800M, a `clone_mode: manual`
+   radio, which was the risky half; the BF-1909 now covers the other half,
+   through `codeplugger program` rather than the helper alone (item 1),
+   and carries a headless `hw` badge. The run found a real defect: a radio
+   commits an upload to flash after acknowledging the last block and
+   refuses a new programming-mode handshake until it has (the BF-1909
+   answers `V` instead of ACK at once, nothing for the next second, and
+   normally from about 2.5 s), so the helper's read-back, started 30 ms
+   after the upload, reported "Radio refused to enter programming mode"
+   on three writes that had landed. The GUI never sees this because an
+   operator sits between the two transfers. `chirp-writer` now retries
+   only the read-back download, once a second for up to eight attempts,
+   and records `read_back_attempts` in its result; the pre-upload backup
+   does not retry, because a silent radio there is a real fault. The
+   UV-K5 F4HWN's headless badge stays dropped: its notes record only a
+   `get_features()` probe, no write and no read-back. Still open: re-run
+   the two C64 writes through the backend and retire the one-off script
+   (it lives in `retevis-c64-info`, not here). The `benlink` backend is in
+   the position this item started in, with no radio at all: nothing
+   codeplugger generated has been written to a VR-N76 or UV-Pro, and
+   `vero_vrn76` stays `hardware_verified: false` until it has.
 5. **Allow the same assignment in more than one zone.** **Landed
    2026-10-16.** A repeat is the same channel shown in another zone: it
    takes no new channel number and counts once against `max_channels`
