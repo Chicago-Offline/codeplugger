@@ -198,6 +198,41 @@ def test_a_profile_you_already_own_builds_the_same_way(tmp_path: Path) -> None:
     assert (directory / "codeplug.yaml").is_file()
 
 
+def test_a_use_case_can_be_built_for_one_registered_radio(tmp_path: Path) -> None:
+    # The synthesized profile names no radio_instance; --instance supplies
+    # one, so the build takes that radio's registry metadata and its name.
+    assert (
+        main(
+            [
+                "build",
+                "--radio",
+                "baofeng_dm32",
+                "--use-case",
+                "gmrs",
+                "--accept-fit",
+                "--instance-registry",
+                "examples/instances.yml",
+                "--instance",
+                "example_dm32_01",
+                "--artifact-root",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    directory = tmp_path / ".artifacts" / "baofeng_dm32" / "example_dm32_01"
+    assert (directory / "codeplug.yaml").is_file()
+
+
+def test_instance_needs_a_registry_to_look_it_up_in(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["build", "--radio", "baofeng_dm32", "--use-case", "gmrs",
+              "--instance", "example_dm32_01"])
+    assert "--instance requires --instance-registry" in capsys.readouterr().err
+
+
 def test_a_trimmed_fit_is_refused_without_a_human(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

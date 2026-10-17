@@ -442,8 +442,11 @@ includes every registry instance that has a DMR ID.
 
 The physical fleet registry is the source of truth for which radio instance
 gets which profile. A registry entry's `profile` value names a profile file
-under the profile repository, and the profile's `radio_instance` must match the
-registry key. No radio is changed by this command:
+under the profile repository. A profile that declares `radio_instance` must
+name that registry key; a profile that declares none is shared, and the fleet
+binds it to each registered radio whose `profile` names it, so one community
+profile can serve several radios of the same model with their own DMR IDs. No
+radio is changed by this command:
 
 ```bash
 uv run codeplugger-fleet \
@@ -588,6 +591,18 @@ When enabled, codeplugger verifies:
 
 - the profile instance ID exists in the registry
 - the registry entry's `radio` matches the profile's `radio`
+
+A profile with no `radio_instance` can be bound to one at build time, which is
+how a shared profile or a use case picks up a particular radio's DMR ID and
+firmware limits:
+
+```bash
+uv run codeplugger build --radio baofeng_dm32 --use-case gmrs \
+  --instance-registry path/to/instances.yml --instance dm32_green_01
+```
+
+A profile that already names a different `radio_instance` is rejected rather
+than rebound.
 
 If no registry is provided, behavior stays backward compatible with existing
 profile-only workflows.

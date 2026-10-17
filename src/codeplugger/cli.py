@@ -326,6 +326,7 @@ def _build(args: argparse.Namespace) -> Build:
             ssrf_roots,
             radio_root=args.radio_root,
             instance_registry_path=args.instance_registry,
+            radio_instance=args.instance,
         )
         if args.radio and profile["radio"] != args.radio:
             raise CommandError(
@@ -345,6 +346,7 @@ def _build(args: argparse.Namespace) -> Build:
             source=f"use case '{use_case.id}' on {radio.name}",
             radio_root=args.radio_root,
             instance_registry_path=args.instance_registry,
+            radio_instance=args.instance,
         )
 
     report.extend(load_report)
@@ -625,6 +627,14 @@ def _add_build_arguments(parser: argparse.ArgumentParser) -> None:
         help="optional instance registry, for fleet radios with their own IDs",
     )
     where.add_argument(
+        "--instance",
+        default=None,
+        help=(
+            "registry instance to build for; lets a shared profile that names "
+            "no radio_instance take that radio's IDs (requires --instance-registry)"
+        ),
+    )
+    where.add_argument(
         "--artifact-root",
         type=Path,
         default=Path("."),
@@ -635,6 +645,8 @@ def _add_build_arguments(parser: argparse.ArgumentParser) -> None:
 def _check_build_arguments(
     parser: argparse.ArgumentParser, args: argparse.Namespace
 ) -> None:
+    if args.instance is not None and args.instance_registry is None:
+        parser.error("--instance requires --instance-registry")
     if args.profile is not None:
         if args.use_case or args.zones:
             parser.error("--profile cannot be combined with --use-case/--zones")

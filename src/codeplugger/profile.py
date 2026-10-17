@@ -925,6 +925,7 @@ def _load_and_validate_profile(
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
+    radio_instance: str | None = None,
 ) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None, ValidationReport]:
     """Load a profile and its validated, overlay-resolved SSRF documents."""
 
@@ -935,6 +936,7 @@ def _load_and_validate_profile(
         schema_path=schema_path,
         radio_root=radio_root,
         instance_registry_path=instance_registry_path,
+        radio_instance=radio_instance,
     )
 
 
@@ -946,12 +948,19 @@ def _validate_profile(
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
+    radio_instance: str | None = None,
 ) -> tuple[dict[str, Any], Sequence[Any], dict[str, Any] | None, ValidationReport]:
     """Validate an already-loaded profile against SSRF data and radio limits.
 
     Split from :func:`_load_and_validate_profile` so a profile built in memory
     -- the use-case profiles the CLI synthesizes for a radio -- faces exactly
     the same checks as one read off disk. ``source`` only labels errors.
+
+    ``radio_instance`` binds the profile to a registry instance from outside:
+    a shared profile names no ``radio_instance`` so it can serve any radio of
+    its model, and the fleet (or an operator) supplies the one it is being
+    built for. A profile that already names a different instance is rejected
+    rather than silently rebound.
 
     Raises on the first structural failure (schema error, registry mismatch).
     Limit and radio-support findings are collected into a severity-graded
@@ -968,6 +977,15 @@ def _validate_profile(
         raise ProfileValidationError(
             f"{source}: {_format_schema_errors(schema_errors)}"
         )
+
+    if radio_instance is not None:
+        declared = profile.get("radio_instance")
+        if declared is not None and declared != radio_instance:
+            raise ProfileValidationError(
+                f"{source}: profile is bound to radio_instance '{declared}', "
+                f"cannot build it for '{radio_instance}'"
+            )
+        profile = {**profile, "radio_instance": radio_instance}
 
     capabilities = _load_capabilities(profile["radio"], radio_root)
     instance_metadata: dict[str, Any] | None = None

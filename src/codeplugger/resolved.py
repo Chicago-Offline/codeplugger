@@ -511,12 +511,14 @@ def resolve_codeplug(
     schema_path: Path = DEFAULT_SCHEMA_PATH,
     radio_root: Path = DEFAULT_RADIO_ROOT,
     instance_registry_path: Path | None = None,
+    radio_instance: str | None = None,
     report: ValidationReport | None = None,
 ) -> ResolvedCodeplug:
     """Validate and normalize a profile plus precedence-ordered SSRF roots.
 
     Pass `report` to receive load-time and resolve-time issues in one place;
-    otherwise non-critical findings are discarded.
+    otherwise non-critical findings are discarded. `radio_instance` binds a
+    profile that names no instance to one; see `_validate_profile`.
     """
 
     profile, documents, instance_metadata, load_report = _load_and_validate_profile(
@@ -525,6 +527,7 @@ def resolve_codeplug(
         schema_path=schema_path,
         radio_root=radio_root,
         instance_registry_path=instance_registry_path,
+        radio_instance=radio_instance,
     )
     if report is None:
         report = ValidationReport()

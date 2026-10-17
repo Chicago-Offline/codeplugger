@@ -1620,6 +1620,72 @@ def test_resolved_codeplug_includes_instance_registry_metadata() -> None:
     }
 
 
+def test_resolve_codeplug_binds_instance_agnostic_profile_to_given_instance() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        profile_data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+        del profile_data["radio_instance"]
+        profile.write_text(
+            yaml.safe_dump(profile_data, sort_keys=False),
+            encoding="utf-8",
+        )
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "dm32_blue_02": {
+                    "radio": "test_radio",
+                    "label": "Blue test radio",
+                }
+            },
+        )
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+            instance_registry_path=registry,
+            radio_instance="dm32_blue_02",
+        )
+
+    assert resolved.radio_instance_id == "dm32_blue_02"
+    assert resolved.radio_instance == {
+        "radio": "test_radio",
+        "label": "Blue test radio",
+    }
+
+
+def test_resolve_codeplug_rejects_rebinding_a_profile_that_names_its_instance() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+        registry = _write_instance_registry(
+            root,
+            {
+                "dm32_green_01": {"radio": "test_radio"},
+                "dm32_blue_02": {"radio": "test_radio"},
+            },
+        )
+
+        with pytest.raises(
+            ProfileValidationError,
+            match="bound to radio_instance 'dm32_green_01', cannot build it for 'dm32_blue_02'",
+        ):
+            resolve_codeplug(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+                instance_registry_path=registry,
+                radio_instance="dm32_blue_02",
+            )
+
+
 def _write_radio_with_firmware_limits(root: Path) -> None:
     """A radio whose contact capacity changes across firmware versions.
 

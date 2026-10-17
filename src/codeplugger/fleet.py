@@ -103,22 +103,16 @@ def plan_registry(
                 raise ProfileValidationError(
                     f"profile '{profile_id}' was not found under {profiles_root}"
                 )
+            # Binding the instance here is what lets one shared profile serve
+            # every registered radio of its model; a profile that names its
+            # own instance must name this one, or resolution rejects it.
             resolved = resolve_codeplug(
                 profile_path,
                 ssrf_roots,
                 radio_root=radio_root,
                 instance_registry_path=instance_registry_path,
+                radio_instance=instance_id,
             )
-            if resolved.radio_id != instance["radio"]:
-                raise ProfileValidationError(
-                    f"profile '{profile_id}' targets radio '{resolved.radio_id}', "
-                    f"registry expects '{instance['radio']}'"
-                )
-            if resolved.radio_instance_id != instance_id:
-                raise ProfileValidationError(
-                    f"profile '{profile_id}' resolves instance "
-                    f"'{resolved.radio_instance_id}', registry expects '{instance_id}'"
-                )
             digest = hashlib.sha256(resolved.to_json().encode("utf-8")).hexdigest()
             plans.append(
                 FleetRadioPlan(
