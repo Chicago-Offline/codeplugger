@@ -419,12 +419,19 @@ single maintainer's forks:
    `hardware_verified`.
    Remaining: the
    P4, which stays unpublishable until its export can be built without a
-   device read; and the rebuild trigger. The receiving side is done --
-   `pages.yml` accepts a `sources-changed` `repository_dispatch` and runs
-   nightly -- so what is left lives in the *other* repositories:
-   `ssrf-lite`, `chioff-ssrf-shared` and `chioff-codeplugger-profiles-shared`
-   each need a workflow that sends the dispatch on push. Until they do, a
-   profile or SSRF change waits for the nightly run.
+   device read; and turning on the rebuild trigger. The receiving side is
+   done -- `pages.yml` accepts a `sources-changed` `repository_dispatch`,
+   runs nightly, and since 2026-10-16 also rebuilds when `pyproject.toml`
+   moves the `ssrf-lite` pin, which is the only way an `ssrf-lite` change
+   reaches the site (the build checks out the pinned revision, so a push
+   there needs no dispatch). `chioff-ssrf-shared` and
+   `chioff-codeplugger-profiles-shared` each carry a `notify-codeplugger`
+   workflow that sends the dispatch on push to their data paths. What it
+   waits on is a `CODEPLUGGER_DISPATCH_TOKEN` organization secret -- a
+   fine-grained PAT with contents write on this repository, since
+   `GITHUB_TOKEN` cannot dispatch across repositories -- and the workflow
+   fails loudly rather than silently until it exists. Until then, a profile
+   or SSRF change waits for the nightly run.
 3. **Upstream the forks the project is pinned to.** Three write paths
    currently depend on code that lives only in a personal fork or a local
    checkout, each a single-maintainer bus factor:
@@ -479,12 +486,15 @@ single maintainer's forks:
    profile is rejected; listing one assignment twice in one zone still is.
    Global-pool exporters (CHIRP, qdmr, P4) emit the channel once; the
    benlink plan gives it a slot in each region.
-6. **Model instance-agnostic profiles in the fleet join.** The registry
-   join is 1:1 `radio_instance == instance_id`, so every shared community
-   profile errors under `codeplugger-fleet` by design and is validated
-   per-profile instead. Item 2 sidesteps this by publishing per profile,
-   but it is the same gap: a profile with no `radio_instance` should be
-   joinable to any registered radio of its `radio`.
+6. **Model instance-agnostic profiles in the fleet join.** **Landed
+   2026-10-16.** A profile that names no `radio_instance` is shared, and
+   `codeplugger-fleet` binds it to every registered radio whose `profile`
+   names it, so each gets its own DMR ID and firmware limits from the
+   registry; `codeplugger build --instance` does the same for one radio.
+   A profile that names a different instance is rejected rather than
+   rebound. The shared community profiles still are not run through a
+   fleet in this repository, since the registry that would bind them is
+   each operator's own.
 7. **Keep the DM-32 fleet running.** Program the real fleet from the
    private profile repository, keep the operation log and read-back
    archives as the audit trail, and feed any on-radio surprises back into
