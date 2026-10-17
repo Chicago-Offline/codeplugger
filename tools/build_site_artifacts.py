@@ -278,6 +278,8 @@ def build_source(source: dict, checkout_root: Path, radio_rows: dict, out_root: 
         "id": source_id,
         "name": source["name"],
         "description": source.get("description"),
+        # Optional per-language overrides of name/description, keyed by lang.
+        "i18n": source.get("i18n", {}),
         "repo": source.get("repo"),
         "revisions": revisions,
         "profiles": built,
@@ -288,32 +290,115 @@ def build_source(source: dict, checkout_root: Path, radio_rows: dict, out_root: 
 # downloads page
 # --------------------------------------------------------------------------
 
+SITE_URL = "https://codeplugger.chicagooffline.com/"
+
+# One downloads page per language. ``page`` is the path under the site root;
+# the Spanish tree mirrors the English one under ``es/`` so relative links
+# between the two index pages work the same way in both.
+PAGES = {
+    "en": "codeplugs/",
+    "es": "es/codeplugs/",
+}
+
+STRINGS = {
+    "en": {
+        "switch": ("es", "Español"),
+        "title": "Community codeplugs — codeplugger",
+        "description": (
+            "Prebuilt community codeplugs compiled by codeplugger. Download a "
+            "file and import it -- no clone, no install."
+        ),
+        "generated": "Generated",
+        "heading": "Community codeplugs",
+        "lead": (
+            "Prebuilt and validated by CI from public RF data and public profiles. "
+            "Download the file for your radio and import it &mdash; no clone, no "
+            "install. These are build artifacts: they are regenerated from source "
+            "on every change, so program your radio from a fresh download rather "
+            "than editing one."
+        ),
+        "profiles_link": "Profiles ↗",
+        "built_from": "Built from",
+        "file": "File",
+        "purpose": "What it is for",
+        "resolved_sha": "Resolved codeplug SHA-256",
+        "zone": ("zone", "zones"),
+        "channel": ("channel", "channels"),
+        "formats": {
+            ".csv": ("CHIRP CSV", "Import in CHIRP, then upload to the radio."),
+            ".qdmr.yaml": ("qdmr YAML", "Open in qdmr, or write with dmrconf."),
+            ".benlink.json": ("benlink plan", "Region plan for the benlink backend."),
+            ".html": ("Printable reference", "Channel list to print or keep on a phone."),
+            ".resolved.json": (
+                "Resolved codeplug",
+                "Radio-neutral model the hash is taken over.",
+            ),
+        },
+    },
+    "es": {
+        "switch": ("en", "English"),
+        "title": "Codeplugs comunitarios — codeplugger",
+        "description": (
+            "Codeplugs comunitarios precompilados por codeplugger. Descarga un "
+            "archivo e impórtalo: sin clonar, sin instalar."
+        ),
+        "generated": "Generado",
+        "heading": "Codeplugs comunitarios",
+        "lead": (
+            "Precompilados y validados por CI a partir de datos de RF públicos y "
+            "perfiles públicos. Descarga el archivo para tu radio e impórtalo: sin "
+            "clonar, sin instalar. Son artefactos de compilación: se regeneran "
+            "desde la fuente con cada cambio, así que programa tu radio desde una "
+            "descarga reciente en lugar de editar una."
+        ),
+        "profiles_link": "Perfiles ↗",
+        "built_from": "Compilado desde",
+        "file": "Archivo",
+        "purpose": "Para qué sirve",
+        "resolved_sha": "SHA-256 del codeplug resuelto",
+        "zone": ("zona", "zonas"),
+        "channel": ("canal", "canales"),
+        "formats": {
+            ".csv": ("CHIRP CSV", "Importar en CHIRP y luego cargar en la radio."),
+            ".qdmr.yaml": ("qdmr YAML", "Abrir en qdmr o escribir con dmrconf."),
+            ".benlink.json": ("plan benlink", "Plan de regiones para el backend benlink."),
+            ".html": (
+                "Referencia imprimible",
+                "Lista de canales para imprimir o guardar en el teléfono.",
+            ),
+            ".resolved.json": (
+                "Codeplug resuelto",
+                "Modelo neutral de radio sobre el que se calcula el hash.",
+            ),
+        },
+    },
+}
 
 def esc(value: Any) -> str:
     return html.escape(str(value if value is not None else ""))
 
 
-def plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+def plural(count: int, noun: str | tuple[str, str]) -> str:
+    if isinstance(noun, str):
+        noun = (noun, noun + "s")
+    return f"{count} {noun[0]}" if count == 1 else f"{count} {noun[1]}"
 
 
-FORMAT_LABELS = {
-    ".csv": ("CHIRP CSV", "Import in CHIRP, then upload to the radio."),
-    ".qdmr.yaml": ("qdmr YAML", "Open in qdmr, or write with dmrconf."),
-    ".benlink.json": ("benlink plan", "Region plan for the benlink backend."),
-    ".html": ("Printable reference", "Channel list to print or keep on a phone."),
-    ".resolved.json": ("Resolved codeplug", "Radio-neutral model the hash is taken over."),
-}
+def rel_to_root(page: str) -> str:
+    """Relative path from a page directory back to the site root."""
+    return "../" * page.count("/")
 
 
-def render_profile_card(entry: dict) -> str:
+def render_profile_card(entry: dict, lang: str = "en", files: str = "") -> str:
+    s = STRINGS[lang]
+    base = f"{files}{esc(entry['dir'])}"
     rows = []
     for f in entry["files"]:
         suffix = f["name"][len(entry["profile_id"]):]
-        label, blurb = FORMAT_LABELS.get(suffix, (suffix, ""))
+        label, blurb = s["formats"].get(suffix, (suffix, ""))
         rows.append(
             "<tr>"
-            f'<td><a href="{esc(entry["dir"])}/{esc(f["name"])}">{esc(label)}</a></td>'
+            f'<td><a href="{base}/{esc(f["name"])}">{esc(label)}</a></td>'
             f"<td>{esc(blurb)}</td>"
             f'<td><code>{esc(f["sha256"][:16])}…</code></td>'
             "</tr>"
@@ -322,72 +407,84 @@ def render_profile_card(entry: dict) -> str:
         f'<article id="{esc(entry["profile_id"])}">'
         f'<h3>{esc(entry["profile_name"])}</h3>'
         f'<p class="meta">{esc(entry["radio_name"] or entry["radio"])} · '
-        f'{plural(entry["zones"], "zone")} · '
-        f'{plural(entry["channels"], "channel")} · '
+        f'{plural(entry["zones"], s["zone"])} · '
+        f'{plural(entry["channels"], s["channel"])} · '
         f'<code>{esc(entry["profile_id"])}</code></p>'
         '<div class="matrix-scroll"><table class="matrix"><thead><tr>'
-        "<th>File</th><th>What it is for</th><th>SHA-256</th>"
+        f"<th>{s['file']}</th><th>{s['purpose']}</th><th>SHA-256</th>"
         "</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table></div>"
-        '<p class="meta">Resolved codeplug SHA-256 '
+        f'<p class="meta">{s["resolved_sha"]} '
         f'<code>{esc(entry["resolved_sha256"])}</code> · '
-        f'<a href="{esc(entry["dir"])}/SHA256SUMS">SHA256SUMS</a></p>'
+        f'<a href="{base}/SHA256SUMS">SHA256SUMS</a></p>'
         "</article>"
     )
 
 
-def render_page(manifest: dict) -> str:
+def render_page(manifest: dict, lang: str = "en") -> str:
+    s = STRINGS[lang]
+    page = PAGES[lang]
+    root = rel_to_root(page)
+    # The download files live only under the English directory.
+    files = "" if lang == "en" else f"{root}{PAGES['en']}"
+    other_lang, other_label = s["switch"]
+
     sections = []
     for source in manifest["sources"]:
+        text = {**source, **source.get("i18n", {}).get(lang, {})}
         revisions = " · ".join(
             f"<code>{esc(name)}@{esc((rev or 'unknown')[:12])}</code>"
             for name, rev in sorted(source["revisions"].items())
         )
         repo = source.get("repo")
         link = (
-            f' <a href="{esc(repo)}" target="_blank" rel="noopener">Profiles ↗</a>'
+            f' <a href="{esc(repo)}" target="_blank" rel="noopener">{s["profiles_link"]}</a>'
             if repo
             else ""
         )
         sections.append(
             f'<section id="{esc(source["id"])}"><div class="wrap">'
-            f'<h2>{esc(source["name"])}</h2>'
-            f'<p class="sub">{esc(source.get("description"))}{link}</p>'
+            f'<h2>{esc(text["name"])}</h2>'
+            f'<p class="sub">{esc(text.get("description"))}{link}</p>'
             '<div class="codeplugs">'
-            + "".join(render_profile_card(p) for p in source["profiles"])
+            + "".join(render_profile_card(p, lang, files) for p in source["profiles"])
             + "</div>"
-            f'<p class="meta">Built from {revisions}</p>'
+            f'<p class="meta">{s["built_from"]} {revisions}</p>'
             "</div></section>"
         )
 
+    alternates = "\n".join(
+        f'  <link rel="alternate" hreflang="{code}" href="{SITE_URL}{path}" />'
+        for code, path in PAGES.items()
+    )
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Prebuilt community codeplugs compiled by codeplugger. Download a file and import it -- no clone, no install." />
-  <title>Community codeplugs — codeplugger</title>
-  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
-  <link rel="stylesheet" href="../style.css" />
+  <meta name="description" content="{s["description"]}" />
+  <link rel="canonical" href="{SITE_URL}{page}" />
+{alternates}
+  <link rel="alternate" hreflang="x-default" href="{SITE_URL}{PAGES["en"]}" />
+  <title>{s["title"]}</title>
+  <link rel="icon" type="image/svg+xml" href="{root}favicon.svg" />
+  <link rel="stylesheet" href="{root}style.css" />
 </head>
 <body>
   <header>
     <div class="wrap">
-      <a class="brand" href="../"><img src="../logo.svg" alt="" /> codeplugger</a>
+      <a class="brand" href="{root}{"" if lang == "en" else lang + "/"}"><img src="{root}logo.svg" alt="" /> codeplugger</a>
+      <a class="lang" href="{root}{PAGES[other_lang]}" lang="{other_lang}" hreflang="{other_lang}">{other_label}</a>
       <a class="repo-link" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </header>
   <main id="top">
     <div class="hero"><div class="wrap"><div>
-      <p class="eyebrow">Generated {esc(manifest["generated_at"])}</p>
-      <h1>Community codeplugs</h1>
+      <p class="eyebrow">{s["generated"]} {esc(manifest["generated_at"])}</p>
+      <h1>{s["heading"]}</h1>
       <p class="lead">
-        Prebuilt and validated by CI from public RF data and public profiles.
-        Download the file for your radio and import it &mdash; no clone, no
-        install. These are build artifacts: they are regenerated from source
-        on every change, so program your radio from a fresh download rather
-        than editing one.
+        {s["lead"]}
       </p>
     </div></div></div>
     {"".join(sections)}
@@ -434,7 +531,13 @@ def main() -> int:
     (args.out / "index.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    (args.out / "index.html").write_text(render_page(manifest), encoding="utf-8")
+    # --out is the English codeplugs directory; the other languages' pages
+    # sit beside it at <site>/<lang>/codeplugs/ and link back into it.
+    site_root = args.out.parent
+    for lang, page in PAGES.items():
+        page_dir = args.out if lang == "en" else site_root / page
+        page_dir.mkdir(parents=True, exist_ok=True)
+        (page_dir / "index.html").write_text(render_page(manifest, lang), encoding="utf-8")
 
     for source in manifest["sources"]:
         for entry in source["profiles"]:

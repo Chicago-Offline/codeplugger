@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Compila codeplugs de radio validados a partir de datos de RF compartidos y perfiles versionados. Exporta archivos o programa directamente las radios compatibles." />
+  <link rel="canonical" href="https://codeplugger.chicagooffline.com/es/" />
+  <link rel="alternate" hreflang="en" href="https://codeplugger.chicagooffline.com/" />
+  <link rel="alternate" hreflang="es" href="https://codeplugger.chicagooffline.com/es/" />
+  <link rel="alternate" hreflang="x-default" href="https://codeplugger.chicagooffline.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="codeplugger — un compilador de codeplugs para flotas de radios" />
+  <meta property="og:description" content="Compila codeplugs validados y neutrales de radio a partir de datos SSRF y perfiles. Exporta archivos o programa directamente las radios compatibles." />
+  <meta property="og:url" content="https://codeplugger.chicagooffline.com/es/" />
+  <meta property="og:image" content="https://codeplugger.chicagooffline.com/logo.svg" />
+  <meta property="og:locale" content="es" />
+  <meta name="twitter:card" content="summary" />
+  <title>codeplugger — un compilador de codeplugs para flotas de radios</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="../logo.svg" alt="" /> codeplugger</a>
+      <nav>
+        <a href="#how">Cómo funciona</a>
+        <a href="#radios">Radios</a>
+        <a href="codeplugs/">Descargas</a>
+        <a href="#features">Funciones</a>
+        <a href="#ecosystem">Ecosistema</a>
+        <a href="#start">Inicio rápido</a>
+      </nav>
+      <a class="lang" href="../" lang="en" hreflang="en">English</a>
+      <a class="repo-link" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Código abierto · Chicago Offline</p>
+          <h1>Programar una radio debería ser una compilación, no una sesión de CPS.</h1>
+          <p class="lead">
+            codeplugger combina datos de RF compartidos con tu perfil bajo
+            control de versiones para compilar un codeplug validado y neutral
+            de radio. Expórtalo, o escríbelo directamente en una radio compatible.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Chicago-Offline/codeplugger" target="_blank" rel="noopener">Ver en GitHub</a>
+            <a class="button" href="codeplugs/">Descargar un codeplug</a>
+            <a class="button" href="https://github.com/Chicago-Offline/codeplugger/blob/main/docs/plan.md" target="_blank" rel="noopener">Leer el plan</a>
+            <a class="button" href="#radios">Radios compatibles</a>
+          </div>
+        </div>
+        <img src="../logo.svg" alt="logotipo de codeplugger: una radio portátil con un glifo de código en la pantalla y clavijas de enchufe en la base" />
+      </div>
+    </div>
+
+    <section id="how">
+      <div class="wrap">
+        <h2>Cómo funciona</h2>
+        <p class="sub">
+          Los hechos y las preferencias se mantienen separados. Los datos de RF
+          describen lo que existe; un perfil describe lo que quieres en una
+          radio concreta. Todo lo intermedio es determinista y revisable.
+        </p>
+        <div class="pipeline">
+          <article>
+            <h3>Datos SSRF</h3>
+            <p>Planes de canales, repetidores y talkgroups públicos de <a href="https://chicago-offline.github.io/ssrf-lite/" target="_blank" rel="noopener">SSRF-Lite</a>, combinados con capas compartidas o privadas por ID de registro estable.</p>
+          </article>
+          <article>
+            <h3>Perfil</h3>
+            <p>Tu política en YAML: qué asignaciones, en qué orden, en qué zonas, con listas de escaneo, grupos RX, contactos y ajustes de la radio. Los perfiles pueden heredar unos de otros.</p>
+          </article>
+          <article>
+            <h3>Resolver y validar</h3>
+            <p>codeplugger une las entradas y comprueba cada canal contra las capacidades de la radio de destino: bandas, modos, longitud de nombres, límites de zonas y listas, capacidad dependiente del firmware.</p>
+          </article>
+          <article>
+            <h3>Exportar o programar</h3>
+            <p>Exporta CHIRP CSV o qdmr YAML; aplica un perfil a una línea base P4 decodificada para TOML; o usa un backend con confirmación para escribir en una radio compatible.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="downloads">
+      <div class="wrap">
+        <h2>Codeplugs comunitarios precompilados</h2>
+        <p class="sub">
+          CI los compila a partir de perfiles comunitarios públicos y datos de
+          RF a medida que cambian las fuentes, y luego publica archivos de
+          importación, referencias imprimibles y sumas de verificación SHA-256.
+          No hace falta instalar codeplugger.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="codeplugs/">Explorar los codeplugs</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="radios">
+      <div class="wrap">
+        <h2>Radios compatibles</h2>
+        <p class="sub">
+          La tabla combina las capacidades de cada radio con los detalles de
+          exportación y verificación en hardware registrados en el repositorio.
+          Su generador comprueba que cada entrada
+          <code>radios/*/capabilities.json</code> tenga una fila correspondiente.
+        </p>
+        <div class="matrix-scroll">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th scope="col">Radio</th>
+                <th scope="col">Modos</th>
+                <th scope="col">CHIRP CSV <span>exportación</span></th>
+                <th scope="col">Importar en qdmr <span>YAML</span></th>
+                <th scope="col">Importar en p64tool <span>TOML</span></th>
+                <th scope="col">Importar en CPS del fabricante <span>archivos propietarios</span></th>
+                <th scope="col">Escritura directa <span>sin interfaz, a la radio</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- BEGIN generated by tools/gen_radio_table.py -->
+              <tr>
+                <th scope="row">Baofeng DM-32 <span class="vendor">DM-32UV</span></th>
+                <td class="modes">DMR · FM · AM RX</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> dmrconf<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng DM-1701 <span class="vendor">DM-1701 / RT84</span></th>
+                <td class="modes">DMR · FM</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> dmrconf<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Retevis MateTalk P4 <span class="vendor">UHF DMR</span></th>
+                <td class="modes">DMR · FM</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> p64tool<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng UV-5R Mini <span class="vendor">UV-17Pro family</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng BF-C50 <span class="vendor">70 cm, no display</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span> no CHIRP driver</td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng BF-888S <span class="vendor">UHF, no display</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng BF-1909 <span class="vendor">UHF, no display</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng W31E <span class="vendor">UHF, no display</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Ailunce HA2 <span class="vendor">Dual-band analog</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Retevis C64 <span class="vendor">Dual-band analog</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="hw" title="Verificado en una radio física">hw</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Retevis RT3S (OpenGD77) <span class="vendor">MD-UV380 family, OpenGD77</span></th>
+                <td class="modes">DMR · FM</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> dmrconf<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Baofeng DM-1701 (OpenGD77) <span class="vendor">MD-UV380 family, OpenGD77</span></th>
+                <td class="modes">DMR · FM</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> dmrconf</td>
+              </tr>
+              <tr>
+                <th scope="row">Vero VR-N76 <span class="vendor">Dual-band, Bluetooth</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> benlink</td>
+              </tr>
+              <tr>
+                <th scope="row">BTECH UV-Pro <span class="vendor">Dual-band, Bluetooth</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> benlink</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-270R <span class="vendor">2 m submersible</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-170</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-270R (MARS/CAP) <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-170</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-277R <span class="vendor">70 cm submersible</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-177<span class="hw" title="Verificado en una radio física">hw</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-277R (MARS/CAP) <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-177</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-2800M <span class="vendor">2 m mobile</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="hw" title="Verificado en una radio física">hw</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu FT-2800M (extended TX) <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Yaesu VX-6R <span class="vendor">Tri-band submersible</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span> as VX-6</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">TYT TH-9800 <span class="vendor">Quad-band mobile</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span> experimental driver</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">TYT TH-9800 (extended TX) <span class="vendor">TX-modded variant</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span> experimental driver</td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer</td>
+              </tr>
+              <tr>
+                <th scope="row">Quansheng UV-K5 (F4HWN) <span class="vendor">Quansheng UV-K5 (F4HWN)</span></th>
+                <td class="modes">FM · AM RX</td>
+                <td class="yes"><span aria-hidden="true">✓</span><span class="sr">Compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="no"><span aria-hidden="true">—</span><span class="sr">No compatible</span></td>
+                <td class="yes"><span aria-hidden="true">✓</span> chirp-writer<span class="hw" title="Verificado en una radio física">hw</span></td>
+              </tr>
+              <!-- END generated by tools/gen_radio_table.py -->
+            </tbody>
+          </table>
+        </div>
+        <p class="legend">
+          <span class="hw">hw</span> verificado en una radio física ·
+          <span aria-hidden="true">✓</span> compatible hoy ·
+          <span aria-hidden="true">—</span> no aplicable o no implementado
+        </p>
+        <div class="transports">
+          <article>
+            <h3>CHIRP CSV</h3>
+            <p>Canales FM analógicos y AM de solo recepción en el orden del perfil, comprobados contra los límites de la radio. Importa y carga en CHIRP donde exista un controlador, o usa <code>chirp-writer</code> en las radios compatibles.</p>
+          </article>
+          <article>
+            <h3>qdmr YAML</h3>
+            <p>Codeplug extensible de qdmr con zonas, listas de escaneo, listas de grupos RX, contactos y varios IDs DMR. Los ajustes nativos de la radio pasan a través de <code>extensions.qdmr</code>.</p>
+          </article>
+          <article>
+            <h3>p64tool TOML</h3>
+            <p>Se aplica sobre una línea base de <code>p64tool decode</code> para que los ajustes no tocados sobrevivan, y luego se vuelve a codificar para la P4.</p>
+          </article>
+          <article>
+            <h3>plan benlink</h3>
+            <p>Un plan de canales declarativo para portátiles con protocolo Benshi, que no tienen CPS de escritorio ni controlador CHIRP: la única vía de entrada es Bluetooth. Las zonas se asignan a las regiones de la radio, y las regiones que el plan omite nunca se escriben.</p>
+          </article>
+          <article>
+            <h3>Escritura directa</h3>
+            <p>Las escrituras requieren confirmación explícita y comprobaciones de seguridad propias de cada backend. La copia de seguridad y la relectura varían según el backend; las operaciones pueden registrarse. Backends: <code>dmrconf</code>, <code>p64tool</code>, <code>chirp-writer</code> y <code>benlink</code> por Bluetooth.</p>
+          </article>
+        </div>
+        <div class="planned">
+          <strong>Planificado:</strong> ampliar la cobertura de radios y formatos de exportación sin cambiar la resolución central de perfiles.
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>Funciones</h2>
+        <p class="sub">Hecho para quienes mantienen más de una radio coherente y quieren saber exactamente qué entró en cada una.</p>
+        <div class="features">
+          <article>
+            <h3>Compilaciones deterministas</h3>
+            <p>Las mismas entradas siempre producen el mismo codeplug, hasta un SHA-256 estable. Los archivos generados son artefactos desechables, nunca una fuente de datos.</p>
+          </article>
+          <article>
+            <h3>Validación de capacidades</h3>
+            <p>Bandas, rangos TX frente a solo RX, modos, ancho de banda, longitud de nombres, límites de zonas y listas, y capacidad de contactos dependiente del firmware, clasificados como aviso / advertencia / crítico, con todos los críticos informados en una sola ejecución.</p>
+          </article>
+          <article>
+            <h3>Escrituras con confirmación</h3>
+            <p>Confirmación explícita, comprobaciones de identidad propias de cada backend y registros de escritura; verificación previa y relectura donde esté disponible.</p>
+          </article>
+          <article>
+            <h3>Zonas, listas de escaneo, grupos RX, contactos</h3>
+            <p>Los talkgroups son hechos SSRF; la pertenencia y el contacto TX, grupo RX y lista de escaneo por asignación son política del perfil, todo aplicado contra los límites de la radio.</p>
+          </article>
+          <article>
+            <h3>Herencia de perfiles</h3>
+            <p>Comparte un perfil base y deriva variantes con <code>extends</code>, <code>zones_only</code> y <code>omit_zones</code>. Un perfil base que no nombra ninguna radio es reutilizable en cualquier radio con capacidad para él. Revisa el resultado combinado con <code>--print-merged-profile</code>.</p>
+          </article>
+          <article>
+            <h3>IDs DMR de identidad múltiple</h3>
+            <p>Una instancia de radio puede llevar varios IDs DMR; los perfiles vinculan uno por zona o por asignación y los exportadores emiten solo las identidades realmente usadas.</p>
+          </article>
+          <article>
+            <h3>Registro de flota y simulación</h3>
+            <p>Un registro de instancias asocia radios físicas a perfiles. <code>codeplugger-fleet</code> resuelve y valida cada radio e informa de su estado antes de escribir nada.</p>
+          </article>
+          <article>
+            <h3>Hechos de canal derivados</h3>
+            <p>Ancho de banda a partir del designador de emisión de la UIT, modo AM para asignaciones de banda aérea de solo recepción, nombres de pantalla sobrescritos desde capas.</p>
+          </article>
+          <article>
+            <h3>Artefactos de referencia</h3>
+            <p>Referencias de canales en HTML y Markdown más registros de operación por instancia de radio, para que lo que hay en la radio esté siempre documentado.</p>
+          </article>
+          <article>
+            <h3>Extensiones con espacio de nombres</h3>
+            <p>Los ajustes nativos de cada exportador viven bajo <code>extensions.&lt;backend&gt;</code> a nivel de perfil o de asignación, manteniendo el esquema central neutral de radio.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="wrap">
+        <h2>Cómo fluyen los datos</h2>
+        <p class="sub">
+          Los datos de RF públicos y las capas alimentan una compilación basada en perfiles; exporta un archivo o programa una radio compatible.
+        </p>
+        <pre class="mermaid">
+flowchart LR
+  rf["&#128225; rf-survey"] -- "informes de recepción" --> ssrf["&#128451; ssrf-lite"]
+  ov["capas &middot; compartidas + privadas"] --> ssrf
+  ssrf -- "datos de RF validados" --> cp["&#9881; codeplugger"]
+  prof["&#128100; perfiles"] --> cp
+  cp -- "exportar: CHIRP CSV &middot; qdmr YAML &middot; P4 TOML &middot; plan benlink" --> files(["archivos de radio"])
+  files --> radios(["&#128251; radios"])
+  cp -- "escribir: dmrconf &middot; p64tool &middot; chirp-writer &middot; benlink" --> radios
+  click rf "https://chicago-offline.github.io/rf-survey/" _blank
+  click ssrf "https://chicago-offline.github.io/ssrf-lite/" _blank
+  click cp "https://chicago-offline.github.io/codeplugger/" _blank
+  click prof "https://chicago-offline.github.io/chioff-codeplugger-profiles-shared/" _blank
+        </pre>
+      </div>
+    </section>
+
+    <section id="ecosystem">
+      <div class="wrap">
+        <h2>Ecosistema</h2>
+        <p class="sub">codeplugger se sitúa entre los datos de RF abiertos y las herramientas que ya hablan con las radios.</p>
+        <div class="eco">
+          <a class="card" href="https://chicago-offline.github.io/ssrf-lite/" target="_blank" rel="noopener">
+            <h3>SSRF-Lite</h3>
+            <p>YAML autoritativo y legible para planes de canales, repetidores, estaciones y talkgroups. Explóralo en línea.</p>
+          </a>
+          <a class="card" href="https://github.com/Chicago-Offline/chioff-ssrf-shared" target="_blank" rel="noopener">
+            <h3>chioff-ssrf-shared</h3>
+            <p>Canales GMRS y MURS reales de la red comunitaria de Chicago Offline, en capa sobre SSRF-Lite.</p>
+          </a>
+          <a class="card" href="https://github.com/Chicago-Offline/chioff-codeplugger-profiles-shared" target="_blank" rel="noopener">
+            <h3>chioff-codeplugger-profiles-shared</h3>
+            <p>Perfiles listos para usar que seleccionan la red comunitaria compartida para cada radio compatible.</p>
+          </a>
+          <a class="card" href="https://chicago-offline.github.io/rf-survey/" target="_blank" rel="noopener">
+            <h3>rf-survey</h3>
+            <p>Estudio de RF basado en SDR que valida los registros de SSRF-Lite con observaciones reales: la evidencia detrás de la confianza en cada canal.</p>
+          </a>
+          <a class="card" href="https://dm3mat.darc.de/qdmr/" target="_blank" rel="noopener">
+            <h3>qdmr / dmrconf</h3>
+            <p>Programación DMR de código abierto. codeplugger emite su YAML extensible y maneja <code>dmrconf</code> para la DM-32.</p>
+          </a>
+          <a class="card" href="https://chirpmyradio.com/" target="_blank" rel="noopener">
+            <h3>CHIRP</h3>
+            <p>La interfaz de carga para radios analógicas. codeplugger produce CSV compatible con CHIRP.</p>
+          </a>
+          <a class="card" href="https://chicagooffline.com" target="_blank" rel="noopener">
+            <h3>Chicago Offline</h3>
+            <p>Comunicaciones resilientes y de propiedad comunitaria para el área de Chicago: radioafición, GMRS/MURS, DMR y malla LoRa.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section id="start">
+      <div class="wrap">
+        <h2>Inicio rápido</h2>
+        <p class="sub">Clona codeplugger y usa <code>uv</code>. La instalación trae sus propios datos de RF, así que un caso de uso no necesita nada más; para tus propios perfiles conviene tener <code>ssrf-lite</code> y un repositorio de perfiles clonados al lado.</p>
+        <div class="start">
+          <div>
+            <h3>Programar una radio nueva</h3>
+<pre><code><span class="c"># qué es compatible, y qué puede ir en cada radio</span>
+uv run codeplugger radios
+uv run codeplugger use-cases
+
+<span class="c"># compilar, sin tocar el hardware</span>
+uv run codeplugger build \
+  --radio baofeng_bf888s --use-case gmrs
+
+<span class="c"># o los canales de un grupo comunitario, por nombre</span>
+uv run codeplugger build \
+  --radio baofeng_bf888s --profile chioff
+
+<span class="c"># luego escribirlo, con la confirmación del backend</span>
+uv run codeplugger program \
+  --radio baofeng_bf888s --use-case gmrs \
+  --port /dev/cu.usbserial-10 --confirm</code></pre>
+          </div>
+          <div>
+            <h3>Validar un perfil</h3>
+<pre><code>uv run codeplugger-profile ruta/al/perfil.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --ssrf-root ../chioff-ssrf-shared/ssrf</code></pre>
+          </div>
+          <div>
+            <h3>Exportar para una radio</h3>
+<pre><code><span class="c"># radios analógicas: importar en CHIRP</span>
+uv run codeplugger-profile perfil.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --output-format chirp-csv &gt; salida.csv
+
+<span class="c"># DM-32: qdmr YAML, luego escribir con dmrconf</span>
+uv run codeplugger-profile perfil.yml \
+  --ssrf-root ../ssrf-lite/ssrf \
+  --output-format qdmr-yaml &gt; codeplug.yaml</code></pre>
+          </div>
+          <div>
+            <h3>Comprobar toda la flota</h3>
+<pre><code>uv run codeplugger-fleet \
+  --instance-registry ../mis-perfiles/instances.yml \
+  --profiles-root ../mis-perfiles/profiles \
+  --ssrf-root ../ssrf-lite/ssrf</code></pre>
+          </div>
+          <div>
+            <h3>Un perfil mínimo</h3>
+<pre><code>version: "0.1"
+id: "dm32_reference"
+name: "DM-32 reference"
+radio: "baofeng_dm32"
+radio_instance: "dm32_green_01"
+zones:
+  - id: "community"
+    name: "Community"
+    assignments:
+      - "asg_chio_all"
+      - "asg_chio_road"
+      - "asg_chio_repeater"</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Eric Muehlstein · Apache-2.0 · un proyecto de <a href="https://chicagooffline.com">Chicago Offline</a></span>
+      <span><a href="https://github.com/Chicago-Offline/codeplugger">Código fuente</a> · <a href="https://github.com/Chicago-Offline/codeplugger/blob/main/docs/plan.md">Plan</a> · <a href="https://github.com/Chicago-Offline/codeplugger/issues">Incidencias</a></span>
+    </div>
+  </footer>
+  <style>
+    .mermaid { display: flex; justify-content: center; margin-top: 1.5rem; }
+    .mermaid svg { max-width: 100%; height: auto; }
+  </style>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: "loose",
+      theme: "base",
+      themeVariables: {
+        primaryColor: "#171e26",
+        primaryTextColor: "#d6dee6",
+        primaryBorderColor: "#2a3743",
+        lineColor: "#4fb3ff",
+        secondaryColor: "#1e2833",
+        tertiaryColor: "#171e26",
+        background: "#0f1419",
+        mainBkg: "#171e26",
+        nodeTextColor: "#d6dee6",
+        edgeLabelBackground: "#0f1419",
+        fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+      }
+    });
+  </script>
+</body>
+</html>

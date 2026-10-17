@@ -74,6 +74,9 @@ header nav a {
 header nav a:hover { background: var(--bg-hover); color: var(--text); text-decoration: none; }
 .repo-link { margin-left: auto; color: var(--text-dim); text-decoration: none; white-space: nowrap; }
 .repo-link:hover { color: var(--accent); }
+.lang { margin-left: auto; color: var(--text-dim); text-decoration: none; white-space: nowrap; font-size: 0.92rem; }
+.lang:hover { color: var(--accent); }
+.lang + .repo-link { margin-left: 0; }
 
 /* hero */
 .hero { padding: clamp(3rem, 8vw, 6rem) 0 clamp(2.5rem, 6vw, 4rem); }

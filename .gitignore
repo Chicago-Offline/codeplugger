@@ -10,3 +10,4 @@ build/
 # Built by tools/build_site_artifacts.py from the source repositories. Codeplugs
 # are disposable artifacts, so CI regenerates them rather than serving a commit.
 site/codeplugs/
+site/*/codeplugs/

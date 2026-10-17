@@ -184,3 +184,77 @@ def test_every_configured_radio_is_publishable():
                 (REPO_ROOT / "radios" / radio_id / "capabilities.json").read_text()
             )
             assert build.formats_for_radio(radio_id, rows[radio_id], caps)
+
+
+def test_source_translations_only_override_known_fields():
+    for source in build.load_sources():
+        for lang, text in source.get("i18n", {}).items():
+            assert lang in build.STRINGS, f"{source['id']}: no page for {lang!r}"
+            assert set(text) <= {"name", "description"}, f"{source['id']}: {lang}"
+
+
+def test_every_language_has_every_format_label():
+    suffixes = {s for _fmt, s in build.SOURCE_FORMATS.values()}
+    suffixes |= {".benlink.json", ".html", ".resolved.json"}
+    for lang, s in build.STRINGS.items():
+        assert set(s["formats"]) >= suffixes, lang
+
+
+_MANIFEST = {
+    "generated_at": "2026-01-01 00:00 UTC",
+    "sources": [
+        {
+            "id": "shared",
+            "name": "Shared net",
+            "description": "English blurb.",
+            "i18n": {"es": {"name": "Red compartida", "description": "Texto en español."}},
+            "repo": "https://example.invalid/profiles",
+            "revisions": {"profiles": "abcdef1234567890"},
+            "profiles": [
+                {
+                    "profile_id": "first",
+                    "profile_name": "First",
+                    "radio": "radio_a",
+                    "radio_name": "Radio A",
+                    "dir": "shared/radio_a/first",
+                    "zones": 1,
+                    "channels": 2,
+                    "resolved_sha256": "0" * 64,
+                    "files": [{"name": "first.csv", "sha256": "f" * 64, "bytes": 1}],
+                }
+            ],
+        }
+    ],
+}
+
+
+def test_english_page_links_files_beside_it():
+    page = build.render_page(_MANIFEST, "en")
+    assert '<html lang="en">' in page
+    assert 'href="shared/radio_a/first/first.csv"' in page
+    assert 'href="shared/radio_a/first/SHA256SUMS"' in page
+    assert "1 zone · 2 channels" in page
+    assert "Shared net" in page and "Red compartida" not in page
+    assert 'href="../es/codeplugs/"' in page
+    assert 'hreflang="x-default" href="https://codeplugger.chicagooffline.com/codeplugs/"' in page
+
+
+def test_spanish_page_links_back_into_the_english_files():
+    """Only one copy of the artifacts is published; es/ links across to it."""
+    page = build.render_page(_MANIFEST, "es")
+    assert '<html lang="es">' in page
+    assert 'href="../../codeplugs/shared/radio_a/first/first.csv"' in page
+    assert 'href="../../codeplugs/shared/radio_a/first/SHA256SUMS"' in page
+    assert 'href="../../style.css"' in page
+    assert "1 zona · 2 canales" in page
+    assert "Red compartida" in page and "Texto en español." in page
+    assert "English blurb." not in page
+    assert 'href="../../codeplugs/"' in page  # language switch
+    assert "Importar en CHIRP" in page
+
+
+def test_language_without_source_translation_falls_back_to_english():
+    manifest = json.loads(json.dumps(_MANIFEST))
+    manifest["sources"][0].pop("i18n")
+    page = build.render_page(manifest, "es")
+    assert "Shared net" in page and "English blurb." in page
