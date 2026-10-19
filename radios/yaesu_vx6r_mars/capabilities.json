@@ -1,0 +1,48 @@
+{
+  "id": "yaesu_vx6r_mars",
+  "name": "Yaesu VX-6R (MARS/CAP)",
+  "capabilities_version": "0.2",
+  "limits": {
+    "max_channels": 900,
+    "max_zones": 1,
+    "max_channels_per_zone": 900,
+    "max_channel_name_chars": 6
+  },
+  "bands": [
+    {
+      "name": "VHF extended TX",
+      "min_mhz": 137.0,
+      "max_mhz": 174.0
+    },
+    {
+      "name": "1.25 m ham",
+      "min_mhz": 222.0,
+      "max_mhz": 225.0
+    },
+    {
+      "name": "UHF extended TX",
+      "min_mhz": 420.0,
+      "max_mhz": 470.0
+    },
+    {
+      "name": "wideband receive",
+      "min_mhz": 0.5,
+      "max_mhz": 998.99,
+      "rx_only": true
+    }
+  ],
+  "modes": [
+    "FM",
+    "AM"
+  ],
+  "bandwidths_khz": [
+    12.5,
+    25
+  ],
+  "chirp": {
+    "driver": "Yaesu_VX-6",
+    "model": "Yaesu VX-6",
+    "clone_mode": "manual"
+  },
+  "notes": "MARS/CAP-modified Yaesu VX-6R. Identical to yaesu_vx6r in every storage limit, mode, bandwidth and CHIRP binding -- the mod changes only what the radio will transmit on, so the sole difference is that 137-174 MHz and 420-470 MHz are TX bands here instead of falling inside the rx_only wideband receive span. Separate radio id rather than a flag, matching yaesu_ft277_mars, yaesu_ft270_mars, yaesu_ft2800m_mars and tyt_th9800_mars: transmit permission is the one capability that must never be assumed, because a profile built for this target will happily place TX outside the amateur allocation and running it on a stock radio produces channels that key up nothing. Record which physical radio is modded in the instance registry, which already binds one instance to one radio id. UNVERIFIED SPAN: no VX-6R has been on our bench, modified or not. The 137-174 / 420-470 figures are the commonly published post-mod range for this model and are not measured. 1.25 m is left at the stock 222-225 amateur edges because reports of the modded span disagree (220-230 is also cited) and nothing we need sits outside 222-225. Narrow these to whatever the radio actually does once someone keys it into a dummy load and a counter. LEGAL, and it is the operator's responsibility, not this file's: the mod widens the PA, it does not confer type acceptance. The VX-6R is certified under Part 97 only. GMRS requires a Part 95 Subpart E certified transmitter and MURS a Part 95 Subpart J one, so transmitting those services from this radio is not FCC-authorized even for an operator holding a valid GMRS licence, and modifying a certified radio voids its certification regardless. Marine VHF needs Part 80 type acceptance, which this radio likewise does not have. Channels are marked tx_permitted: false in the profile where we do not intend to key up; that is an operational guard, not a compliance claim."
+}
