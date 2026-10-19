@@ -210,6 +210,11 @@
                       "required": [
                         "timeslot"
                       ]
+                    },
+                    {
+                      "required": [
+                        "tx_permitted"
+                      ]
                     }
                   ],
                   "properties": {
@@ -248,6 +253,10 @@
                         2
                       ],
                       "description": "DMR timeslot for this channel. Must be one of the slots the SSRF chain declares in mode.timeslots. Overrides the contact default_timeslot."
+                    },
+                    "tx_permitted": {
+                      "const": false,
+                      "description": "Make this channel receive-only on this radio, suppressing the transmit half the SSRF record would otherwise allow. Revoke only: the value must be false, because transmit permission is derived from SSRF and a profile must never be able to grant it. Use when the operator or the hardware may not key up where the assignment itself is transmittable, e.g. GMRS or marine on a radio with no Part 95 certification. Skips the TX band check and exports the channel as RX-only."
                     }
                   }
                 }

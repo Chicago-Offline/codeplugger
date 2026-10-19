@@ -559,18 +559,46 @@ def _mode_family(mode: Any) -> str:
     return _MODE_FAMILY.get(upper, upper)
 
 
+def _tx_denied_assignments(profile: Mapping[str, Any]) -> set[str]:
+    """Assignment ids the profile marks receive-only on this radio.
+
+    Revoke-only: the schema pins tx_permitted to false, so the presence of the
+    key is the whole signal. Transmit permission itself always comes from SSRF,
+    and nothing in a profile may grant it.
+    """
+
+    denied: set[str] = set()
+    for zone in profile.get("zones") or []:
+        for assignment in zone.get("assignments") or []:
+            if not isinstance(assignment, dict):
+                continue
+            if assignment.get("tx_permitted") is False:
+                assignment_id = assignment.get("id")
+                if isinstance(assignment_id, str):
+                    denied.add(assignment_id)
+    return denied
+
+
 def _check_radio_support(
     report: ValidationReport,
     capabilities: Mapping[str, Any],
     documents: Sequence[Any],
     selected: set[str],
+    tx_denied: set[str] | None = None,
 ) -> None:
     """Verify selected channels are physically usable on the target radio.
 
     Each check is skipped when the corresponding capability is absent, so an
     incomplete capabilities file degrades to today's behavior instead of
     producing false failures.
+
+    ``tx_denied`` holds the assignment ids the profile marked ``tx_permitted:
+    false``. Those channels are receive-only on this radio, so only their RX
+    endpoint is band-checked. Revoke-only, mirroring _resolve_assignment: an id
+    listed here can lose its TX endpoint but nothing here can add one.
     """
+
+    tx_denied = tx_denied or set()
 
     bands = capabilities.get("bands")
     modes = capabilities.get("modes")
@@ -611,7 +639,7 @@ def _check_radio_support(
                     can_transmit = (
                         station_rx is not None
                         or assignment.usage in {"call", "simplex"}
-                    )
+                    ) and assignment.id not in tx_denied
                     if bands:
                         endpoints = [("RX", channel.freq_mhz, False)]
                         if can_transmit:
@@ -710,6 +738,7 @@ def _check_radio_support(
                         station_rx is not None
                         or assignment.usage in {"call", "simplex"}
                     )
+                    and assignment.id not in tx_denied
                 )
                 endpoints = [("RX", station_tx or station_rx, False)]
                 if can_transmit:
@@ -1122,7 +1151,13 @@ def _validate_profile(
         ambiguous_assignments,
         selected,
     )
-    _check_radio_support(report, capabilities, documents, selected)
+    _check_radio_support(
+        report,
+        capabilities,
+        documents,
+        selected,
+        _tx_denied_assignments(profile),
+    )
     _check_dmr_id_policy(report, profile, instance_metadata, documents, selected)
     if report.has_critical:
         raise ProfileValidationError(report.critical_message())

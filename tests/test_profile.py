@@ -2586,3 +2586,109 @@ def test_contact_default_timeslot_not_declared_by_chain_is_rejected() -> None:
     message = str(excinfo.value)
     assert "contact default_timeslot" in message
     assert "only declares 1" in message
+
+
+def test_tx_permitted_false_makes_channel_receive_only() -> None:
+    """A profile may revoke the transmit half of a transmittable assignment."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_one", "tx_permitted": False}])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.channels[0].tx_permitted is False
+
+
+def test_omitting_tx_permitted_leaves_ssrf_derivation_untouched() -> None:
+    """Control for the test above: the same simplex assignment still transmits."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, ["asg_one"])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        resolved = resolve_codeplug(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert resolved.channels[0].tx_permitted is True
+
+
+def _rx_only_band_root(tmp: str, assignments: list) -> Path:
+    """Radio whose only band covers the fixture simplex pair but cannot transmit."""
+
+    root = Path(tmp)
+    profile = root / "profile.yml"
+    _write_profile(profile, assignments)
+    _write_radio(root / "radios")
+    capabilities_path = root / "radios" / "test_radio" / "capabilities.json"
+    capabilities = json.loads(capabilities_path.read_text(encoding="utf-8"))
+    capabilities["bands"] = [
+        {"min_mhz": 146.0, "max_mhz": 147.0, "rx_only": True}
+    ]
+    capabilities_path.write_text(json.dumps(capabilities), encoding="utf-8")
+    _write_ssrf(root / "ssrf")
+    return profile
+
+
+def test_simplex_assignment_fails_tx_band_check_on_rx_only_band() -> None:
+    """Baseline: without the override the band check correctly rejects TX."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        profile = _rx_only_band_root(tmp, ["asg_one"])
+        root = Path(tmp)
+
+        with pytest.raises(ProfileValidationError, match="outside the bands"):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )
+
+
+def test_tx_permitted_false_skips_the_tx_band_check() -> None:
+    """The VX-6R case: monitor a transmittable assignment on a receive-only band."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        profile = _rx_only_band_root(
+            tmp, [{"id": "asg_one", "tx_permitted": False}]
+        )
+        root = Path(tmp)
+
+        loaded = load_and_validate_profile(
+            profile,
+            [root / "ssrf"],
+            radio_root=root / "radios",
+        )
+
+    assert loaded["zones"][0]["assignments"][0]["id"] == "asg_one"
+
+
+def test_profile_rejects_tx_permitted_true() -> None:
+    """Revoke only. A profile must never be able to grant transmit permission."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        profile = root / "profile.yml"
+        _write_profile(profile, [{"id": "asg_one", "tx_permitted": True}])
+        _write_radio(root / "radios")
+        _write_ssrf(root / "ssrf")
+
+        with pytest.raises(ProfileValidationError):
+            load_and_validate_profile(
+                profile,
+                [root / "ssrf"],
+                radio_root=root / "radios",
+            )

@@ -303,7 +303,11 @@ def _resolve_assignment(
     timeslot_override: int | None = None,
     contact_default_timeslot: int | None = None,
     max_channel_name_chars: int | None = None,
+    tx_permitted_override: bool | None = None,
 ) -> list[ResolvedChannel]:
+    # tx_permitted_override is revoke-only. The profile schema pins it to false,
+    # so it can clear a transmit permission the SSRF record grants but can never
+    # create one: transmit permission is always derived from the source data.
     reference = document.reference
     extensions = extensions or {}
     authorization = next(
@@ -335,6 +339,8 @@ def _resolve_assignment(
                 or assignment.usage in {"call", "simplex"}
             )
         )
+        if tx_permitted_override is False:
+            tx_permitted = False
         return [
             ResolvedChannel(
                 reference=assignment.id,
@@ -449,6 +455,8 @@ def _resolve_assignment(
             station_rx_frequency is not None
             or assignment.usage in {"call", "simplex"}
         )
+        if tx_permitted_override is False:
+            tx_permitted = False
         emission_bandwidth = getattr(emission, "bandwidth_khz", None)
         if emission_bandwidth is None and emission is not None:
             emission_bandwidth = bandwidth_khz_from_emission(emission.emission)
@@ -611,12 +619,14 @@ def build_codeplug(
             contact_id = rx_group_id = scan_list_id = None
             assignment_dmr_id_key = None
             timeslot_override = None
+            tx_permitted_override = None
             if isinstance(assignment_value, dict):
                 contact_id = assignment_value.get("contact")
                 rx_group_id = assignment_value.get("rx_group")
                 scan_list_id = assignment_value.get("scan_list")
                 assignment_dmr_id_key = assignment_value.get("dmr_id")
                 timeslot_override = assignment_value.get("timeslot")
+                tx_permitted_override = assignment_value.get("tx_permitted")
             contact_default_timeslot = None
             if contact_id is not None:
                 selected_contact = ssrf_contacts.get(contact_id)
@@ -652,6 +662,7 @@ def build_codeplug(
                 timeslot_override,
                 contact_default_timeslot,
                 limits.get("max_channel_name_chars"),
+                tx_permitted_override,
             )
             next_channel_number += len(resolved_channels)
             for resolved_channel in resolved_channels:
