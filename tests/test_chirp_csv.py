@@ -213,6 +213,56 @@ def test_chirp_csv_mode_follows_bandwidth() -> None:
     assert [row["Mode"] for row in rows] == ["NFM", "FM", "FM"]
 
 
+def test_chirp_csv_accepts_nfm_chains_without_a_published_bandwidth() -> None:
+    """SSRF spells narrow FM as its own mode type; CHIRP export must not
+    reject it (#36). Part 90 public safety documents routinely give the mode
+    as NFM and never publish a bandwidth, so the bandwidth heuristic alone
+    would silently widen them to 25 kHz FM."""
+
+    channels = [
+        ResolvedChannel(
+            reference="paging",
+            assignment_id="paging",
+            display_name="SXPAGE",
+            rx_frequency_mhz=155.0625,
+            tx_frequency_mhz=155.0625,
+            mode="NFM",
+            service="public_safety",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            notes=None,
+        )
+    ]
+
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))
+
+    assert [row["Mode"] for row in rows] == ["NFM"]
+
+
+def test_chirp_csv_nfm_stays_narrow_even_with_a_wide_bandwidth() -> None:
+    """An explicit NFM mode wins over a contradictory bandwidth field."""
+
+    channels = [
+        ResolvedChannel(
+            reference="nfm_wide_bw",
+            assignment_id="nfm_wide_bw",
+            display_name="ODD",
+            rx_frequency_mhz=154.280,
+            tx_frequency_mhz=154.280,
+            mode="NFM",
+            service="public_safety",
+            tones=ResolvedTones(),
+            tx_permitted=False,
+            notes=None,
+            bandwidth_khz=25.0,
+        )
+    ]
+
+    rows = list(csv.DictReader(io.StringIO(chirp_csv_from_resolved(_codeplug(channels)))))
+
+    assert [row["Mode"] for row in rows] == ["NFM"]
+
+
 def test_chirp_csv_omits_power_column() -> None:
     """``chirp_common.parse_power`` takes watts only and fails the whole row
     on ``""`` or a level name, so the column is left out entirely."""

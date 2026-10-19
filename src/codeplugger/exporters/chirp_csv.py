@@ -71,6 +71,12 @@ CHIRP_HEADERS = [
 # CHIRP splits analog FM by bandwidth: NFM is 12.5 kHz, FM is 25 kHz.
 NARROW_BANDWIDTH_KHZ = 12.5
 
+# SSRF splits analog FM by bandwidth and spells the narrow variant as its own
+# mode type, but NFM is a bandwidth distinction *within* FM rather than a
+# separate modulation (#36). profile.py applies the same normalisation via its
+# own _MODE_FAMILY before the radio capability check; keep the two in step.
+_MODE_FAMILY = {"NFM": "FM"}
+
 # chirp_common.SKIP_VALUES: scan normally, skip, priority.
 CHIRP_SKIP_VALUES = ("", "S", "P")
 
@@ -181,11 +187,12 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
     writer.writeheader()
 
     for number, channel in codeplug.numbered_channels():
-        mode = (channel.mode or "FM").upper()
+        raw_mode = (channel.mode or "FM").upper()
+        mode = _MODE_FAMILY.get(raw_mode, raw_mode)
         if mode not in ("FM", "AM"):
             raise ValueError(
-                f"channel '{channel.display_name}' mode '{mode}' is unsupported "
-                "for CHIRP CSV export"
+                f"channel '{channel.display_name}' mode '{raw_mode}' is "
+                "unsupported for CHIRP CSV export"
             )
         if mode == "AM" and channel.tx_permitted:
             raise ValueError(
@@ -200,7 +207,9 @@ def chirp_csv_from_resolved(codeplug: ResolvedCodeplug) -> str:
         if mode == "AM":
             chirp_mode = "AM"
         else:
-            narrow = (
+            # An explicit NFM chain is narrow by definition, even when the
+            # source document never published a bandwidth to measure.
+            narrow = raw_mode == "NFM" or (
                 channel.bandwidth_khz is not None
                 and channel.bandwidth_khz <= NARROW_BANDWIDTH_KHZ
             )
