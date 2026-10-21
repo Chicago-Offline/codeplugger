@@ -313,26 +313,41 @@ def _contacts(
     # which would emit one identical PrivateCall entry per instance without this.
     seen_fleet: set[tuple[str, int]] = set()
     for instance in (fleet_instances or {}).values():
+        identities: list[tuple[str, int]] = []
         dmr_id = instance.get("dmr_id")
-        if dmr_id is None:
-            continue
-        name = str(instance.get("dmr_contact_name", dmr_id))
-        number = int(dmr_id)
-        key = (name, number)
-        if key in seen_fleet:
-            continue
-        seen_fleet.add(key)
-        contacts.append(
-            {
-                "dmr": {
-                    "id": f"cont{len(contacts) + 1}",
-                    "name": name,
-                    "ring": False,
-                    "type": "PrivateCall",
-                    "number": number,
+        if dmr_id is not None:
+            identities.append(
+                (str(instance.get("dmr_contact_name", dmr_id)), int(dmr_id))
+            )
+        # Secondary identities (issue #20). A radio can carry more than one DMR
+        # ID -- typically a registered amateur ID plus an unregistered
+        # family/GMRS one bound per zone. Each is a number that will appear as
+        # the source address on somebody else's display, so each needs its own
+        # PrivateCall entry; otherwise the other radios in the fleet show a bare
+        # number for every transmission made under the secondary identity.
+        for entry in instance.get("dmr_ids", []) or []:
+            number = entry.get("id")
+            if number is None:
+                continue
+            identities.append(
+                (str(entry.get("name", entry.get("key", number))), int(number))
+            )
+        for name, number in identities:
+            key = (name, number)
+            if key in seen_fleet:
+                continue
+            seen_fleet.add(key)
+            contacts.append(
+                {
+                    "dmr": {
+                        "id": f"cont{len(contacts) + 1}",
+                        "name": name,
+                        "ring": False,
+                        "type": "PrivateCall",
+                        "number": number,
+                    }
                 }
-            }
-        )
+            )
 
     group_lists: list[dict[str, Any]] = []
     rx_group_ids: dict[str, str] = {}

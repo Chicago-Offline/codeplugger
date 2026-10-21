@@ -219,6 +219,51 @@ def test_placeholder_talkgroup_and_fleet_private_contacts() -> None:
     ]
 
 
+def test_fleet_secondary_dmr_ids_become_private_contacts() -> None:
+    """A radio's extra identities must be dialable by the rest of the fleet.
+
+    An operator carrying a registered amateur ID plus an unregistered
+    family/GMRS ID transmits under whichever one the zone binds. Without a
+    contact for the secondary number, every other radio shows a bare integer
+    instead of a name.
+    """
+
+    codeplug = _codeplug((_channel(),))
+
+    document = yaml.safe_load(
+        qdmr_yaml_from_resolved(
+            codeplug,
+            fleet_instances={
+                "dm32_01": {
+                    "dmr_id": 3207125,
+                    "dmr_contact_name": "KC9MHE",
+                    "dmr_ids": [
+                        {"key": "kc9mhe", "id": 3207125, "name": "KC9MHE"},
+                        {"key": "eam_gmrs", "id": 682, "name": "Eric GMRS"},
+                    ],
+                },
+                # Unnamed secondary falls back to its key.
+                "dm32_02": {"dmr_ids": [{"key": "spare", "id": 441}]},
+            },
+        )
+    )
+
+    contacts = [entry["dmr"] for entry in document["contacts"]]
+    private = [c for c in contacts if c["type"] == "PrivateCall"]
+
+    # KC9MHE is listed once, not twice, despite appearing both as the flat
+    # dmr_id and as a dmr_ids entry.
+    assert [(c["name"], c["number"]) for c in private] == [
+        ("KC9MHE", 3207125),
+        ("Eric GMRS", 682),
+        ("spare", 441),
+    ]
+    # Contact ids stay dense and in order after the extra entries.
+    assert [c["id"] for c in contacts] == [
+        f"cont{i + 1}" for i in range(len(contacts))
+    ]
+
+
 def test_placeholder_contact_present_without_fleet_registry() -> None:
     document = yaml.safe_load(qdmr_yaml_from_resolved(_codeplug((_channel(),))))
 
