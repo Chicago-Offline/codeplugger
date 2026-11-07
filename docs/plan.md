@@ -285,11 +285,16 @@ single maintainer's forks:
    rather than a bench surprise, and the published hashes make the
    deterministic-build claim something anyone can check locally. Shared
    profiles are instance-agnostic, so no personal DMR IDs are involved
-   (qdmr output carries the `UNUSED` placeholder ID). Remaining: add the
-   other shared profiles (BF-888S, then the P4 once it has a
-   source-buildable export), give the generated radio table a column
-   linking each radio to its codeplug, and have the source repositories
-   trigger a rebuild on push instead of relying on the nightly run.
+   qdmr output carries the `UNUSED` placeholder ID). The BF-888S shared
+   profile joined the build 2026-11-06, and the source repositories now
+   dispatch a rebuild on push. Remaining: the P4 once it has a
+   source-buildable export; `chioff_dm32_chicago`, which is blocked on
+   its own drift rather than on codeplugger — twelve of its assignment
+   ids (`asgn_gmrs_chicago_575`, the `asg_interop_*` set, `asg_cta2`)
+   were renamed or removed in `ssrf-lite` after the pinned revision, so
+   the profile has to be reconciled in the shared repository first; and a
+   column in the generated radio table linking each radio to its
+   codeplug.
 2. **Upstream the forks the project is pinned to.** Three write paths
    currently depend on code that lives only in a personal fork or a local
    checkout, each a single-maintainer bus factor:
@@ -366,9 +371,9 @@ single maintainer's forks:
 
 Known gaps:
 
-- Only the DM-32 shared profile is published as a download so far; the
-  other shared profiles and the per-radio links in the support table are
-  the remainder of item 1 above.
+- Three shared profiles are published as downloads (DM-32, UV-5R Mini,
+  BF-888S); the Chicago DM-32 profile, the P4, and the per-radio links in
+  the support table are the remainder of item 1 above.
 - Three write paths depend on unmerged fork branches or local checkouts
   (benlink regions, qdmr DM-32UV extension, CHIRP BF-C50 driver); tracked
   by item 2 above.
