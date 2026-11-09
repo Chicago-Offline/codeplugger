@@ -420,7 +420,9 @@ single maintainer's forks:
    first and a link only exists for a file that exists. The links are a
    deploy-time artifact and never committed, which is why `--check` refuses
    a manifest. The published set is now the `use-cases` source plus the
-   DM-32, UV-5R Mini and BF-888S shared profiles; the `use-cases` source
+   DM-32 (the community net and the full Chicago codeplug, every DMR
+   channel receive-only since a shared profile owns no DMR ID), UV-5R Mini
+   and BF-888S shared profiles; the `use-cases` source
    also publishes for the BF-1909 and the UV-Pro. The UV-Pro download is a
    benlink region plan, derived from the radio's `benlink` capabilities
    block rather than a table column, for a radio whose write path has no
